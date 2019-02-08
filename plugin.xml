@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <plugin xmlns="http://phonegap.com/ns/plugins/1.0"
         xmlns:android="http://schemas.android.com/apk/res/android"
-        id="acidhax.cordova.chromecast"
-        version="0.0.1-alpha">
+        id="cordova-plugin-chromecast"
+        version="0.0.1">
   <engines>
     <engine name="cordova" version=">=3.4.0" />
   </engines>
@@ -15,8 +15,7 @@
 
   <js-module src="EventEmitter.js" name="EventEmitter"></js-module>
 
-  <js-module src="tests/tests.js" name="tests">
-  </js-module>
+  <js-module src="tests/tests.js" name="tests"></js-module>
 
   <platform name="android">
 
@@ -39,8 +38,8 @@
     <framework src="com.google.android.gms:play-services-gcm:7.5.0" />
     <framework src="com.google.android.gms:play-services-cast:7.5.0" />
     <framework src="com.google.android.gms:play-services-ads:7.5.0" />
-    <framework src="com.android.support:appcompat-v7:21+" />
-    <framework src="com.android.support:mediarouter-v7:21+" />
+    <framework src="com.android.support:appcompat-v7:27.1.1" />
+    <framework src="com.android.support:mediarouter-v7:27.1.1" />
 
     <source-file src="src/android/Chromecast.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/ChromecastMediaController.java" target-dir="src/acidhax/cordova/chromecast" />

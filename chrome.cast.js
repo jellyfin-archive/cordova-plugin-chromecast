@@ -1,3 +1,5 @@
+var EventEmitter = require('cordova-plugin-chromecast.EventEmitter');
+
 var chrome = {};
 chrome.cast = {
 	

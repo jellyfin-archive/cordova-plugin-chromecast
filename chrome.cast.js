@@ -491,8 +491,6 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
 			_routeRefreshInterval = setInterval(function() {
 				execute('emitAllRoutes');
 			}, 15000);
-			
-			setTimeout(function() { execute('emitAllRoutes'); }, 2000);
 
 		} else {
 			handleError(err, errorCallback);

@@ -762,7 +762,19 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 	@Override
 	public void onMessage(ChromecastSession session, String namespace, String message) {
-		sendJavascript("chrome.cast._.onMessage('" + session.getSessionId() +"', '" + namespace + "', '" + message  + "')");
+		sendJavascript("chrome.cast._.onMessage('" + session.getSessionId() +"', '" + namespace + "', '" + escape(message)  + "')");
+	}
+
+	private String escape(String raw) {
+		String escaped = raw;
+		escaped = escaped.replace("\\", "\\\\");
+		escaped = escaped.replace("\"", "\\\"");
+		escaped = escaped.replace("\b", "\\b");
+		escaped = escaped.replace("\f", "\\f");
+		escaped = escaped.replace("\n", "\\n");
+		escaped = escaped.replace("\r", "\\r");
+		escaped = escaped.replace("\t", "\\t");
+		return escaped;
 	}
 
 	//Change all @deprecated this.webView.sendJavascript(String) to this local function sendJavascript(String)

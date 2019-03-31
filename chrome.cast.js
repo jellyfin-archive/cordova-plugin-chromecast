@@ -524,7 +524,7 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
 			var appId = obj.appId;
 			var displayName = obj.displayName;
 			var appImages = obj.appImages || [];
-			var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.volume || null);
+			var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.receiver.volume || null);
 
 			var session = _sessions[sessionId] = new chrome.cast.Session(sessionId, appId, displayName, appImages, receiver);
 
@@ -1051,7 +1051,7 @@ function onRouteClick() {
 			var appId = obj.appId;
 			var displayName = obj.displayName;
 			var appImages = obj.appImages || [];
-			var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.volume || null);
+			var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.receiver.volume || null);
 
 			var session = _sessions[sessionId] = new chrome.cast.Session(sessionId, appId, displayName, appImages, receiver);
 
@@ -1145,7 +1145,7 @@ chrome.cast._ = {
 		var appId = obj.appId;
 		var displayName = obj.displayName;
 		var appImages = obj.appImages || [];
-		var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.volume || null);
+		var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.receiver.volume || null);
 
 		var session = _sessions[sessionId] = new chrome.cast.Session(sessionId, appId, displayName, appImages, receiver);
 

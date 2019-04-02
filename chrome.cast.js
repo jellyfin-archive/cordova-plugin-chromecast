@@ -947,11 +947,13 @@ chrome.cast.media.Media.prototype.setVolume = function (volumeRequest, successCa
 	if (volumeRequest.volume.muted !== null) {
 		args.push('setMediaMuted');
 		args.push(volumeRequest.volume.muted);
-	} else if (volumeRequest.volume.level) {
+	}
+
+	if (volumeRequest.volume.level) {
 		args.push('setMediaVolume');
 		args.push(volumeRequest.volume.level);
 	}
-	
+
 	if (args.length < 2) {
 		errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.INVALID_PARAMETER), 'Invalid request.', {});
 	} else {

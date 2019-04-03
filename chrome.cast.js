@@ -445,7 +445,69 @@ chrome.cast = {
 		  this.streamType = chrome.cast.media.StreamType.BUFFERED;
 		  this.contentType = contentType;
 		  this.customData = this.duration = this.metadata = null;
-		}
+		},
+
+		/**
+		 * Possible media track types.
+		 */
+		TrackType: {TEXT: "TEXT", AUDIO: "AUDIO", VIDEO: "VIDEO"},
+
+		/**
+		 * Possible text track types.
+		 */
+		TextTrackType: {SUBTITLES: "SUBTITLES", CAPTIONS: "CAPTIONS", DESCRIPTIONS: "DESCRIPTIONS", CHAPTERS: "CHAPTERS", METADATA: "METADATA"},
+
+		/**
+		 * Describes track metadata information
+		 * @param {number}											trackId Unique identifier of the track within the context of a chrome.cast.media.MediaInfo objects
+		 * @param {chrome.cast.media.TrackType}	trackType The type of track. Value must not be null.
+		 */
+		 Track: function (trackId, trackType) {
+			 this.trackId = trackId;
+			 this.type = trackType;
+			 this.customData = this.language = this.name = this.subtype = this.trackContentId = this.trackContentType = null;
+		 },
+
+		 /**
+ 		 * Possible text track edge types.
+ 		 */
+		 TextTrackEdgeType: {NONE: "NONE", OUTLINE: "OUTLINE", DROP_SHADOW: "DROP_SHADOW", RAISED: "RAISED", DEPRESSED: "DEPRESSED"},
+
+		 /**
+ 		 * Possible text track font generic family.
+ 		 */
+		 TextTrackFontGenericFamily: {
+			 	CURSIVE: "CURSIVE",
+				MONOSPACED_SANS_SERIF: "MONOSPACED_SANS_SERIF",
+				MONOSPACED_SERIF: "MONOSPACED_SERIF",
+				SANS_SERIF: "SANS_SERIF",
+				SERIF: "SERIF",
+				SMALL_CAPITALS: "SMALL_CAPITALS"
+		 },
+
+		 /**
+ 		 * Possible text track font style.
+ 		 */
+		 TextTrackFontStyle: {NORMAL: "NORMAL", BOLD: "BOLD", BOLD_ITALIC: "BOLD_ITALIC", ITALIC: "ITALIC"},
+
+		 /**
+ 		 * Possible text track window types.
+ 		 */
+		 TextTrackWindowType: {NONE: "NONE", NORMAL: "NORMAL", ROUNDED_CORNERS: "ROUNDED_CORNERS"},
+
+		 /**
+		  * Describes style information for a text track.
+			*
+			* Colors are represented as strings "#RRGGBBAA" where XX are the two hexadecimal symbols that represent
+			* the 0-255 value for the specific channel/color. It follows CSS 8-digit hex color notation (See
+			* http://dev.w3.org/csswg/css-color/#hex-notation).
+			*/
+	   TextTrackStyle: function () {
+			 this.backgroundColor = this.customData = this.edgeColor = this.edgeType =
+			 	this.fontFamily = this.fontGenericFamily = this.fontScale = this.fontStyle =
+			 	this.foregroundColor = this.windowColor = this.windowRoundedCornerRadius =
+			 	this.windowType = null;
+		 }
 	}
 };
 

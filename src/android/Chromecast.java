@@ -566,6 +566,41 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		return true;
 	}
 
+
+	/**
+	 * Handle Track changes.
+	 * @param activeTrackIds track Ids to set.
+	 * @param textTrackStyle text track style to set.
+	 * @param callbackContext
+	 * @return
+	 */
+	public boolean mediaEditTracksInfo(long[] activeTrackIds, JSONObject textTrackStyle, final CallbackContext callbackContext) {
+		if (currentSession != null) {
+			this.currentSession.mediaEditTracksInfo(activeTrackIds, textTrackStyle,
+				new ChromecastSessionCallback() {
+
+					@Override
+					void onSuccess(Object object) {
+						if (object == null) {
+							onError("unknown");
+						} else {
+							callbackContext.success((JSONObject) object);
+						}
+					}
+
+					@Override
+					void onError(String reason) {
+						callbackContext.error(reason);
+					}
+				});
+
+			return true;
+		} else {
+			callbackContext.error("session_error");
+			return false;
+		}
+	}
+
 	/**
 	 * Stops the session
 	 * @param callbackContext

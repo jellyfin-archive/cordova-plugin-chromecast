@@ -507,7 +507,20 @@ chrome.cast = {
 			 	this.fontFamily = this.fontGenericFamily = this.fontScale = this.fontStyle =
 			 	this.foregroundColor = this.windowColor = this.windowRoundedCornerRadius =
 			 	this.windowType = null;
-		 }
+		 },
+
+		 /**
+		  * A request to modify the text tracks style or change the tracks status. If a trackId does not match
+			* the existing trackIds the whole request will fail and no status will change. It is acceptable to
+			* change the text track style even if no text track is currently active.
+			* @param {number[]}														opt_activeTrackIds Optional.
+			* @param {chrome.cast.media.TextTrackStyle}		opt_textTrackSytle Optional.
+		  **/
+			EditTracksInfoRequest: function (opt_activeTrackIds, opt_textTrackSytle) {
+				this.activeTrackIds = opt_activeTrackIds;
+				this.textTrackSytle = opt_textTrackSytle;
+				this.requestId = null;
+			}
 	}
 };
 
@@ -778,11 +791,32 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
 	execute('loadMedia', mediaInfo.contentId, mediaInfo.contentType, mediaInfo.duration || 0.0, mediaInfo.streamType, loadRequest.autoplay || false, loadRequest.currentTime || 0, mediaInfo.metadata, function(err, obj) {
 		if (!err) {
 			_currentMedia = new chrome.cast.media.Media(self.sessionId, obj.mediaSessionId);
+			_currentMedia.activeTrackIds = obj.activeTrackIds;
+			_currentMedia.currentItemId = obj.currentItemId;
+			_currentMedia.idleReason = obj.idleReason;
+			_currentMedia.loadingItemId = obj.loadingItemId;
 			_currentMedia.media = mediaInfo;
 			_currentMedia.media.duration = obj.media.duration;
-			_currentMedia.currentTime = obj.currentTime /* ??? */
+			_currentMedia.media.tracks = obj.media.tracks;
+			_currentMedia.media.customData = obj.media.customData || null;
+			_currentMedia.currentTime = obj.currentTime;
+			_currentMedia.playbackRate = obj.playbackRate;
+			_currentMedia.preloadedItemId = obj.preloadedItemId;
+			_currentMedia.volume = new chrome.cast.Volume(obj.volume.level, obj.volume.muted);
 
-			// TODO: Fill in the rest of the media properties
+			_currentMedia.media.tracks = [];
+
+			obj.media.tracks.forEach((track) => {
+				let newTrack = new chrome.cast.media.Track(track.trackId, track.type);
+				newTrack.customData = track.customData || null;
+				newTrack.language = track.language || null;
+				newTrack.name = track.name || null;
+				newTrack.subtype = track.subtype || null;
+				newTrack.trackContentId = track.trackContentId || null;
+				newTrack.trackContentType = track.trackContentType || null;
+
+				_currentMedia.media.tracks.push(newTrack);
+			})
 
 			successCallback(_currentMedia);
 
@@ -1054,6 +1088,32 @@ chrome.cast.media.Media.prototype.getEstimatedTime = function () {
 		return this.currentTime;
 	}
 };
+
+/**
+ * Modifies the text tracks style or change the tracks status. If a trackId does not match
+ * the existing trackIds the whole request will fail and no status will change.
+ * @param {chrome.cast.media.EditTracksInfoRequest}		editTracksInfoRequest Value must not be null.
+ * @param {function()}																successCallback Invoked on success.
+ * @param {function(not-null chrome.cast.Error)}			errorCallback Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
+ **/
+ chrome.cast.media.Media.prototype.editTracksInfo = function (editTracksInfoRequest, successCallback, errorCallback) {
+	if (chrome.cast.isAvailable === false) {
+		errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
+		return;
+	}
+
+	var activeTracks = editTracksInfoRequest.activeTrackIds;
+	var textTrackSytle = editTracksInfoRequest.textTrackSytle;
+
+	execute('mediaEditTracksInfo', activeTracks, textTrackSytle, function (err) {
+		if (!err) {
+			successCallback && successCallback();
+		} else {
+			handleError(err, errorCallback);
+		}
+	})
+
+ }
 
 /**
  * Adds a listener that is invoked when the status of the media has changed.

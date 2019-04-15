@@ -197,9 +197,9 @@ public class ChromecastSession
 	 * @param callback
 	 * @return
 	 */
-	public boolean loadMedia(String contentId, String contentType, long duration, String streamType, boolean autoPlay, double currentTime, JSONObject metadata, JSONObject textTrackStyle, final ChromecastSessionCallback callback) {
+	public boolean loadMedia(String contentId, JSONObject customData, String contentType, long duration, String streamType, boolean autoPlay, double currentTime, JSONObject metadata, JSONObject textTrackStyle, final ChromecastSessionCallback callback) {
 		try {
-			MediaInfo mediaInfo = chromecastMediaController.createLoadUrlRequest(contentId, contentType, duration, streamType, metadata, textTrackStyle);
+			MediaInfo mediaInfo = chromecastMediaController.createLoadUrlRequest(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);
 
 			mRemoteMediaPlayer.load(mApiClient, mediaInfo, autoPlay, (long)(currentTime * 1000))
 				.setResultCallback(new ResultCallback<RemoteMediaPlayer.MediaChannelResult>() {
@@ -518,6 +518,10 @@ public class ChromecastSession
 
 		MediaStatus mediaStatus = mRemoteMediaPlayer.getMediaStatus();
 		MediaInfo mediaInfo = mediaStatus.getMediaInfo();
+
+		if (mediaInfo.getMediaTracks() == null) {
+			return out;
+		}
 
 		for (MediaTrack track : mediaInfo.getMediaTracks()) {
 			JSONObject jsonTrack = new JSONObject();

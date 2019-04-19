@@ -582,7 +582,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				trackIds[i] = activeTrackIds.getLong(i);
 			}
 		} catch (JSONException ignored) {
-
+			log("Wrong format in activeTrackIds");
 		}
 
 

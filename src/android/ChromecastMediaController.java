@@ -46,23 +46,22 @@ public class ChromecastMediaController {
 		}
 
     	int _streamType = MediaInfo.STREAM_TYPE_BUFFERED;
-    	if (streamType.equals("buffered")) {
-
-    	} else if (streamType.equals("live")) {
+    	if (streamType.equals("live")) {
     		_streamType = MediaInfo.STREAM_TYPE_LIVE;
-    	} else if (streamType.equals("other")) {
+    	}
+			if (streamType.equals("other")) {
     		_streamType = MediaInfo.STREAM_TYPE_NONE;
     	}
 
-		TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
+			TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
 
     	MediaInfo mediaInfo = new MediaInfo.Builder(contentId)
     	    .setContentType(contentType)
-			.setCustomData(customData)
+					.setCustomData(customData)
     	    .setStreamType(_streamType)
     	    .setStreamDuration(duration)
     	    .setMetadata(mediaMetadata)
-			.setTextTrackStyle(trackStyle)
+					.setTextTrackStyle(trackStyle)
     	    .build();
 
     	return mediaInfo;

@@ -45,26 +45,26 @@ public class ChromecastMediaController {
 			mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE);
 		}
 
-    	int _streamType = MediaInfo.STREAM_TYPE_BUFFERED;
-    	if (streamType.equals("live")) {
-    		_streamType = MediaInfo.STREAM_TYPE_LIVE;
-    	}
-			if (streamType.equals("other")) {
-    		_streamType = MediaInfo.STREAM_TYPE_NONE;
-    	}
+		int _streamType = MediaInfo.STREAM_TYPE_BUFFERED;
+		if (streamType.equals("live")) {
+			_streamType = MediaInfo.STREAM_TYPE_LIVE;
+		}
+				if (streamType.equals("other")) {
+			_streamType = MediaInfo.STREAM_TYPE_NONE;
+		}
 
-			TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
+		TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
 
-    	MediaInfo mediaInfo = new MediaInfo.Builder(contentId)
-    	    .setContentType(contentType)
-					.setCustomData(customData)
-    	    .setStreamType(_streamType)
-    	    .setStreamDuration(duration)
-    	    .setMetadata(mediaMetadata)
-					.setTextTrackStyle(trackStyle)
-    	    .build();
+		MediaInfo mediaInfo = new MediaInfo.Builder(contentId)
+		    .setContentType(contentType)
+		    .setCustomData(customData)
+		    .setStreamType(_streamType)
+		    .setStreamDuration(duration)
+		    .setMetadata(mediaMetadata)
+		    .setTextTrackStyle(trackStyle)
+		    .build();
 
-    	return mediaInfo;
+		return mediaInfo;
 	}
 
 	public void play(GoogleApiClient apiClient, ChromecastSessionCallback callback) {

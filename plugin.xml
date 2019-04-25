@@ -60,5 +60,7 @@
     <framework src="google-cast-sdk" type="podspec" />
 
     <source-file src="src/ios/Chromecast.swift" />
+    <source-file src="src/ios/ChromecastSession.swift" />
+    <source-file src="src/ios/CastUtilities.swift" />
   </platform>
 </plugin>

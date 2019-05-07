@@ -227,7 +227,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
 						dialog.dismiss();
-						callbackContext.error("cancel");
+						callbackContext.success("cancel");
 					}
 				});
 

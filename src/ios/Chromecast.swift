@@ -3,6 +3,13 @@ import GoogleCast
 @objc(Chromecast) class Chromecast : CDVPlugin {
   var devicesAvailable: [GCKDevice]
 
+  func sendJavascript(jsCommand: String) {
+    self.webView.evaluateJavaScript(jsCommand)
+  }
+
+  func log(s: String) {
+    self.sendJavascript("console.log(\"\(s)\")")
+  }
 
   @objc(setup:)
   func setup(command: CDVInvokedUrlCommand) {

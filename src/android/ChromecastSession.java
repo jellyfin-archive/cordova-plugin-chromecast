@@ -15,6 +15,7 @@ import com.google.android.gms.cast.Cast.ApplicationConnectionResult;
 import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaStatus;
+import com.google.android.gms.cast.MediaTrack;
 import com.google.android.gms.cast.RemoteMediaPlayer;
 import com.google.android.gms.cast.RemoteMediaPlayer.MediaChannelResult;
 import com.google.android.gms.cast.RemoteMediaPlayer.OnMetadataUpdatedListener;
@@ -29,55 +30,55 @@ import android.os.Bundle;
 import android.support.v7.media.MediaRouter.RouteInfo;
 
 /*
- * All of the Chromecast session specific functions should start here. 
+ * All of the Chromecast session specific functions should start here.
  */
-public class ChromecastSession 
-	extends Cast.Listener 
-	implements 
-		GoogleApiClient.ConnectionCallbacks, 
-		GoogleApiClient.OnConnectionFailedListener, 
-		OnMetadataUpdatedListener, 
+public class ChromecastSession
+	extends Cast.Listener
+	implements
+		GoogleApiClient.ConnectionCallbacks,
+		GoogleApiClient.OnConnectionFailedListener,
+		OnMetadataUpdatedListener,
 		OnStatusUpdatedListener,
 		Cast.MessageReceivedCallback {
 
 	private RouteInfo routeInfo = null;
-	private volatile GoogleApiClient mApiClient = null;	
+	private volatile GoogleApiClient mApiClient = null;
 	private volatile RemoteMediaPlayer mRemoteMediaPlayer;
 	private CordovaInterface cordova = null;
 	private CastDevice device = null;
 	private ChromecastMediaController chromecastMediaController;
 	private ChromecastOnMediaUpdatedListener onMediaUpdatedListener;
 	private ChromecastOnSessionUpdatedListener onSessionUpdatedListener;
-	
+
 	private volatile String appId;
 	private volatile String displayName;
 	private volatile List<WebImage> appImages;
 	private volatile String sessionId = null;
 	private volatile String lastSessionId = null;
 	private boolean isConnected = false;
-	
+
 	private ChromecastSessionCallback launchCallback;
-	private ChromecastSessionCallback joinSessionCallback; 
-	
+	private ChromecastSessionCallback joinSessionCallback;
+
 	private boolean joinInsteadOfConnecting = false;
 	private HashSet<String> messageNamespaces = new HashSet<String>();
-	
-	public ChromecastSession(RouteInfo routeInfo, CordovaInterface cordovaInterface, 
+
+	public ChromecastSession(RouteInfo routeInfo, CordovaInterface cordovaInterface,
 			ChromecastOnMediaUpdatedListener onMediaUpdatedListener, ChromecastOnSessionUpdatedListener onSessionUpdatedListener) {
 		this.cordova = cordovaInterface;
         this.onMediaUpdatedListener = onMediaUpdatedListener;
         this.onSessionUpdatedListener = onSessionUpdatedListener;
         this.routeInfo = routeInfo;
 		this.device = CastDevice.getFromBundle(this.routeInfo.getExtras());
-		
+
 		this.mRemoteMediaPlayer = new RemoteMediaPlayer();
 		this.mRemoteMediaPlayer.setOnMetadataUpdatedListener(this);
 		this.mRemoteMediaPlayer.setOnStatusUpdatedListener(this);
-		
+
 		this.chromecastMediaController = new ChromecastMediaController(mRemoteMediaPlayer);
 	}
 
-	
+
 	/**
 	 * Sets the wheels in motion - connects to the Chromecast and launches the given app
 	 * @param appId
@@ -87,9 +88,9 @@ public class ChromecastSession
 		this.launchCallback = launchCallback;
 		this.connectToDevice();
 	}
-	
+
 	public boolean isConnected() { return this.isConnected; }
-	
+
 	/**
 	 * Adds a message listener if one does not already exist
 	 * @param namespace
@@ -100,11 +101,11 @@ public class ChromecastSession
 				 Cast.CastApi.setMessageReceivedCallbacks(mApiClient, namespace, this);
 				 messageNamespaces.add(namespace);
 			} catch(Exception e) {
-				
+
 			}
 		}
 	}
-	
+
 	/**
 	 * Sends a message to a specified namespace
 	 * @param namespace
@@ -127,7 +128,7 @@ public class ChromecastSession
 			callback.onError(e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * Join a currently running app with an appId and a session
 	 * @param appId
@@ -141,7 +142,7 @@ public class ChromecastSession
 		this.lastSessionId = sessionId;
 		this.connectToDevice();
 	}
-	
+
 	/**
 	 * Kills a session and it's underlying media player
 	 * @param callback
@@ -154,9 +155,9 @@ public class ChromecastSession
 //					Cast.CastApi.stopApplication(mApiClient);
 //					mApiClient.disconnect();
 //				} catch(Exception e) {
-//					
+//
 //				}
-//				
+//
 //				callback.onSuccess();
 //			}
 //		});
@@ -164,13 +165,13 @@ public class ChromecastSession
 			Cast.CastApi.stopApplication(mApiClient);
 			mApiClient.disconnect();
 		} catch(Exception e) {
-			
+
 		}
-		
+
 		callback.onSuccess();
 //		Cast.CastApi.stopApplication(mApiClient);
 	}
-	
+
 	/**
 	 * Leaves the session.
 	 * @param callback
@@ -179,12 +180,12 @@ public class ChromecastSession
 		try {
 			Cast.CastApi.leaveApplication(mApiClient);
 		} catch(Exception e) {
-			
+
 		}
-		
+
 		callback.onSuccess();
-	}	
-	
+	}
+
 	/**
 	 * Loads media over the media API
 	 * @param contentId - The URL of the content
@@ -196,10 +197,10 @@ public class ChromecastSession
 	 * @param callback
 	 * @return
 	 */
-	public boolean loadMedia(String contentId, String contentType, long duration, String streamType, boolean autoPlay, double currentTime, JSONObject metadata, final ChromecastSessionCallback callback) {
+	public boolean loadMedia(String contentId, JSONObject customData, String contentType, long duration, String streamType, boolean autoPlay, double currentTime, JSONObject metadata, JSONObject textTrackStyle, final ChromecastSessionCallback callback) {
 		try {
-			MediaInfo mediaInfo = chromecastMediaController.createLoadUrlRequest(contentId, contentType, duration, streamType, metadata);
-			
+			MediaInfo mediaInfo = chromecastMediaController.createLoadUrlRequest(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);
+
 			mRemoteMediaPlayer.load(mApiClient, mediaInfo, autoPlay, (long)(currentTime * 1000))
 				.setResultCallback(new ResultCallback<RemoteMediaPlayer.MediaChannelResult>() {
 					@Override
@@ -209,7 +210,7 @@ public class ChromecastSession
 
                             ChromecastSession.this.onMediaUpdatedListener.onMediaLoaded(ChromecastSession.this.createMediaObject());
 							callback.onSuccess(ChromecastSession.this.createMediaObject());
-						
+
 						} else {
 							callback.onError("session_error");
 						}
@@ -228,7 +229,7 @@ public class ChromecastSession
     	}
     	return true;
 	}
-	
+
 	/**
 	 * Media API - Calls play on the current media
 	 * @param callback
@@ -236,7 +237,7 @@ public class ChromecastSession
 	public void mediaPlay(ChromecastSessionCallback callback) {
 		chromecastMediaController.play(mApiClient, callback);
 	}
-	
+
 	/**
 	 * Media API - Calls pause on the current media
 	 * @param callback
@@ -244,7 +245,7 @@ public class ChromecastSession
 	public void mediaPause(ChromecastSessionCallback callback) {
 		chromecastMediaController.pause(mApiClient, callback);
 	}
-	
+
 	/**
 	 * Media API - Seeks the current playing media
 	 * @param seekPosition - Seconds to seek to
@@ -254,7 +255,7 @@ public class ChromecastSession
 	public void mediaSeek(long seekPosition, String resumeState, ChromecastSessionCallback callback) {
 		chromecastMediaController.seek(seekPosition, resumeState, mApiClient, callback);
 	}
-	
+
 	/**
 	 * Media API - Sets the volume on the current playing media object NOT ON THE CHROMECAST DIRECTLY
 	 * @param level
@@ -263,7 +264,7 @@ public class ChromecastSession
 	public void mediaSetVolume(double level, ChromecastSessionCallback callback) {
 		chromecastMediaController.setVolume(level, mApiClient, callback);
 	}
-	
+
 	/**
 	 * Media API - Sets the muted state on the current playing media NOT THE CHROMECAST DIRECTLY
 	 * @param muted
@@ -272,7 +273,7 @@ public class ChromecastSession
 	public void mediaSetMuted(boolean muted, ChromecastSessionCallback callback) {
 		chromecastMediaController.setMuted(muted, mApiClient, callback);
 	}
-	
+
 	/**
 	 * Media API - Stops and unloads the current playing media
 	 * @param callback
@@ -280,8 +281,36 @@ public class ChromecastSession
 	public void mediaStop(ChromecastSessionCallback callback) {
 		chromecastMediaController.stop(mApiClient, callback);
 	}
-	
-	
+
+	/**
+	 * Handle track changed.
+	 * @param activeTracksIds
+	 * @param textTrackStyle
+	 * @param callback
+	 */
+	public void mediaEditTracksInfo(long[] activeTracksIds, JSONObject textTrackStyle, ChromecastSessionCallback callback) {
+		mRemoteMediaPlayer.setActiveMediaTracks(mApiClient, activeTracksIds)
+				.setResultCallback(new ResultCallback<RemoteMediaPlayer.MediaChannelResult>() {
+					@Override
+					public void onResult(MediaChannelResult result) {
+						if (!result.getStatus().isSuccess()) {
+							callback.onError("Failed to set tracks with code: " + result.getStatus().getStatusCode());
+						}
+					}
+				});
+
+		mRemoteMediaPlayer.setTextTrackStyle(mApiClient, ChromecastUtilities.parseTextTrackStyle(textTrackStyle))
+				.setResultCallback(new ResultCallback<RemoteMediaPlayer.MediaChannelResult>() {
+					@Override
+					public void onResult(MediaChannelResult result) {
+						if (!result.getStatus().isSuccess()) {
+							callback.onError("Failed to set tracks style with code: " + result.getStatus().getStatusCode());
+						}
+					}
+				});
+	}
+
+
 	/**
 	 * Sets the receiver volume level
 	 * @param volume
@@ -296,7 +325,7 @@ public class ChromecastSession
 			callback.onError(e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * Mutes the receiver
 	 * @param muted
@@ -311,27 +340,27 @@ public class ChromecastSession
 			callback.onError(e.getMessage());
 		}
 	}
-	
-	
+
+
 	/**
 	 * Connects to the device with all callbacks and things
 	 */
 	private void connectToDevice() {
 		try {
 			Cast.CastOptions.Builder apiOptionsBuilder = Cast.CastOptions.builder(this.device, this);
-			
+
 			this.mApiClient = new GoogleApiClient.Builder(this.cordova.getActivity().getApplicationContext())
 				.addApi(Cast.API, apiOptionsBuilder.build())
 		        .addConnectionCallbacks(this)
 		        .addOnConnectionFailedListener(this)
 		        .build();
-			
+
 			this.mApiClient.connect();
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * Launches the application and gets a new session
 	 */
@@ -339,7 +368,7 @@ public class ChromecastSession
 		Cast.CastApi.launchApplication(mApiClient, this.appId, false)
 			.setResultCallback(launchApplicationResultCallback);
 	}
-	
+
 	/**
 	 * Attemps to join an already running session
 	 */
@@ -347,7 +376,7 @@ public class ChromecastSession
 		Cast.CastApi.joinApplication(this.mApiClient, this.appId, this.lastSessionId)
 			.setResultCallback(joinApplicationResultCallback);
 	}
-	
+
 	/**
 	 * Connects to the remote media player on the receiver
 	 * @throws IllegalStateException
@@ -358,22 +387,22 @@ public class ChromecastSession
 		mRemoteMediaPlayer.requestStatus(mApiClient)
 		.setResultCallback(connectRemoteMediaPlayerCallback);
 	}
-	
-	
+
+
 	/**
 	 * launchApplication callback
 	 */
 	private ResultCallback<Cast.ApplicationConnectionResult> launchApplicationResultCallback = new ResultCallback<Cast.ApplicationConnectionResult>() {
 		@Override
 		public void onResult(ApplicationConnectionResult result) {
-			
+
 			ApplicationMetadata metadata = result.getApplicationMetadata();
 			ChromecastSession.this.sessionId = result.getSessionId();
 			ChromecastSession.this.displayName = metadata.getName();
 			ChromecastSession.this.appImages = metadata.getImages();
-		
+
 			Status status = result.getStatus();
-			
+
 			if (status.isSuccess()) {
 				try {
 					ChromecastSession.this.launchCallback.onSuccess(ChromecastSession.this);
@@ -389,23 +418,23 @@ public class ChromecastSession
 			}
 		}
 	};
-	
+
 	/**
 	 * joinApplication callback
 	 */
 	private ResultCallback<Cast.ApplicationConnectionResult> joinApplicationResultCallback = new ResultCallback<Cast.ApplicationConnectionResult>() {
 		@Override
 		public void onResult(ApplicationConnectionResult result) {
-		
+
 			Status status = result.getStatus();
-			
+
 			if (status.isSuccess()) {
 				try {
 					ApplicationMetadata metadata = result.getApplicationMetadata();
 					ChromecastSession.this.sessionId = result.getSessionId();
 					ChromecastSession.this.displayName = metadata.getName();
 					ChromecastSession.this.appImages = metadata.getImages();
-					
+
 					ChromecastSession.this.joinSessionCallback.onSuccess(ChromecastSession.this);
 					connectRemoteMediaPlayer();
 					ChromecastSession.this.isConnected = true;
@@ -420,7 +449,7 @@ public class ChromecastSession
 			}
 		}
 	};
-	
+
 	/**
 	 * connectRemoteMediaPlayer callback
 	 */
@@ -435,127 +464,172 @@ public class ChromecastSession
 			}
 		}
 	};
-	
+
 	/**
 	 * Creates a JSON representation of this session
 	 * @return
 	 */
-	public JSONObject createSessionObject() {		
+	public JSONObject createSessionObject() {
 		JSONObject out = new JSONObject();
 		try {
 			out.put("appId", this.appId);
 			out.put("media", createMediaObject());
-		
+
 			if (this.appImages != null) {
 				JSONArray appImages = new JSONArray();
 				for(WebImage o : this.appImages) {
 					appImages.put(o.toString());
 				}
 			}
-			
+
 			out.put("appImages", appImages);
 			out.put("sessionId", this.sessionId);
 			out.put("displayName", this.displayName);
-			
+
 			JSONObject receiver = new JSONObject();
 			receiver.put("friendlyName", this.device.getFriendlyName());
 			receiver.put("label", this.device.getDeviceId());
-			
+
 			JSONObject volume = new JSONObject();
 			try {
 				volume.put("level", Cast.CastApi.getVolume(mApiClient));
 				volume.put("muted", Cast.CastApi.isMute(mApiClient));
 			} catch(Exception e) {
-				
+
 			}
-			
+
 			receiver.put("volume", volume);
-			
+
 			out.put("receiver", receiver);
-			
+
 		} catch(JSONException e) {
 			e.printStackTrace();
 		}
-		
+
 		return out;
 	}
-	
+
+	/**
+	 * Creates a JSON representation of all Tracks available in the current media.
+	 * @return
+	 */
+	private JSONArray createMediaInfoTracks() {
+		JSONArray out = new JSONArray();
+
+		MediaStatus mediaStatus = mRemoteMediaPlayer.getMediaStatus();
+		MediaInfo mediaInfo = mediaStatus.getMediaInfo();
+
+		if (mediaInfo.getMediaTracks() == null) {
+			return out;
+		}
+
+		for (MediaTrack track : mediaInfo.getMediaTracks()) {
+			JSONObject jsonTrack = new JSONObject();
+
+			try {
+				jsonTrack.put("trackId", track.getId());
+				jsonTrack.put("customData", track.getCustomData());
+				jsonTrack.put("language", track.getLanguage());
+				jsonTrack.put("name", track.getName());
+				jsonTrack.put("subtype", ChromecastUtilities.getTrackSubtype(track));
+				jsonTrack.put("trackContentId", track.getContentId());
+				jsonTrack.put("trackContentType", track.getContentType());
+				jsonTrack.put("type", ChromecastUtilities.getTrackType(track));
+
+				out.put(jsonTrack);
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+
+		return out;
+	}
+
+
+	/**
+	 * Creates a JSON representation of current MediaInfo of the session.
+	 * @return
+	 */
+	private JSONObject createMediaInfoObject() {
+		JSONObject out = new JSONObject();
+
+		MediaStatus mediaStatus = mRemoteMediaPlayer.getMediaStatus();
+		MediaInfo mediaInfo = mediaStatus.getMediaInfo();
+
+		try {
+			out.put("contentId", mediaInfo.getContentId());
+			out.put("contentType", mediaInfo.getContentType());
+			out.put("customData", mediaInfo.getCustomData());
+			out.put("duration", mediaInfo.getStreamDuration() / 1000.0);
+			out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));
+			out.put("tracks", this.createMediaInfoTracks());
+			out.put("textTrackStyle", ChromecastUtilities.createTextTrackObject(mediaInfo.getTextTrackStyle()));
+
+			// TODO: Check if it's useful
+			//out.put("metadata", mediaInfo.getMetadata());
+
+			return out;
+		} catch (JSONException e) {
+			e.printStackTrace();
+			return out;
+		}
+	}
+
 	/**
 	 * Creates a JSON representation of the current playing media
 	 * @return
 	 */
 	private JSONObject createMediaObject() {
 		JSONObject out = new JSONObject();
-		JSONObject objInfo = new JSONObject();
-		
+
 		MediaStatus mediaStatus = mRemoteMediaPlayer.getMediaStatus();
 		if (mediaStatus == null) {
 			return out;
 		}
-		
-		MediaInfo mediaInfo = mediaStatus.getMediaInfo();
+
 		try {
-			out.put("media", objInfo);
-			out.put("mediaSessionId", 1);
-			out.put("sessionId", this.sessionId);
+			out.put("currentItemId", mediaStatus.getCurrentItemId());
 			out.put("currentTime", mediaStatus.getStreamPosition() / 1000.0);
-			out.put("playbackRate", mediaStatus.getPlaybackRate());
 			out.put("customData", mediaStatus.getCustomData());
-			
-			switch(mediaStatus.getPlayerState()) {
-				case MediaStatus.PLAYER_STATE_BUFFERING:
-					out.put("playerState", "BUFFERING"); break;
-				case MediaStatus.PLAYER_STATE_IDLE:
-					out.put("playerState", "IDLE"); break;
-				case MediaStatus.PLAYER_STATE_PAUSED:
-					out.put("playerState", "PAUSED"); break;
-				case MediaStatus.PLAYER_STATE_PLAYING:
-					out.put("playerState", "PLAYING"); break;
-				case MediaStatus.PLAYER_STATE_UNKNOWN:
-					out.put("playerState", "UNKNOWN"); break;
-			}
-			
-			switch(mediaStatus.getIdleReason()) {
-				case MediaStatus.IDLE_REASON_CANCELED:
-					out.put("idleReason", "canceled"); break;
-				case MediaStatus.IDLE_REASON_ERROR:
-					out.put("idleReason", "error"); break;
-				case MediaStatus.IDLE_REASON_FINISHED:
-					out.put("idleReason", "finished"); break;
-				case MediaStatus.IDLE_REASON_INTERRUPTED:
-					out.put("idleReason", "iterrupted"); break;
-				case MediaStatus.IDLE_REASON_NONE:
-					out.put("idleReason", "none"); break;
-			}
-			
+			out.put("idleReason", ChromecastUtilities.getMediaIdleReason(mediaStatus));
+			out.put("loadingItemId", mediaStatus.getLoadingItemId());
+			out.put("media", this.createMediaInfoObject());
+			out.put("mediaSessionId", 1);
+			out.put("playbackRate", mediaStatus.getPlaybackRate());
+			out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus));
+			out.put("preloadedItemId", mediaStatus.getPreloadedItemId());
+			out.put("sessionId", this.sessionId);
+
+			// TODO: We can add Queue Items to make the plugin more generic
+			//out.put("items", mediaStatus.getQueueItems());
+			//out.put("repeatMode", mediaStatus.getQueueRepeatMode());
+
 			JSONObject volume = new JSONObject();
 			volume.put("level", mediaStatus.getStreamVolume());
 			volume.put("muted", mediaStatus.isMute());
-			
+
 			out.put("volume", volume);
-			
-			try {
-				objInfo.put("duration", mediaInfo.getStreamDuration() / 1000.0);
-				switch(mediaInfo.getStreamType()) {
-					case MediaInfo.STREAM_TYPE_BUFFERED:
-						objInfo.put("streamType", "buffered"); break;
-					case MediaInfo.STREAM_TYPE_LIVE:
-						objInfo.put("streamType", "live"); break;
-					case MediaInfo.STREAM_TYPE_NONE:
-						objInfo.put("streamType", "other"); break;
+
+
+			long[] activeTrackIds = mediaStatus.getActiveTrackIds();
+
+			if (activeTrackIds != null) {
+				JSONArray activeTracks = new JSONArray();
+				for (long activeTrackId : activeTrackIds) {
+					activeTracks.put(activeTrackId);
 				}
-			} catch (Exception e) {
-				
+				out.put("activeTrackIds", activeTracks);
 			}
-			
+
+
+			return out;
 		} catch(JSONException e) {
-			
+			e.printStackTrace();
+			return out;
 		}
-		
-		return out;
 	}
-	
-	
+
+
 
 	/* GoogleApiClient.ConnectionCallbacks implementation
 	 * Called when we successfully connect to the API
@@ -570,8 +644,8 @@ public class ChromecastSession
 			this.launchApplication();
 		}
 	}
-	
-	
+
+
 	/* GoogleApiClient.ConnectionCallbacks implementation
 	 * (non-Javadoc)
 	 * @see com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks#onConnectionSuspended(android.os.Bundle)
@@ -583,7 +657,7 @@ public class ChromecastSession
 			this.onSessionUpdatedListener.onSessionUpdated(false, this.createSessionObject());
 		}
 	}
-	
+
 	/*
 	 * GoogleApiClient.OnConnectionFailedListener implementation
 	 * When Google API fails to connect.
@@ -597,7 +671,7 @@ public class ChromecastSession
 			this.launchCallback.onError("channel_error");
 		}
 	}
-	
+
 	/**
 	 * Cast.Listener implementation
 	 * When Chromecast application status changed
@@ -609,7 +683,7 @@ public class ChromecastSession
 			this.onSessionUpdatedListener.onSessionUpdated(true, createSessionObject());
 		}
 	}
-	
+
 	/**
 	 * Cast.Listener implementation
 	 * When the volume is changed on the Chromecast
@@ -620,7 +694,7 @@ public class ChromecastSession
 			this.onSessionUpdatedListener.onSessionUpdated(true, createSessionObject());
 		}
 	}
-	
+
 	/**
 	 * Cast.Listener implementation
 	 * When the application is disconnected
@@ -648,8 +722,8 @@ public class ChromecastSession
 			this.onMediaUpdatedListener.onMediaUpdated(true, this.createMediaObject());
 		}
 	}
-	
-	
+
+
 	/// GETTERS
 	public String getSessionId() {
 		return this.sessionId;

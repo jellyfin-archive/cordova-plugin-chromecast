@@ -443,10 +443,10 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param  loadRequest.currentTime Where to begin playing from
 	 * @param  callbackContext
 	 */
-	public boolean loadMedia (String contentId, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, final CallbackContext callbackContext) {
+	public boolean loadMedia (String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
 
 		if (this.currentSession != null) {
-			return this.currentSession.loadMedia(contentId, contentType, duration, streamType, autoPlay, currentTime, metadata,
+			return this.currentSession.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, currentTime, metadata, textTrackStyle,
 					new ChromecastSessionCallback() {
 
 						@Override
@@ -469,8 +469,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			return false;
 		}
 	}
-	public boolean loadMedia (String contentId, String contentType, Integer duration, String streamType, Boolean autoPlay, Integer currentTime, JSONObject metadata, final CallbackContext callbackContext) {
-		return this.loadMedia (contentId, contentType, duration, streamType, autoPlay, new Double(currentTime.doubleValue()), metadata, callbackContext);
+	public boolean loadMedia (String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Integer currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
+		return this.loadMedia (contentId, customData, contentType, duration, streamType, autoPlay, new Double(currentTime.doubleValue()), metadata, textTrackStyle, callbackContext);
 	}
 
 	/**
@@ -564,6 +564,52 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		}
 
 		return true;
+	}
+
+
+	/**
+	 * Handle Track changes.
+	 * @param activeTrackIds track Ids to set.
+	 * @param textTrackStyle text track style to set.
+	 * @param callbackContext
+	 * @return
+	 */
+	public boolean mediaEditTracksInfo(JSONArray activeTrackIds, JSONObject textTrackStyle, final CallbackContext callbackContext) {
+		long[] trackIds = new long[activeTrackIds.length()];
+
+		try {
+			for (int i = 0; i < activeTrackIds.length(); i++) {
+				trackIds[i] = activeTrackIds.getLong(i);
+			}
+		} catch (JSONException ignored) {
+			log("Wrong format in activeTrackIds");
+		}
+
+
+		if (currentSession != null) {
+			this.currentSession.mediaEditTracksInfo(trackIds, textTrackStyle,
+				new ChromecastSessionCallback() {
+
+					@Override
+					void onSuccess(Object object) {
+						if (object == null) {
+							onError("unknown");
+						} else {
+							callbackContext.success((JSONObject) object);
+						}
+					}
+
+					@Override
+					void onError(String reason) {
+						callbackContext.error(reason);
+					}
+				});
+
+			return true;
+		} else {
+			callbackContext.error("session_error");
+			return false;
+		}
 	}
 
 	/**

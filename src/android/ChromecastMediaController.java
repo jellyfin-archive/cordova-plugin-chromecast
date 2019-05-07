@@ -25,7 +25,7 @@ public class ChromecastMediaController {
 
 	public MediaInfo createLoadUrlRequest(String contentId, JSONObject customData, String contentType, long duration, String streamType, JSONObject metadata, JSONObject textTrackStyle) {
 
-        // Try creating a GENERIC MediaMetadata obj
+		// Try creating a GENERIC MediaMetadata obj
 		MediaMetadata mediaMetadata = new MediaMetadata();
 		try {
 
@@ -45,27 +45,27 @@ public class ChromecastMediaController {
 			mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE);
 		}
 
-    	int _streamType = MediaInfo.STREAM_TYPE_BUFFERED;
-    	if (streamType.equals("buffered")) {
+		int _streamType = MediaInfo.STREAM_TYPE_BUFFERED;
+		if (streamType.equals("buffered")) {
 
-    	} else if (streamType.equals("live")) {
-    		_streamType = MediaInfo.STREAM_TYPE_LIVE;
-    	} else if (streamType.equals("other")) {
-    		_streamType = MediaInfo.STREAM_TYPE_NONE;
-    	}
+		} else if (streamType.equals("live")) {
+			_streamType = MediaInfo.STREAM_TYPE_LIVE;
+		} else if (streamType.equals("other")) {
+			_streamType = MediaInfo.STREAM_TYPE_NONE;
+		}
 
 		TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
 
-    	MediaInfo mediaInfo = new MediaInfo.Builder(contentId)
-    	    .setContentType(contentType)
+		MediaInfo mediaInfo = new MediaInfo.Builder(contentId)
+			.setContentType(contentType)
 			.setCustomData(customData)
-    	    .setStreamType(_streamType)
-    	    .setStreamDuration(duration)
-    	    .setMetadata(mediaMetadata)
+			.setStreamType(_streamType)
+			.setStreamDuration(duration)
+			.setMetadata(mediaMetadata)
 			.setTextTrackStyle(trackStyle)
-    	    .build();
+			.build();
 
-    	return mediaInfo;
+		return mediaInfo;
 	}
 
 	public void play(GoogleApiClient apiClient, ChromecastSessionCallback callback) {
@@ -126,19 +126,19 @@ public class ChromecastMediaController {
 		};
 	}
 
-    private MediaMetadata addImages(JSONObject metadata, MediaMetadata mediaMetadata) throws JSONException {
-        if (metadata.has("images")) {
-            JSONArray imageUrls = metadata.getJSONArray("images");
-            for (int i=0; i<imageUrls.length(); i++) {
-                JSONObject imageObj = imageUrls.getJSONObject(i);
-                String imageUrl = imageObj.has("url") ? imageObj.getString("url") : "undefined";
-                if (imageUrl.indexOf("http://")<0) { continue; } // TODO: don't add image?
-                Uri imageURI = Uri.parse( imageUrl );
-                WebImage webImage = new WebImage(imageURI);
-                mediaMetadata.addImage(webImage);
-            }
-        }
-        return mediaMetadata;
-    }
+	private MediaMetadata addImages(JSONObject metadata, MediaMetadata mediaMetadata) throws JSONException {
+		if (metadata.has("images")) {
+			JSONArray imageUrls = metadata.getJSONArray("images");
+			for (int i=0; i<imageUrls.length(); i++) {
+				JSONObject imageObj = imageUrls.getJSONObject(i);
+				String imageUrl = imageObj.has("url") ? imageObj.getString("url") : "undefined";
+				if (imageUrl.indexOf("http://")<0) { continue; } // TODO: don't add image?
+				Uri imageURI = Uri.parse( imageUrl );
+				WebImage webImage = new WebImage(imageURI);
+				mediaMetadata.addImage(webImage);
+			}
+		}
+		return mediaMetadata;
+	}
 
 }

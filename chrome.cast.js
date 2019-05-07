@@ -496,31 +496,31 @@ chrome.cast = {
 		 TextTrackWindowType: {NONE: "NONE", NORMAL: "NORMAL", ROUNDED_CORNERS: "ROUNDED_CORNERS"},
 
 		 /**
-		  * Describes style information for a text track.
-			*
-			* Colors are represented as strings "#RRGGBBAA" where XX are the two hexadecimal symbols that represent
-			* the 0-255 value for the specific channel/color. It follows CSS 8-digit hex color notation (See
-			* http://dev.w3.org/csswg/css-color/#hex-notation).
-			*/
-	   TextTrackStyle: function () {
-			 this.backgroundColor = this.customData = this.edgeColor = this.edgeType =
-			 	this.fontFamily = this.fontGenericFamily = this.fontScale = this.fontStyle =
-			 	this.foregroundColor = this.windowColor = this.windowRoundedCornerRadius =
-			 	this.windowType = null;
+		 * Describes style information for a text track.
+		 *
+		 * Colors are represented as strings "#RRGGBBAA" where XX are the two hexadecimal symbols that represent
+		 * the 0-255 value for the specific channel/color. It follows CSS 8-digit hex color notation (See
+		 * http://dev.w3.org/csswg/css-color/#hex-notation).
+		 */
+		TextTrackStyle: function () {
+			this.backgroundColor = this.customData = this.edgeColor = this.edgeType =
+			this.fontFamily = this.fontGenericFamily = this.fontScale = this.fontStyle =
+			this.foregroundColor = this.windowColor = this.windowRoundedCornerRadius =
+			this.windowType = null;
 		 },
 
 		 /**
-		  * A request to modify the text tracks style or change the tracks status. If a trackId does not match
-			* the existing trackIds the whole request will fail and no status will change. It is acceptable to
-			* change the text track style even if no text track is currently active.
-			* @param {number[]}														opt_activeTrackIds Optional.
-			* @param {chrome.cast.media.TextTrackStyle}		opt_textTrackSytle Optional.
-		  **/
-			EditTracksInfoRequest: function (opt_activeTrackIds, opt_textTrackSytle) {
-				this.activeTrackIds = opt_activeTrackIds;
-				this.textTrackSytle = opt_textTrackSytle;
-				this.requestId = null;
-			}
+		 * A request to modify the text tracks style or change the tracks status. If a trackId does not match
+		 * the existing trackIds the whole request will fail and no status will change. It is acceptable to
+		 * change the text track style even if no text track is currently active.
+		 * @param {number[]}							opt_activeTrackIds Optional.
+		 * @param {chrome.cast.media.TextTrackStyle}	opt_textTrackSytle Optional.
+		 **/
+		EditTracksInfoRequest: function (opt_activeTrackIds, opt_textTrackSytle) {
+			this.activeTrackIds = opt_activeTrackIds;
+			this.textTrackSytle = opt_textTrackSytle;
+			this.requestId = null;
+		}
 	}
 };
 

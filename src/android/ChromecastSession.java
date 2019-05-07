@@ -537,8 +537,8 @@ public class ChromecastSession
 				jsonTrack.put("type", ChromecastUtilities.getTrackType(track));
 
 				out.put(jsonTrack);
-			} catch (JSONException ignored) {
-
+			} catch (JSONException e) {
+				e.printStackTrace();
 			}
 		}
 
@@ -570,6 +570,7 @@ public class ChromecastSession
 
 			return out;
 		} catch (JSONException e) {
+			e.printStackTrace();
 			return out;
 		}
 	}
@@ -623,6 +624,7 @@ public class ChromecastSession
 
 			return out;
 		} catch(JSONException e) {
+			e.printStackTrace();
 			return out;
 		}
 	}

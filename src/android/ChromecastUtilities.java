@@ -163,7 +163,6 @@ class ChromecastUtilities {
             return out;
         }
 
-
         try {
             if (!textTrackSytle.isNull("backgroundColor")) {
                 out.setBackgroundColor(Color.parseColor(textTrackSytle.getString("backgroundColor")));
@@ -177,8 +176,8 @@ class ChromecastUtilities {
                 out.setForegroundColor(Color.parseColor(textTrackSytle.getString("foregroundColor")));
             }
 
-        } catch (JSONException ignored) {
-
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
 
 
@@ -207,8 +206,8 @@ class ChromecastUtilities {
             out.put("windowRoundedCornerRadius", textTrackStyle.getWindowCornerRadius());
             out.put("windowType", getWindowType(textTrackStyle));
 
-        } catch (JSONException ignored) {
-
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
 
         return out;

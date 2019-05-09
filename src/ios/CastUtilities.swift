@@ -2,13 +2,13 @@ import Foundation
 import GoogleCast
 
 class CastUtilities {
-  static func buildMediaInformation(contentUrl: String, customData: Any, contentType: String, duration: Double, streamType: String, textTrackStyle: Any) -> GCKMediaInformation{
-    let url = URL.init(string: contentUrl)
+  static func buildMediaInformation(contentUrl: String, customData: Any, contentType: String, duration: Double, streamType: String, textTrackStyle: Data) -> GCKMediaInformation{
+    let url = URL.init(string: contentUrl)!
 
     let mediaInfoBuilder = GCKMediaInformationBuilder.init(contentURL: url)
     mediaInfoBuilder.customData = customData
     mediaInfoBuilder.contentType = contentType
-    mediaInfoBuilder.streamDuration = duration.round()
+    mediaInfoBuilder.streamDuration = Double(duration).rounded()
 
     switch streamType {
     case "buffered":
@@ -19,13 +19,13 @@ class CastUtilities {
       mediaInfoBuilder.streamType = GCKMediaStreamType.none
     }
 
-    mediaInfoBuilder.textTrackStyle = CastUtilities.buildTextTrackStyle(textTrackStyle)
+    mediaInfoBuilder.textTrackStyle = CastUtilities.buildTextTrackStyle(data: textTrackStyle)
 
 
     return mediaInfoBuilder.build()
   }
 
-  static func buildTextTrackStyle(data: Any) -> GCKMediaTextTrackStyle {
+  static func buildTextTrackStyle(data: Data) -> GCKMediaTextTrackStyle {
     let json = try? JSONSerialization.jsonObject(with: data, options: [])
 
     let mediaTextTrackStyle = GCKMediaTextTrackStyle.createDefault()
@@ -35,7 +35,7 @@ class CastUtilities {
         mediaTextTrackStyle.backgroundColor = GCKColor.init(cssString: bkgColor)
       }
 
-      if let customData = dict["customData"] as? Any {
+      if let customData = dict["customData"] {
         mediaTextTrackStyle.customData = customData
       }
 
@@ -48,7 +48,7 @@ class CastUtilities {
       }
 
       if let fontFamily = dict["fontFamily"] as? String {
-        textTrackStyle.fontFamily = fontFamily
+        mediaTextTrackStyle.fontFamily = fontFamily
       }
 
       if let fontGenericFamily = dict["fontGenericFamily"] as? String {
@@ -56,7 +56,7 @@ class CastUtilities {
       }
 
       if let fontScale = dict["fontScale"] as? Float {
-        textTrackStyle.fontScale = fontScale
+        mediaTextTrackStyle.fontScale = CGFloat(fontScale)
       }
 
       if let fontStyle = dict["fontStyle"] as? String {
@@ -72,7 +72,7 @@ class CastUtilities {
       }
 
       if let wRoundedCorner = dict["windowRoundedCornerRadius"] as? Float {
-        mediaTextTrackStyle.windowRoundedCornerRadius = wRoundedCorner
+        mediaTextTrackStyle.windowRoundedCornerRadius = CGFloat(wRoundedCorner)
       }
 
       if let windowType = dict["windowType"] as? String {

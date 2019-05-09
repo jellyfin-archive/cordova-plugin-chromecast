@@ -51,13 +51,20 @@
   </platform>
 
   <platform name="ios">
-    <config-file target="res/xml/config.xml" parent="/*">
+    <config-file target="config.xml" parent="/*">
       <feature name="Chromecast">
         <param name="ios-package" value="Chromecast"/>
       </feature>
     </config-file>
 
-    <framework src="google-cast-sdk" type="podspec" />
+    <podspec>
+      <config>
+        <source url="https://github.com/CocoaPods/Specs.git"/>
+      </config>
+      <pods use-frameworks="true">
+        <pod name="google-cast-sdk" spec="~> 4.4.1" />
+      </pods>
+    </podspec>
 
     <source-file src="src/ios/Chromecast.swift" />
     <source-file src="src/ios/ChromecastSession.swift" />

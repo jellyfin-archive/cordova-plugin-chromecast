@@ -66,6 +66,13 @@
       </pods>
     </podspec>
 
+    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Debug.plist">
+      <true/>
+    </config-file>
+    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Release.plist">
+      <true/>
+    </config-file>
+
     <source-file src="src/ios/Chromecast.swift" />
     <source-file src="src/ios/ChromecastSession.swift" />
     <source-file src="src/ios/CastUtilities.swift" />

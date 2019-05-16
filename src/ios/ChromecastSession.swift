@@ -1,89 +1,201 @@
 import GoogleCast
 
 @objc (ChromecastSession) class ChromecastSession : NSObject {
-  var commandDelegate: CDVCommandDelegate?
-  var command: CDVInvokedUrlCommand?
-  var currentSession: GCKCastSession?
-  var remoteMediaClient: GCKRemoteMediaClient?
+    var commandDelegate: CDVCommandDelegate?
+    var initialCommand: CDVInvokedUrlCommand?
+    var currentSession: GCKCastSession?
+    var remoteMediaClient: GCKRemoteMediaClient?
+    var castContext: GCKCastContext?
+    var requestDelegates: [CastRequestDelegate] = []
+    var sessionListener: CastSessionListener?
 
-  init(cordovaDelegate: CDVCommandDelegate, cordovaCommand: CDVInvokedUrlCommand) {
-    self.commandDelegate = cordovaDelegate
-    self.command = cordovaCommand
-    self.currentSession = GCKCastContext.sharedInstance().sessionManager.currentCastSession
-    self.remoteMediaClient = (self.currentSession?.remoteMediaClient)
-  }
+    init(_ withDevice: GCKDevice, cordovaDelegate: CDVCommandDelegate, initialCommand: CDVInvokedUrlCommand) {
+        super.init()
+        self.commandDelegate = cordovaDelegate
+        self.initialCommand = initialCommand
 
-  func setReceiverVolumeLevel(newLevel: Float) {
-    let request = remoteMediaClient?.setStreamVolume(newLevel)
-    request?.delegate = self
-  }
+        self.castContext = GCKCastContext.sharedInstance()
+        self.castContext?.sessionManager.add(self)
 
-  func setReceiverMuted(muted: Bool) {
-    let request = remoteMediaClient?.setStreamMuted(muted)
-    request?.delegate = self
-  }
+        self.createSession(withDevice)
+    }
 
-  func loadMedia(_ mediaInfo: GCKMediaInformation, _ autoPlay: Bool, _ currentTime: Double) {
-    let request = remoteMediaClient?.loadMedia(mediaInfo, autoplay: autoPlay, playPosition: currentTime)
-    request?.delegate = self
-  }
+    func add(_ listener: CastSessionListener) {
+        self.sessionListener = listener
+    }
 
-  func mediaPlay() {
-    let request = remoteMediaClient?.play()
-    request?.delegate = self
-  }
+    func createSession(_ device: GCKDevice?) {
+        if (device != nil) {
+            castContext?.sessionManager.startSession(with: device!)
+        } else {
+            let pluginResult = CDVPluginResult(
+                status: CDVCommandStatus_ERROR,
+                messageAs: "Cannot connect to selected cast device."
+            )
 
-  func mediaPause() {
-    let request = remoteMediaClient?.pause()
-    request?.delegate = self
-  }
+            self.commandDelegate!.send(pluginResult, callbackId: self.initialCommand?.callbackId)
+        }
+    }
 
-  func mediaStop() {
-    let request = remoteMediaClient?.stop()
-    request?.delegate = self
-  }
+    func createGeneralRequestDelegate(_ command: CDVInvokedUrlCommand) -> CastRequestDelegate {
+        self.checkFinishedDelegates()
 
-  func setActiveTracks(activeTrackIds: [NSNumber]) {
-    let request = remoteMediaClient?.setActiveTrackIDs(activeTrackIds)
-    request?.delegate = self
-  }
+        let delegate = CastRequestDelegate(success: {
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK)
+            self.commandDelegate!.send(pluginResult, callbackId: command.callbackId)
+        }, failure: {(error: GCKError) in
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR)
+            self.commandDelegate!.send(pluginResult, callbackId: command.callbackId)
+        }, abortion: { (abortReason: GCKRequestAbortReason) in
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR)
+            self.commandDelegate!.send(pluginResult, callbackId: command.callbackId)
+        })
+
+        self.requestDelegates.append(delegate)
+
+        return delegate
+    }
+
+    func setReceiverVolumeLevel(_ withCommand: CDVInvokedUrlCommand, newLevel: Float) {
+        let delegate = self.createGeneralRequestDelegate(withCommand)
+
+        let request = remoteMediaClient?.setStreamVolume(newLevel)
+        request?.delegate = delegate
+    }
+
+    func setReceiverMuted(_ withCommand: CDVInvokedUrlCommand, muted: Bool) {
+        let delegate = self.createGeneralRequestDelegate(withCommand)
+
+        let request = remoteMediaClient?.setStreamMuted(muted)
+        request?.delegate = delegate
+    }
+
+    func loadMedia(_ withCommand: CDVInvokedUrlCommand, mediaInfo: GCKMediaInformation, autoPlay: Bool, currentTime: Double) {
+        self.checkFinishedDelegates()
+
+        let requestDelegate = CastRequestDelegate(success: {
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: CastUtilities.createMediaObject(self.currentSession!) as! [String : Any])
+            self.commandDelegate!.send(pluginResult, callbackId: withCommand.callbackId)
+        }, failure: {(error: GCKError) in
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: error.description)
+            self.commandDelegate!.send(pluginResult, callbackId: withCommand.callbackId)
+        }, abortion: { (abortReason: GCKRequestAbortReason) in
+            let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: abortReason.rawValue)
+            self.commandDelegate!.send(pluginResult, callbackId: withCommand.callbackId)
+        })
+        self.requestDelegates.append(requestDelegate)
+
+        let options = GCKMediaLoadOptions.init()
+        options.autoplay = autoPlay
+        options.playPosition = currentTime
+
+        let request = remoteMediaClient?.loadMedia(mediaInfo, with: options)
+        request?.delegate = requestDelegate
+    }
+
+    func mediaSeek(_ withCommand: CDVInvokedUrlCommand, position: TimeInterval, resumeState: GCKMediaResumeState) {
+        let delegate = self.createGeneralRequestDelegate(withCommand)
+
+        let options = GCKMediaSeekOptions()
+        options.interval = position
+        options.resumeState = resumeState
+
+        let request = remoteMediaClient?.seek(with: options)
+        request?.delegate = delegate
+    }
+
+
+    func mediaPlay(_ withCommand: CDVInvokedUrlCommand) {
+        let delegate = self.createGeneralRequestDelegate(withCommand)
+
+        let request = remoteMediaClient?.play()
+        request?.delegate = delegate
+    }
+
+    func mediaPause(_ withCommand: CDVInvokedUrlCommand) {
+        let delegate = self.createGeneralRequestDelegate(withCommand)
+
+        let request = remoteMediaClient?.pause()
+        request?.delegate = delegate
+    }
+
+    func mediaStop(_ withCommand: CDVInvokedUrlCommand) {
+        let delegate = self.createGeneralRequestDelegate(withCommand)
+
+        let request = remoteMediaClient?.stop()
+        request?.delegate = delegate
+    }
+
+    func setActiveTracks(_ withCommand: CDVInvokedUrlCommand, activeTrackIds: [NSNumber], textTrackStyle: GCKMediaTextTrackStyle) {
+        let delegate = self.createGeneralRequestDelegate(withCommand)
+
+        var request = remoteMediaClient?.setActiveTrackIDs(activeTrackIds)
+        request?.delegate = delegate
+
+        request = remoteMediaClient?.setTextTrackStyle(textTrackStyle)
+    }
+
+    private func checkFinishedDelegates() {
+        self.requestDelegates = self.requestDelegates.filter({ (delegate: CastRequestDelegate) -> Bool in
+            return !delegate.finished
+        })
+    }
 }
 
-// Methods from GCKRequestDelegate
-extension ChromecastSession : GCKRequestDelegate {
-  func requestDidComplete(_ request: GCKRequest) {
-    let pluginResult = CDVPluginResult(
-        status: CDVCommandStatus_OK,
-        messageAs: Int(request.requestID)
-    )
+extension ChromecastSession : GCKSessionManagerListener {
+    func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKCastSession) {
+        self.currentSession = session
+        self.remoteMediaClient = session.remoteMediaClient
+        self.remoteMediaClient?.add(self)
 
-    self.commandDelegate!.send(
-      pluginResult,
-      callbackId: command?.callbackId
-    )
-  }
-
-  func request(_ request: GCKRequest, didFailWithError error: GCKError) {
-    let pluginResult = CDVPluginResult(
-        status: CDVCommandStatus_ERROR,
-        messageAs: "Error"
-    )
-
-    self.commandDelegate!.send(
-      pluginResult,
-      callbackId: command?.callbackId
-    )
-  }
-
-    func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) {
         let pluginResult = CDVPluginResult(
-        status: CDVCommandStatus_ERROR,
-        messageAs: abortReason.rawValue
-    )
+            status: CDVCommandStatus_OK,
+            messageAs: CastUtilities.createSessionObject(session) as! [String: Any]
+        )
 
-    self.commandDelegate!.send(
-      pluginResult,
-      callbackId: command?.callbackId
-    )
-  }
+        self.commandDelegate!.send(
+            pluginResult,
+            callbackId: self.initialCommand?.callbackId
+        )
+    }
+
+    func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKCastSession, withError error: Error?) {
+        self.currentSession = nil
+        self.remoteMediaClient = nil
+
+        if (error != nil) {
+            let pluginResult = CDVPluginResult(
+                status: CDVCommandStatus_ERROR,
+                messageAs: error.debugDescription as String
+            )
+            self.commandDelegate!.send(
+                pluginResult,
+                callbackId: initialCommand?.callbackId
+            )
+        }
+
+       self.sessionListener?.onSessionUpdated(CastUtilities.createSessionObject(session), isAlive: false)
+    }
+}
+
+extension ChromecastSession : GCKRemoteMediaClientListener {
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didStartMediaSessionWithID sessionID: Int) {
+        let media = CastUtilities.createMediaObject(self.currentSession!)
+
+        self.sessionListener?.onMediaLoaded(media)
+    }
+
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
+        if (self.currentSession == nil) {
+           self.sessionListener?.onMediaUpdated([:], isAlive: false)
+           return
+        }
+
+        let media = CastUtilities.createMediaObject(self.currentSession!)
+        self.sessionListener?.onMediaUpdated(media, isAlive: true)
+    }
+
+    func remoteMediaClientDidUpdatePreloadStatus(_ client: GCKRemoteMediaClient) {
+        self.remoteMediaClient(client, didUpdate: nil)
+    }
 }

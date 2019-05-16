@@ -2,14 +2,15 @@ import GoogleCast
 
 @objc(Chromecast) class Chromecast : CDVPlugin {
   var devicesAvailable: [GCKDevice] = []
+    var currentSession: ChromecastSession?
 
-//  func sendJavascript(jsCommand: String) {
-////    self.webView.evaluateJavaScript(jsCommand)
-//  }
-//
-//  func log(s: String) {
-//    self.sendJavascript(jsCommand: "console.log(\"\(s)\")")
-//  }
+  func sendJavascript(jsCommand: String) {
+    self.webViewEngine.evaluateJavaScript(jsCommand, completionHandler: nil)
+  }
+
+  func log(_ s: String) {
+    self.sendJavascript(jsCommand: "console.log(\">>Chromecast-iOS: \(s)\")")
+  }
 
   @objc(setup:)
   func setup(command: CDVInvokedUrlCommand) {
@@ -34,55 +35,75 @@ import GoogleCast
     let criteria = GCKDiscoveryCriteria(applicationID: appId)
     let options = GCKCastOptions(discoveryCriteria: criteria)
     options.physicalVolumeButtonsWillControlDeviceVolume = true
-
+    options.disableDiscoveryAutostart = false
     GCKCastContext.setSharedInstanceWith(options)
 
     GCKCastContext.sharedInstance().discoveryManager.add(self)
 
     // For debugging purpose
     GCKLogger.sharedInstance().delegate = self
+
+    self.log("API Initialized with appID \(appId)")
+
+    self.checkReceiverAvailable()
+
+    let pluginResult = CDVPluginResult(
+        status: CDVCommandStatus_OK
+    )
+
+    self.commandDelegate!.send(
+        pluginResult,
+        callbackId: command.callbackId
+    )
   }
+
+    func checkReceiverAvailable() {
+        let sessionManager = GCKCastContext.sharedInstance().sessionManager
+
+        if (self.devicesAvailable.count > 0 || (sessionManager.currentSession != nil)) {
+            self.sendJavascript(jsCommand: "chrome.cast._.receiverAvailable()")
+        } else {
+            self.sendJavascript(jsCommand: "chrome.cast._.receiverUnavailable()")
+        }
+
+    }
 
   @objc(requestSession:)
   func requestSession(command: CDVInvokedUrlCommand) {
-    // No arguments
-    let alert  = UIAlertController(title: "Cast to", message: nil, preferredStyle: .alert)
+    let alert  = UIAlertController(title: "Cast to", message: nil, preferredStyle: .actionSheet)
 
     for device in self.devicesAvailable {
       alert.addAction(
         UIAlertAction(title: device.friendlyName , style: UIAlertAction.Style.default, handler: {(_) in
-            print(device.friendlyName ?? "" + "(" + device.uniqueID ?? "" + ")")
+            self.currentSession = ChromecastSession(device, cordovaDelegate: self.commandDelegate, initialCommand: command)
+            self.currentSession?.add(self)
         })
       )
     }
 
     alert.addAction(
-        UIAlertAction(title: "Cancel", style: UIAlertAction.Style.destructive, handler: nil)
+        UIAlertAction(title: "Cancel", style: UIAlertAction.Style.cancel, handler: nil)
     )
 
     self.viewController?.present(alert, animated: true, completion: nil)
   }
 
-  @objc(setReceiverVolumeLevel:)
-  func setReceiverVolumeLevel(command: CDVInvokedUrlCommand) {
-    let newLevel = command.arguments[0] as? Float ?? 1.0
+  @objc(setMediaVolume:)
+  func setMediaVolume(command: CDVInvokedUrlCommand) {
+    let newLevel = command.arguments[0] as? Double ?? 1.0
 
-    let session = ChromecastSession(cordovaDelegate: self.commandDelegate, cordovaCommand: command)
-    session.setReceiverVolumeLevel(newLevel: newLevel)
+    self.currentSession?.setReceiverVolumeLevel(command, newLevel: Float(newLevel))
   }
 
-  @objc(setReceiverMuted:)
-  func setReceiverMuted(command: CDVInvokedUrlCommand) {
+  @objc(setMediaMuted:)
+  func setMediaMuted(command: CDVInvokedUrlCommand) {
     let muted = command.arguments[0] as? Bool ?? false
 
-    let session = ChromecastSession(cordovaDelegate: self.commandDelegate, cordovaCommand: command)
-    session.setReceiverMuted(muted: muted)
+    self.currentSession?.setReceiverMuted(command, muted: muted)
   }
 
   @objc(sessionStop:)
   func sessionStop(command: CDVInvokedUrlCommand) {
-    // No arguments
-
     let result = GCKCastContext.sharedInstance().sessionManager.endSessionAndStopCasting(true)
 
     let pluginResult = CDVPluginResult(
@@ -98,8 +119,6 @@ import GoogleCast
 
   @objc(sessionLeave:)
   func sessionLeave(command: CDVInvokedUrlCommand) {
-    // No arguments
-
     let result = GCKCastContext.sharedInstance().sessionManager.endSession()
 
     let pluginResult = CDVPluginResult(
@@ -135,8 +154,7 @@ import GoogleCast
 
     let mediaInfo = CastUtilities.buildMediaInformation(contentUrl: contentId, customData: customData, contentType: contentType, duration: duration, streamType: streamType, textTrackStyle: textTrackStyle)
 
-    let session = ChromecastSession(cordovaDelegate: self.commandDelegate, cordovaCommand: command)
-    session.loadMedia(mediaInfo, autoplay, currentTime)
+    self.currentSession?.loadMedia(command, mediaInfo: mediaInfo, autoPlay: autoplay, currentTime: currentTime)
   }
 
   @objc(addMessageListener:)
@@ -148,18 +166,12 @@ import GoogleCast
 
   @objc(mediaPlay:)
   func mediaPlay(command: CDVInvokedUrlCommand) {
-    // No arguments
-
-    let session = ChromecastSession(cordovaDelegate: self.commandDelegate, cordovaCommand: command)
-    session.mediaPlay()
+    self.currentSession?.mediaPlay(command)
   }
 
   @objc(mediaPause:)
   func mediaPause(command: CDVInvokedUrlCommand) {
-    // No arguments
-
-    let session = ChromecastSession(cordovaDelegate: self.commandDelegate, cordovaCommand: command)
-    session.mediaPause()
+    self.currentSession?.mediaPause(command)
   }
 
   @objc(mediaSeek:)
@@ -167,31 +179,41 @@ import GoogleCast
     let currentTime = command.arguments[0] as? Int ?? 0
     let resumeState = command.arguments[1] as? String ?? ""
 
-    // TODO: Implement
+    let resumeStateObj = CastUtilities.parseResumeState(resumeState)
+
+    self.currentSession?.mediaSeek(command, position: TimeInterval(currentTime), resumeState: resumeStateObj)
   }
 
   @objc(mediaStop:)
   func mediaStop(command: CDVInvokedUrlCommand) {
-    // No arguments
-
-    let session = ChromecastSession(cordovaDelegate: self.commandDelegate, cordovaCommand: command)
-    session.mediaStop()
+    self.currentSession?.mediaStop(command)
   }
 
   @objc(mediaEditTracksInfo:)
   func mediaEditTracksInfo(command: CDVInvokedUrlCommand) {
     let activeTrackIds = command.arguments[0] as? [NSNumber] ?? [NSNumber]()
-    let textTrackStyle = command.arguments[1]
+    let textTrackStyle = command.arguments[1] as? Data ?? Data()
 
-    let session = ChromecastSession(cordovaDelegate: self.commandDelegate, cordovaCommand: command)
-    session.setActiveTracks(activeTrackIds: activeTrackIds)
+    let textTrackStyleObject = CastUtilities.buildTextTrackStyle(data: textTrackStyle)
+    self.currentSession?.setActiveTracks(command, activeTrackIds: activeTrackIds, textTrackStyle: textTrackStyleObject)
   }
 
   @objc(selectRoute:)
   func selectRoute(command: CDVInvokedUrlCommand) {
-    let routeId = command.arguments[0] as? String ?? ""
+    let routeID = command.arguments[0] as? String ?? ""
 
-    // TODO: Implement
+    let device = GCKCastContext.sharedInstance().discoveryManager.device(withUniqueID: routeID)
+
+    if (device != nil) {
+        self.currentSession = ChromecastSession(device!, cordovaDelegate: self.commandDelegate, initialCommand: command)
+        self.currentSession?.add(self)
+    } else {
+        let pluginResult = CDVPluginResult(
+            status: CDVCommandStatus_ERROR,
+            messageAs: "selectRoute: Invalid Device ID"
+        )
+        self.commandDelegate!.send(pluginResult, callbackId: command.callbackId)
+    }
   }
 
   @objc(emitAllRoutes:)
@@ -204,21 +226,65 @@ import GoogleCast
 
 extension Chromecast: GCKLoggerDelegate {
     func logMessage(_ message: String, at level: GCKLoggerLevel, fromFunction function: String, location: String) {
-        print("Message from Chromecast = \(message)")
+        print(">>>>>> GCKLogger = \(message), \(level), \(function), \(location)")
+        self.log("GCKLogger = \(message), \(level), \(function), \(location)")
     }
 }
 
 extension Chromecast : GCKDiscoveryManagerListener {
-    func didInsertDevice(_ device: GCKDevice, atIndex: Int) {
-        self.devicesAvailable.insert(device, at: atIndex)
+    private func deviceToJson(_ device: GCKDevice) -> String {
+        let deviceJson = ["name": device.friendlyName ?? device.deviceID, "id": device.uniqueID] as NSDictionary
+
+        return CastUtilities.convertDictToJsonString(deviceJson)
     }
 
-    func didUpdateDevice(_ device: GCKDevice, atIndex: Int) {
-        self.devicesAvailable.remove(at: atIndex)
-        self.devicesAvailable.insert(device, at: atIndex)
+    func didInsert(_ device: GCKDevice, at index: UInt) {
+        self.log(device.friendlyName ?? device.deviceID)
+        self.devicesAvailable.insert(device, at: Int(index))
+
+        self.checkReceiverAvailable()
+
+        // Notify JS API of new available device
+        self.sendJavascript(jsCommand: "chrome.cast._.routeAdded(\(self.deviceToJson(device)));")
     }
 
-    func didRemoveDevice(_ device: GCKDevice, atIndex: Int) {
-        self.devicesAvailable.remove(at: atIndex)
+    func didUpdate(_ device: GCKDevice, at index: UInt, andMoveTo newIndex: UInt) {
+        self.devicesAvailable.remove(at: Int(index))
+        self.devicesAvailable.insert(device, at: Int(newIndex))
+
+        self.checkReceiverAvailable()
+    }
+
+    func didRemove(_ device: GCKDevice, at index: UInt) {
+        self.devicesAvailable.remove(at: Int(index))
+
+        self.checkReceiverAvailable()
+
+        // Notify JS API of new unavailable device
+        self.sendJavascript(jsCommand: "chrome.cast._.routeRemoved(\(self.deviceToJson(device)));")
+    }
+}
+
+extension Chromecast : CastSessionListener {
+    func onMediaLoaded(_ media: NSDictionary) {
+        self.sendJavascript(jsCommand: "chrome.cast._.mediaLoaded(true, \(CastUtilities.convertDictToJsonString(media)));")
+    }
+
+    func onMediaUpdated(_ media: NSDictionary, isAlive: Bool) {
+        if (isAlive) {
+            self.sendJavascript(jsCommand: "chrome.cast._.mediaUpdated(true, \(CastUtilities.convertDictToJsonString(media)));")
+        } else {
+            self.sendJavascript(jsCommand: "chrome.cast._.mediaUpdated(false, \(CastUtilities.convertDictToJsonString(media)));")
+        }
+    }
+
+    func onSessionUpdated(_ session: NSDictionary, isAlive: Bool) {
+        if (isAlive) {
+            self.sendJavascript(jsCommand: "chrome.cast._.sessionUpdated(true, \(CastUtilities.convertDictToJsonString(session)));")
+        } else {
+            self.log("SESSION DESTROY!")
+            self.sendJavascript(jsCommand: "chrome.cast._.sessionUpdated(false, \(CastUtilities.convertDictToJsonString(session)));")
+            self.currentSession = nil
+        }
     }
 }

@@ -76,5 +76,6 @@
     <source-file src="src/ios/Chromecast.swift" />
     <source-file src="src/ios/ChromecastSession.swift" />
     <source-file src="src/ios/CastUtilities.swift" />
+    <source-file src="src/ios/CastRequestDelegate.swift" />
   </platform>
 </plugin>

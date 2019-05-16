@@ -149,10 +149,10 @@ import GoogleCast
     let streamType = command.arguments[4] as? String ?? ""
     let autoplay = command.arguments[5] as? Bool ?? true
     let currentTime = command.arguments[6] as? Double ?? 0
-    let metadata = command.arguments[7]
+    let metadata = command.arguments[7] as? Data ?? Data()
     let textTrackStyle = command.arguments[8] as? Data ?? Data()
 
-    let mediaInfo = CastUtilities.buildMediaInformation(contentUrl: contentId, customData: customData, contentType: contentType, duration: duration, streamType: streamType, textTrackStyle: textTrackStyle)
+    let mediaInfo = CastUtilities.buildMediaInformation(contentUrl: contentId, customData: customData, contentType: contentType, duration: duration, streamType: streamType, textTrackStyle: textTrackStyle, metadata: metadata)
 
     self.currentSession?.loadMedia(command, mediaInfo: mediaInfo, autoPlay: autoplay, currentTime: currentTime)
   }
@@ -194,7 +194,7 @@ import GoogleCast
     let activeTrackIds = command.arguments[0] as? [NSNumber] ?? [NSNumber]()
     let textTrackStyle = command.arguments[1] as? Data ?? Data()
 
-    let textTrackStyleObject = CastUtilities.buildTextTrackStyle(data: textTrackStyle)
+    let textTrackStyleObject = CastUtilities.buildTextTrackStyle(textTrackStyle)
     self.currentSession?.setActiveTracks(command, activeTrackIds: activeTrackIds, textTrackStyle: textTrackStyleObject)
   }
 

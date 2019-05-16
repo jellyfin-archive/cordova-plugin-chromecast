@@ -2,7 +2,7 @@ import Foundation
 import GoogleCast
 
 class CastUtilities {
-    static func buildMediaInformation(contentUrl: String, customData: Any, contentType: String, duration: Double, streamType: String, textTrackStyle: Data) -> GCKMediaInformation{
+    static func buildMediaInformation(contentUrl: String, customData: Any, contentType: String, duration: Double, streamType: String, textTrackStyle: Data, metadata: Data) -> GCKMediaInformation{
         let url = URL.init(string: contentUrl)!
 
         let mediaInfoBuilder = GCKMediaInformationBuilder.init(contentURL: url)
@@ -19,13 +19,14 @@ class CastUtilities {
             mediaInfoBuilder.streamType = GCKMediaStreamType.none
         }
 
-        mediaInfoBuilder.textTrackStyle = CastUtilities.buildTextTrackStyle(data: textTrackStyle)
+        mediaInfoBuilder.textTrackStyle = CastUtilities.buildTextTrackStyle(textTrackStyle)
+        mediaInfoBuilder.metadata = CastUtilities.buildMediaMetadata(metadata)
 
 
         return mediaInfoBuilder.build()
     }
 
-    static func buildTextTrackStyle(data: Data) -> GCKMediaTextTrackStyle {
+    static func buildTextTrackStyle(_ data: Data) -> GCKMediaTextTrackStyle {
         let json = try? JSONSerialization.jsonObject(with: data, options: [])
 
         let mediaTextTrackStyle = GCKMediaTextTrackStyle.createDefault()
@@ -84,13 +85,62 @@ class CastUtilities {
         return mediaTextTrackStyle
     }
 
+    static func buildMediaMetadata(_ data: Data) -> GCKMediaMetadata {
+        var mediaMetadata = GCKMediaMetadata(metadataType: GCKMediaMetadataType.generic)
+
+        let json = try? JSONSerialization.jsonObject(with: data, options: [])
+
+        if let dict = json as? [String: Any] {
+            if let metadataType = dict["metadataType"] as? Int {
+                mediaMetadata = GCKMediaMetadata(metadataType: parseMediaMetadataType(metadataType))
+            }
+
+            if let title = dict["title"] as? String {
+                mediaMetadata.setString(title, forKey: kGCKMetadataKeyTitle)
+            }
+
+            if let subtitle = dict["subtitle"] as? String {
+                mediaMetadata.setString(subtitle, forKey: kGCKMetadataKeySubtitle)
+            }
+
+            if let imagesRaw = dict["images"] as? Data {
+                let images = getMetadataImages(imagesRaw)
+
+                images.forEach { (i: GCKImage) in
+                    mediaMetadata.addImage(i)
+                }
+            }
+        }
+
+        return mediaMetadata
+    }
+
+    static func getMetadataImages(_ imagesRaw: Data) -> [GCKImage] {
+        var images = [GCKImage]()
+        let json = try? JSONSerialization.jsonObject(with: imagesRaw, options: [])
+
+        if let array = json as? [[String: Any]] {
+            array.forEach { (dict: [String : Any]) in
+                if let urlString = dict["url"] as? String {
+                    let url = URL.init(string: urlString)!
+                    let width = dict["width"] as? Int ?? 100
+                    let heigth = dict["height"] as? Int ?? 100
+
+                    images.append(GCKImage(url: url, width: width, height: heigth))
+                }
+            }
+        }
+
+        return images
+    }
+
     static func createSessionObject(_ session: GCKCastSession) -> NSDictionary {
         return [
-            "appId": session.applicationMetadata?.applicationID,
+            "appId": session.applicationMetadata?.applicationID ?? "",
             "media": createMediaObject(session) as NSDictionary,
             "appImages": [:] as NSDictionary,
-            "sessionId": session.sessionID,
-            "displayName": session.applicationMetadata?.applicationName,
+            "sessionId": session.sessionID ?? "",
+            "displayName": session.applicationMetadata?.applicationName ?? "",
             "receiver": [
                 "friendlyName": session.device.friendlyName ?? "",
                 "label": session.device.uniqueID
@@ -140,7 +190,7 @@ class CastUtilities {
         }
 
         return [
-            "contentId": mediaInfo!.contentID,
+            "contentId": mediaInfo!.contentID ?? "",
             "contentType": mediaInfo!.contentType,
             "customData": mediaInfo!.customData ?? [:],
             "duration": mediaInfo!.streamDuration,
@@ -397,6 +447,23 @@ class CastUtilities {
             return GCKMediaResumeState.play
         default:
             return GCKMediaResumeState.unchanged
+        }
+    }
+
+    static func parseMediaMetadataType(_ metadataType: Int) -> GCKMediaMetadataType {
+        switch metadataType {
+        case 0:
+            return GCKMediaMetadataType.generic
+        case 1:
+            return GCKMediaMetadataType.tvShow
+        case 2:
+            return GCKMediaMetadataType.movie
+        case 3:
+            return GCKMediaMetadataType.musicTrack
+        case 4:
+            return GCKMediaMetadataType.photo
+        default:
+            return GCKMediaMetadataType.generic
         }
     }
 

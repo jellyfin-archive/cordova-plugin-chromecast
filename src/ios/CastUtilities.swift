@@ -166,7 +166,7 @@ class CastUtilities {
 
         return [
             "currentItemId": mediaStatus!.currentItemID,
-            "currentTime": mediaStatus!.streamPosition,
+            "currentTime": Int(mediaStatus!.streamPosition),
             "customData": mediaStatus!.customData ?? [:],
             "idleReason": getIdleReason(mediaStatus!.idleReason),
             "loadingItemId": mediaStatus?.loadingItemID ?? 0,

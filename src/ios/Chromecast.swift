@@ -132,14 +132,6 @@ import GoogleCast
     )
   }
 
-  @objc(sendMessage:)
-  func sendMessage(command: CDVInvokedUrlCommand) {
-    let namespace = command.arguments[0] as? String ?? ""
-    let message = command.arguments[1] as? String ?? ""
-
-    // TODO: Implement
-  }
-
   @objc(loadMedia:)
   func loadMedia(command: CDVInvokedUrlCommand) {
     let contentId = command.arguments[0] as? String ?? ""
@@ -155,6 +147,14 @@ import GoogleCast
     let mediaInfo = CastUtilities.buildMediaInformation(contentUrl: contentId, customData: customData, contentType: contentType, duration: duration, streamType: streamType, textTrackStyle: textTrackStyle, metadata: metadata)
 
     self.currentSession?.loadMedia(command, mediaInfo: mediaInfo, autoPlay: autoplay, currentTime: currentTime)
+  }
+
+  @objc(sendMessage:)
+  func sendMessage(command: CDVInvokedUrlCommand) {
+      let namespace = command.arguments[0] as? String ?? ""
+      let message = command.arguments[1] as? String ?? ""
+
+      // TODO: Implement
   }
 
   @objc(addMessageListener:)
@@ -214,13 +214,6 @@ import GoogleCast
         )
         self.commandDelegate!.send(pluginResult, callbackId: command.callbackId)
     }
-  }
-
-  @objc(emitAllRoutes:)
-  func emitAllRoutes(command: CDVInvokedUrlCommand) {
-    // No arguments
-
-    // TODO: Implement
   }
 }
 

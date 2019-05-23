@@ -174,7 +174,7 @@ extension ChromecastSession : GCKSessionManagerListener {
             )
         }
 
-       self.sessionListener?.onSessionUpdated(CastUtilities.createSessionObject(session), isAlive: false)
+        self.sessionListener?.onSessionUpdated(CastUtilities.createSessionObject(session), isAlive: false)
     }
 }
 
@@ -187,8 +187,8 @@ extension ChromecastSession : GCKRemoteMediaClientListener {
 
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
         if (self.currentSession == nil) {
-           self.sessionListener?.onMediaUpdated([:], isAlive: false)
-           return
+            self.sessionListener?.onMediaUpdated([:], isAlive: false)
+            return
         }
 
         let media = CastUtilities.createMediaObject(self.currentSession!)

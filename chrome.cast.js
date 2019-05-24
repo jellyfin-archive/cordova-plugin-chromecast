@@ -1041,22 +1041,23 @@ chrome.cast.media.Media.prototype.setVolume = function (volumeRequest, successCa
 		errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
 		return;
 	}
-	var args = [];
+	var argsMuted = [];
+  var argsVolume = [];
 
 	if (volumeRequest.volume.muted !== null) {
-		args.push('setMediaMuted');
-		args.push(volumeRequest.volume.muted);
+		argsMuted.push('setMediaMuted');
+		argsMuted.push(volumeRequest.volume.muted);
 	}
 
 	if (volumeRequest.volume.level) {
-		args.push('setMediaVolume');
-		args.push(volumeRequest.volume.level);
+		argsVolume.push('setMediaVolume');
+		argsVolume.push(volumeRequest.volume.level);
 	}
 
-	if (args.length < 2) {
+	if (argsMuted.length < 2 && argsVolume.length < 2) {
 		errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.INVALID_PARAMETER), 'Invalid request.', {});
 	} else {
-		args.push(function(err) {
+		var callback = (function(err) {
 			if (!err) {
 				successCallback && successCallback();
 			} else {
@@ -1064,7 +1065,11 @@ chrome.cast.media.Media.prototype.setVolume = function (volumeRequest, successCa
 			}
 		});
 
-		execute.apply(null, args);
+	  argsMuted.push(callback);
+	  argsVolume.push(callback);
+
+	  execute.apply(null, argsMuted);
+	  execute.apply(null, argsVolume);
 	}
 };
 

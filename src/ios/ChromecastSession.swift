@@ -8,6 +8,7 @@ import GoogleCast
     var castContext: GCKCastContext?
     var requestDelegates: [CastRequestDelegate] = []
     var sessionListener: CastSessionListener?
+    var genericChannels: [String : GCKGenericChannel] = [:]
 
     init(_ withDevice: GCKDevice, cordovaDelegate: CDVCommandDelegate, initialCommand: CDVInvokedUrlCommand) {
         super.init()
@@ -25,7 +26,7 @@ import GoogleCast
     }
 
     func createSession(_ device: GCKDevice?) {
-        if (device != nil) {
+        if device != nil {
             castContext?.sessionManager.startSession(with: device!)
         } else {
             let pluginResult = CDVPluginResult(
@@ -91,6 +92,47 @@ import GoogleCast
 
         let request = remoteMediaClient?.loadMedia(mediaInfo, with: options)
         request?.delegate = requestDelegate
+    }
+
+    func createMessageChannel(_ withCommand: CDVInvokedUrlCommand, namespace: String) {
+        let newChannel = GCKGenericChannel(namespace: namespace)
+        newChannel.delegate = self
+
+        self.genericChannels.updateValue(newChannel, forKey: namespace)
+        self.currentSession?.add(newChannel)
+
+        let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK)
+        self.commandDelegate!.send(pluginResult, callbackId: withCommand.callbackId)
+    }
+
+    func sendMessage(_ withCommand: CDVInvokedUrlCommand, namespace: String, message: String) {
+        let channel = self.genericChannels[namespace] ?? nil
+
+        var pluginResult =  CDVPluginResult(
+            status: CDVCommandStatus_ERROR,
+            messageAs: "Namespace '\(namespace)' not fouded."
+        )
+
+        if channel != nil {
+            var error: GCKError?
+            channel?.sendTextMessage(message, error: &error)
+
+            if error != nil {
+                pluginResult =  CDVPluginResult(
+                    status: CDVCommandStatus_ERROR,
+                    messageAs: error!.description
+                )
+            } else {
+                pluginResult =  CDVPluginResult(
+                    status: CDVCommandStatus_OK
+                )
+            }
+        }
+
+        self.commandDelegate!.send(
+            pluginResult,
+            callbackId: withCommand.callbackId
+        )
     }
 
     func mediaSeek(_ withCommand: CDVInvokedUrlCommand, position: TimeInterval, resumeState: GCKMediaResumeState) {
@@ -163,7 +205,7 @@ extension ChromecastSession : GCKSessionManagerListener {
         self.currentSession = nil
         self.remoteMediaClient = nil
 
-        if (error != nil) {
+        if error != nil {
             let pluginResult = CDVPluginResult(
                 status: CDVCommandStatus_ERROR,
                 messageAs: error.debugDescription as String
@@ -174,7 +216,7 @@ extension ChromecastSession : GCKSessionManagerListener {
             )
         }
 
-        self.sessionListener?.onSessionUpdated(CastUtilities.createSessionObject(session), isAlive: false)
+       self.sessionListener?.onSessionUpdated(CastUtilities.createSessionObject(session), isAlive: false)
     }
 }
 
@@ -186,9 +228,9 @@ extension ChromecastSession : GCKRemoteMediaClientListener {
     }
 
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
-        if (self.currentSession == nil) {
-            self.sessionListener?.onMediaUpdated([:], isAlive: false)
-            return
+        if self.currentSession == nil {
+           self.sessionListener?.onMediaUpdated([:], isAlive: false)
+           return
         }
 
         let media = CastUtilities.createMediaObject(self.currentSession!)
@@ -197,5 +239,13 @@ extension ChromecastSession : GCKRemoteMediaClientListener {
 
     func remoteMediaClientDidUpdatePreloadStatus(_ client: GCKRemoteMediaClient) {
         self.remoteMediaClient(client, didUpdate: nil)
+    }
+}
+
+extension ChromecastSession : GCKGenericChannelDelegate {
+    func cast(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
+        let currentSession = CastUtilities.createSessionObject(self.currentSession!)
+
+        self.sessionListener?.onMessageReceived(currentSession, namespace: protocolNamespace, message: message)
     }
 }

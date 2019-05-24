@@ -154,19 +154,19 @@ class CastUtilities {
     }
 
     static func createMediaObject(_ session: GCKCastSession) -> NSDictionary {
-        if (session.remoteMediaClient == nil) {
+        if session.remoteMediaClient == nil {
             return [:]
         }
 
         let mediaStatus = session.remoteMediaClient?.mediaStatus
 
-        if (mediaStatus == nil) {
+        if mediaStatus == nil {
             return [:]
         }
 
         return [
             "currentItemId": mediaStatus!.currentItemID,
-            "currentTime": Int(mediaStatus!.streamPosition),
+            "currentTime": mediaStatus!.streamPosition,
             "customData": mediaStatus!.customData ?? [:],
             "idleReason": getIdleReason(mediaStatus!.idleReason),
             "loadingItemId": mediaStatus?.loadingItemID ?? 0,
@@ -185,7 +185,7 @@ class CastUtilities {
     }
 
     static func createMediaInfoObject(_ mediaInfo: GCKMediaInformation?) -> NSDictionary {
-        if (mediaInfo == nil) {
+        if mediaInfo == nil {
             return [:]
         }
 
@@ -203,7 +203,7 @@ class CastUtilities {
     static func getMediaTracks(_ mediaTracks:[GCKMediaTrack]?) -> [NSDictionary] {
         var tracks = [NSDictionary]()
 
-        if (mediaTracks == nil) {
+        if mediaTracks == nil {
             return tracks
         }
 
@@ -226,7 +226,7 @@ class CastUtilities {
     }
 
     static func getTextTrackStyle(_ textTrackStyle: GCKMediaTextTrackStyle?) -> NSDictionary {
-        if (textTrackStyle == nil) {
+        if textTrackStyle == nil {
             return [:]
         }
 

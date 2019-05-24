@@ -36,4 +36,5 @@ protocol CastSessionListener {
     func onMediaLoaded(_ media: NSDictionary)
     func onMediaUpdated(_ media: NSDictionary, isAlive: Bool)
     func onSessionUpdated(_ session: NSDictionary, isAlive: Bool)
+    func onMessageReceived(_ session: NSDictionary, namespace: String, message: String)
 }

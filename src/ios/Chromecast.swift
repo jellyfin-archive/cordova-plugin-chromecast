@@ -57,16 +57,16 @@ import GoogleCast
     )
   }
 
-    func checkReceiverAvailable() {
-        let sessionManager = GCKCastContext.sharedInstance().sessionManager
+  func checkReceiverAvailable() {
+    let sessionManager = GCKCastContext.sharedInstance().sessionManager
 
-        if (self.devicesAvailable.count > 0 || (sessionManager.currentSession != nil)) {
-            self.sendJavascript(jsCommand: "chrome.cast._.receiverAvailable()")
-        } else {
-            self.sendJavascript(jsCommand: "chrome.cast._.receiverUnavailable()")
-        }
-
+    if self.devicesAvailable.count > 0 || (sessionManager.currentSession != nil) {
+        self.sendJavascript(jsCommand: "chrome.cast._.receiverAvailable()")
+    } else {
+        self.sendJavascript(jsCommand: "chrome.cast._.receiverUnavailable()")
     }
+
+  }
 
   @objc(requestSession:)
   func requestSession(command: CDVInvokedUrlCommand) {
@@ -149,19 +149,19 @@ import GoogleCast
     self.currentSession?.loadMedia(command, mediaInfo: mediaInfo, autoPlay: autoplay, currentTime: currentTime)
   }
 
-  @objc(sendMessage:)
-  func sendMessage(command: CDVInvokedUrlCommand) {
-      let namespace = command.arguments[0] as? String ?? ""
-      let message = command.arguments[1] as? String ?? ""
-
-      // TODO: Implement
-  }
-
   @objc(addMessageListener:)
   func addMessageListener(command: CDVInvokedUrlCommand) {
     let namespace = command.arguments[0] as? String ?? ""
 
-    // TODO: Implement
+    self.currentSession?.createMessageChannel(command, namespace: namespace)
+  }
+
+  @objc(sendMessage:)
+  func sendMessage(command: CDVInvokedUrlCommand) {
+    let namespace = command.arguments[0] as? String ?? ""
+    let message = command.arguments[1] as? String ?? ""
+
+    self.currentSession?.sendMessage(command, namespace: namespace, message: message)
   }
 
   @objc(mediaPlay:)
@@ -204,7 +204,7 @@ import GoogleCast
 
     let device = GCKCastContext.sharedInstance().discoveryManager.device(withUniqueID: routeID)
 
-    if (device != nil) {
+    if device != nil {
         self.currentSession = ChromecastSession(device!, cordovaDelegate: self.commandDelegate, initialCommand: command)
         self.currentSession?.add(self)
     } else {
@@ -219,7 +219,6 @@ import GoogleCast
 
 extension Chromecast: GCKLoggerDelegate {
     func logMessage(_ message: String, at level: GCKLoggerLevel, fromFunction function: String, location: String) {
-        print(">>>>>> GCKLogger = \(message), \(level), \(function), \(location)")
         self.log("GCKLogger = \(message), \(level), \(function), \(location)")
     }
 }
@@ -232,7 +231,7 @@ extension Chromecast : GCKDiscoveryManagerListener {
     }
 
     func didInsert(_ device: GCKDevice, at index: UInt) {
-        self.log(device.friendlyName ?? device.deviceID)
+        self.log("Device discovered = \(device.friendlyName ?? device.deviceID)")
         self.devicesAvailable.insert(device, at: Int(index))
 
         self.checkReceiverAvailable()
@@ -264,7 +263,7 @@ extension Chromecast : CastSessionListener {
     }
 
     func onMediaUpdated(_ media: NSDictionary, isAlive: Bool) {
-        if (isAlive) {
+        if isAlive {
             self.sendJavascript(jsCommand: "chrome.cast._.mediaUpdated(true, \(CastUtilities.convertDictToJsonString(media)));")
         } else {
             self.sendJavascript(jsCommand: "chrome.cast._.mediaUpdated(false, \(CastUtilities.convertDictToJsonString(media)));")
@@ -272,12 +271,19 @@ extension Chromecast : CastSessionListener {
     }
 
     func onSessionUpdated(_ session: NSDictionary, isAlive: Bool) {
-        if (isAlive) {
+        if isAlive {
             self.sendJavascript(jsCommand: "chrome.cast._.sessionUpdated(true, \(CastUtilities.convertDictToJsonString(session)));")
         } else {
             self.log("SESSION DESTROY!")
             self.sendJavascript(jsCommand: "chrome.cast._.sessionUpdated(false, \(CastUtilities.convertDictToJsonString(session)));")
             self.currentSession = nil
         }
+    }
+
+    func onMessageReceived(_ session: NSDictionary, namespace: String, message: String) {
+        let sessionId = session.value(forKey: "sessionId") as? String ?? ""
+        let messageFormatted = message.replacingOccurrences(of: "\\", with: "\\\\")
+
+        sendJavascript(jsCommand: "chrome.cast._.onMessage('\(sessionId)', '\(namespace)', '\(messageFormatted)');")
     }
 }

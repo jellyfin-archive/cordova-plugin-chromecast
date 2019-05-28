@@ -595,6 +595,9 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
 
 	execute('requestSession', function(err, obj) {
 		if (!err) {
+			if (obj === 'cancel') {
+				return
+			}
 			var sessionId = obj.sessionId;
 			var appId = obj.appId;
 			var displayName = obj.displayName;

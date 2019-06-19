@@ -2,6 +2,7 @@ package acidhax.cordova.chromecast;
 
 import android.annotation.TargetApi;
 import android.os.Build;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -23,15 +24,17 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+
 import androidx.mediarouter.media.MediaRouter;
 import androidx.mediarouter.media.MediaRouteSelector;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
+
 import android.util.Log;
 import android.widget.ArrayAdapter;
 
 public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdatedListener, ChromecastOnSessionUpdatedListener {
 
-	private static final String SETTINGS_NAME= "CordovaChromecastSettings";
+	private static final String SETTINGS_NAME = "CordovaChromecastSettings";
 
 	private MediaRouter mMediaRouter;
 	private MediaRouteSelector mMediaRouteSelector;
@@ -51,7 +54,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		sendJavascript("console.log('" + s + "');");
 	}
 
-
 	public void initialize(final CordovaInterface cordova, CordovaWebView webView) {
 		super.initialize(cordova, webView);
 
@@ -59,17 +61,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		this.settings = this.cordova.getActivity().getSharedPreferences(SETTINGS_NAME, 0);
 		this.lastSessionId = settings.getString("lastSessionId", "");
 		this.lastAppId = settings.getString("lastAppId", "");
-	}
-
-	public void onDestroy() {
-		super.onDestroy();
-
-		if (this.currentSession != null) {
-//    		this.currentSession.kill(new ChromecastSessionCallback() {
-//				void onSuccess(Object object) {	}
-//				void onError(String reason) {}
-//    		});
-		}
 	}
 
 	@Override
@@ -80,7 +71,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			for (Method method : list) {
 				if (method.getName().equals(action)) {
 					Type[] types = method.getGenericParameterTypes();
-					if (args.length() + 1 == types.length) { // +1 is the cbContext
+					// +1 is the cbContext
+					if (args.length() + 1 == types.length) {
 						boolean isValid = true;
 						for (int i = 0; i < args.length(); i++) {
 							Class arg = args.get(i).getClass();
@@ -104,7 +96,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				for (int i = 0; i < args.length(); i++) {
 					variableArgs[i] = args.get(i);
 				}
-				variableArgs[variableArgs.length-1] = cbContext;
+				variableArgs[variableArgs.length - 1] = cbContext;
 				Class<?> r = methodToExecute.getReturnType();
 				if (r == boolean.class) {
 					return (Boolean) methodToExecute.invoke(this, variableArgs);
@@ -132,27 +124,30 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		this.settings.edit().putString("lastSessionId", sessionId).apply();
 	}
 
+	private void setLastAppId(String appId) {
+		this.lastAppId = appId;
+		this.settings.edit().putString("lastAppId", appId).apply();
+	}
 
 	/**
 	 * Do everything you need to for "setup" - calling back sets the isAvailable and lets every function on the
 	 * javascript side actually do stuff.
-	 * @param  callbackContext
+	 * @param callbackContext
 	 */
-	public boolean setup (CallbackContext callbackContext) {
+	public boolean setup(CallbackContext callbackContext) {
 		callbackContext.success();
-
 		return true;
 	}
 
 	/**
 	 * Initialize all of the MediaRouter stuff with the AppId
 	 * For now, ignore the autoJoinPolicy and defaultActionPolicy; those will come later
-	 * @param  appId               The appId we're going to use for ALL session requests
-	 * @param  autoJoinPolicy      tab_and_origin_scoped | origin_scoped | page_scoped
-	 * @param  defaultActionPolicy create_session | cast_this_tab
-	 * @param  callbackContext
+	 * @param appId               The appId we're going to use for ALL session requests
+	 * @param autoJoinPolicy      tab_and_origin_scoped | origin_scoped | page_scoped
+	 * @param defaultActionPolicy create_session | cast_this_tab
+	 * @param callbackContext
 	 */
-	public boolean initialize (final String appId, String autoJoinPolicy, String defaultActionPolicy, final CallbackContext callbackContext) {
+	public boolean initialize(final String appId, String autoJoinPolicy, String defaultActionPolicy, final CallbackContext callbackContext) {
 		final Activity activity = cordova.getActivity();
 		final Chromecast that = this;
 		this.appId = appId;
@@ -163,7 +158,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			autoConnect = true;
 		} else if (autoJoinPolicy.equals("origin_scoped")) {
 			log("setting lastAppId " + lastAppId);
-			this.settings.edit().putString("lastAppId", appId).apply();
+			setLastAppId(appId);
 		}
 
 		activity.runOnUiThread(new Runnable() {
@@ -188,9 +183,9 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * Request the session for the previously sent appId
 	 * THIS IS WHAT LAUNCHES THE CHROMECAST PICKER
 	 * NOTE: Make a request session that is automatic - it'll do most of this code - refactor will be required
-	 * @param  callbackContext
+	 * @param callbackContext
 	 */
-	public boolean requestSession (final CallbackContext callbackContext) {
+	public boolean requestSession(final CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			callbackContext.success(this.currentSession.createSessionObject());
 			return true;
@@ -223,7 +218,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				CharSequence[] seq;
 				seq = seq_tmp1.toArray(new CharSequence[seq_tmp1.size()]);
 
-				builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+				builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
 						dialog.dismiss();
@@ -236,19 +231,16 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 					public void onClick(DialogInterface dialog, int which) {
 						which = seq_tmp_cnt_final.get(which);
 						RouteInfo selectedRoute = routeList.get(which);
-						//RouteInfo selectedRoute = routeList.get(which + 1);
 						Chromecast.this.createSession(selectedRoute, callbackContext);
 					}
 				});
 
 				builder.show();
-
 			}
 		});
 
 		return true;
 	}
-
 
 	/**
 	 * Selects a route by its id
@@ -256,7 +248,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param callbackContext
 	 * @return
 	 */
-	public boolean selectRoute (final String routeId, final CallbackContext callbackContext) {
+	public boolean selectRoute(final String routeId, final CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			callbackContext.success(this.currentSession.createSessionObject());
 			return true;
@@ -278,7 +270,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				}
 
 				callbackContext.error("No route found");
-
 			}
 		});
 
@@ -293,15 +284,14 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	private void createSession(RouteInfo routeInfo, final CallbackContext callbackContext) {
 		this.currentSession = new ChromecastSession(routeInfo, this.cordova, this, this);
 
-		// Launch the app.
+		// launch the app
 		this.currentSession.launch(this.appId, new ChromecastSessionCallback() {
-
 			@Override
 			void onSuccess(Object object) {
 				ChromecastSession session = (ChromecastSession) object;
 				if (object == null) {
 					onError("unknown");
-				} else if (session == Chromecast.this.currentSession){
+				} else if (session == Chromecast.this.currentSession) {
 					Chromecast.this.setLastSessionId(Chromecast.this.currentSession.getSessionId());
 
 					if (callbackContext != null) {
@@ -325,7 +315,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 					}
 				}
 			}
-
 		});
 	}
 
@@ -348,17 +337,16 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 			@Override
 			void onError(String reason) {
-				log("sessionJoinAttempt error " +reason);
+				log("sessionJoinAttempt error " + reason);
 			}
-
 		});
 	}
 
 	/**
 	 * Set the volume level on the receiver - this is a Chromecast volume, not a Media volume
-	 * @param  newLevel
+	 * @param newLevel
 	 */
-	public boolean setReceiverVolumeLevel (Double newLevel, CallbackContext callbackContext) {
+	public boolean setReceiverVolumeLevel(Double newLevel, CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			this.currentSession.setVolume(newLevel, genericCallback(callbackContext));
 		} else {
@@ -367,16 +355,16 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		return true;
 	}
 
-	public boolean setReceiverVolumeLevel (Integer newLevel, CallbackContext callbackContext) {
+	public boolean setReceiverVolumeLevel(Integer newLevel, CallbackContext callbackContext) {
 		return this.setReceiverVolumeLevel(newLevel.doubleValue(), callbackContext);
 	}
 
 	/**
 	 * Sets the muted boolean on the receiver - this is a Chromecast mute, not a Media mute
-	 * @param  muted
-	 * @param  callbackContext
+	 * @param muted
+	 * @param callbackContext
 	 */
-	public boolean setReceiverMuted (Boolean muted, CallbackContext callbackContext) {
+	public boolean setReceiverMuted(Boolean muted, CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			this.currentSession.setMute(muted, genericCallback(callbackContext));
 		} else {
@@ -387,7 +375,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 	/**
 	 * Stop the session! Disconnect! All of that jazz!
-	 * @param  callbackContext [description]
+	 * @param callbackContext [description]
 	 */
 	public boolean stopSession(CallbackContext callbackContext) {
 		callbackContext.error("not_implemented");
@@ -396,14 +384,13 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 	/**
 	 * Send a custom message to the receiver - we don't need this just yet... it was just simple to implement on the js side
-	 * @param  namespace
-	 * @param  message
-	 * @param  callbackContext
+	 * @param namespace
+	 * @param message
+	 * @param callbackContext
 	 */
-	public boolean sendMessage (String namespace, String message, final CallbackContext callbackContext) {
+	public boolean sendMessage(String namespace, String message, final CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			this.currentSession.sendMessage(namespace, message, new ChromecastSessionCallback() {
-
 				@Override
 				void onSuccess(Object object) {
 					callbackContext.success();
@@ -435,20 +422,18 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 	/**
 	 * Loads some media on the Chromecast using the media APIs
-	 * @param  contentId               The URL of the media item
-	 * @param  contentType             MIME type of the content
-	 * @param  duration                Duration of the content
-	 * @param  streamType              buffered | live | other
-	 * @param  loadRequest.autoPlay    Whether or not to automatically start playing the media
-	 * @param  loadRequest.currentTime Where to begin playing from
-	 * @param  callbackContext
+	 * @param contentId               The URL of the media item
+	 * @param contentType             MIME type of the content
+	 * @param duration                Duration of the content
+	 * @param streamType              buffered | live | other
+	 * @param loadRequest.autoPlay    Whether or not to automatically start playing the media
+	 * @param loadRequest.currentTime Where to begin playing from
+	 * @param callbackContext
 	 */
-	public boolean loadMedia (String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
-
+	public boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			return this.currentSession.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, currentTime, metadata, textTrackStyle,
 					new ChromecastSessionCallback() {
-
 						@Override
 						void onSuccess(Object object) {
 							if (object == null) {
@@ -462,15 +447,15 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 						void onError(String reason) {
 							callbackContext.error(reason);
 						}
-
 					});
 		} else {
 			callbackContext.error("session_error");
 			return false;
 		}
 	}
-	public boolean loadMedia (String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Integer currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
-		return this.loadMedia (contentId, customData, contentType, duration, streamType, autoPlay, new Double(currentTime.doubleValue()), metadata, textTrackStyle, callbackContext);
+
+	public boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Integer currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
+		return this.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, new Double(currentTime.doubleValue()), metadata, textTrackStyle, callbackContext);
 	}
 
 	/**
@@ -500,7 +485,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		}
 		return true;
 	}
-
 
 	/**
 	 * Seeks the current media in the current session
@@ -566,11 +550,10 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		return true;
 	}
 
-
 	/**
 	 * Handle Track changes.
-	 * @param activeTrackIds track Ids to set.
-	 * @param textTrackStyle text track style to set.
+	 * @param activeTrackIds  track Ids to set.
+	 * @param textTrackStyle  text track style to set.
 	 * @param callbackContext
 	 * @return
 	 */
@@ -588,22 +571,22 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 		if (currentSession != null) {
 			this.currentSession.mediaEditTracksInfo(trackIds, textTrackStyle,
-				new ChromecastSessionCallback() {
+					new ChromecastSessionCallback() {
 
-					@Override
-					void onSuccess(Object object) {
-						if (object == null) {
-							onError("unknown");
-						} else {
-							callbackContext.success((JSONObject) object);
+						@Override
+						void onSuccess(Object object) {
+							if (object == null) {
+								onError("unknown");
+							} else {
+								callbackContext.success((JSONObject) object);
+							}
 						}
-					}
 
-					@Override
-					void onError(String reason) {
-						callbackContext.error(reason);
-					}
-				});
+						@Override
+						void onError(String reason) {
+							callbackContext.error(reason);
+						}
+					});
 
 			return true;
 		} else {
@@ -617,7 +600,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param callbackContext
 	 * @return
 	 */
-	public boolean sessionStop (CallbackContext callbackContext) {
+	public boolean sessionStop(CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			this.currentSession.kill(genericCallback(callbackContext));
 			this.currentSession = null;
@@ -634,7 +617,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param callbackContext
 	 * @return
 	 */
-	public boolean sessionLeave (CallbackContext callbackContext) {
+	public boolean sessionLeave(CallbackContext callbackContext) {
 		if (this.currentSession != null) {
 			this.currentSession.leave(genericCallback(callbackContext));
 			this.currentSession = null;
@@ -679,7 +662,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				List<RouteInfo> routeList = mMediaRouter.getRoutes();
 				boolean available = false;
 
-				for (RouteInfo route: routeList) {
+				for (RouteInfo route : routeList) {
 					if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
 						available = true;
 						break;
@@ -699,9 +682,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param callbackContext
 	 * @return
 	 */
-	private ChromecastSessionCallback genericCallback (final CallbackContext callbackContext) {
+	private ChromecastSessionCallback genericCallback(final CallbackContext callbackContext) {
 		return new ChromecastSessionCallback() {
-
 			@Override
 			public void onSuccess(Object object) {
 				callbackContext.success();
@@ -711,9 +693,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			public void onError(String reason) {
 				callbackContext.error(reason);
 			}
-
 		};
-	};
+	}
 
 	/**
 	 * Called when a route is discovered
@@ -759,7 +740,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param router
 	 * @param route
 	 */
-	protected void onRouteUnselected(MediaRouter router, RouteInfo route) {}
+	protected void onRouteUnselected(MediaRouter router, RouteInfo route) {
+	}
 
 	/**
 	 * Simple helper to convert a route to JSON for passing down to the javascript side
@@ -782,9 +764,9 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	@Override
 	public void onMediaUpdated(boolean isAlive, JSONObject media) {
 		if (isAlive) {
-			sendJavascript("chrome.cast._.mediaUpdated(true, " + media.toString() +");");
+			sendJavascript("chrome.cast._.mediaUpdated(true, " + media.toString() + ");");
 		} else {
-			sendJavascript("chrome.cast._.mediaUpdated(false, " + media.toString() +");");
+			sendJavascript("chrome.cast._.mediaUpdated(false, " + media.toString() + ");");
 		}
 	}
 
@@ -801,18 +783,17 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 	@Override
 	public void onMediaLoaded(JSONObject media) {
-		sendJavascript("chrome.cast._.mediaLoaded(true, " + media.toString() +");");
+		sendJavascript("chrome.cast._.mediaLoaded(true, " + media.toString() + ");");
 	}
 
 	@Override
 	public void onMessage(ChromecastSession session, String namespace, String message) {
-		sendJavascript("chrome.cast._.onMessage('" + session.getSessionId() +"', '" + namespace + "', '" + message.replace("\\", "\\\\") + "')");
+		sendJavascript("chrome.cast._.onMessage('" + session.getSessionId() + "', '" + namespace + "', '" + message.replace("\\", "\\\\") + "')");
 	}
 
 	//Change all @deprecated this.webView.sendJavascript(String) to this local function sendJavascript(String)
 	@TargetApi(Build.VERSION_CODES.KITKAT)
 	private void sendJavascript(final String javascript) {
-
 		webView.getView().post(new Runnable() {
 			@Override
 			public void run() {
@@ -825,5 +806,4 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			}
 		});
 	}
-
 }

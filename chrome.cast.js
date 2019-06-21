@@ -1042,7 +1042,7 @@ chrome.cast.media.Media.prototype.setVolume = function (volumeRequest, successCa
 		return;
 	}
 	var argsMuted = [];
-  var argsVolume = [];
+	var argsVolume = [];
 
 	if (volumeRequest.volume.muted !== null) {
 		argsMuted.push('setMediaMuted');

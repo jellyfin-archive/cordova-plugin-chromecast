@@ -1,6 +1,7 @@
 var EventEmitter = require('cordova-plugin-chromecast.EventEmitter');
 
 var chrome = {};
+
 chrome.cast = {
 
 	/**
@@ -26,7 +27,6 @@ chrome.cast = {
 	 * @type {Object}
 	 */
 	ReceiverType: { CAST: "cast", DIAL: "dial", CUSTOM: "custom" },
-
 
 	/**
 	 * Describes a sender application platform.
@@ -110,9 +110,6 @@ chrome.cast = {
 	 * @type {Boolean}
 	 */
 	isAvailable: false,
-
-
-	// CLASSES CLASSES CLASSES CLASSES CLASSES CLASSES CLASSES
 
 	/**
 	 * [ApiConfig description]
@@ -216,7 +213,6 @@ chrome.cast = {
 		}
 	},
 
-
 	// media package
 	media: {
 		/**
@@ -282,9 +278,6 @@ chrome.cast = {
 			setVolume: 0,
 			stop: 0
 		},
-
-
-		// CLASSES CLASSES CLASSES CLASSES CLASSES CLASSES CLASSES
 
 		/**
 		 * A request to load new media into the player.
@@ -568,7 +561,6 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
 			}, 15000);
 
 			setTimeout(function() { execute('emitAllRoutes'); }, 2000);
-
 		} else {
 			handleError(err, errorCallback);
 		}
@@ -633,14 +625,6 @@ chrome.cast.setCustomReceivers = function (receivers, successCallback, errorCall
 	// TODO: Implement
 };
 
-
-
-
-/** SESSION SESSION SESSION SESSION SESSION SESSION SESSION SESSION **/
-
-
-
-
 /**
  * Describes the state of a currently running Cast application. Normally, these objects should not be created by the client.
  * @param {string} 								sessionId   Uniquely identifies this instance of the receiver application.
@@ -664,6 +648,7 @@ chrome.cast.Session = function(sessionId, appId, displayName, appImages, receive
 	this.receiver = receiver;
 	this.media = [];
 };
+
 chrome.cast.Session.prototype = Object.create(EventEmitter.prototype);
 
 /**
@@ -686,7 +671,6 @@ chrome.cast.Session.prototype.setReceiverVolumeLevel = function (newLevel, succe
 		}
 	});
 };
-
 
 /**
  * Sets the receiver volume.
@@ -884,12 +868,11 @@ chrome.cast.Session.prototype.removeMediaListener = function (listener) {
 	this.removeListener('_mediaListener', listener);
 };
 
-
 chrome.cast.Session.prototype._update = function(isAlive, obj) {
-
 	this.appId = obj.appId;
 	this.appImages = obj.appImages;
 	this.displayName = obj.displayName;
+
 	if (obj.receiver) {
 		if (!this.receiver) {
 			this.receiver = new chrome.cast.Receiver(null, null, null, null);
@@ -905,11 +888,6 @@ chrome.cast.Session.prototype._update = function(isAlive, obj) {
 	this.emit('_sessionUpdated', isAlive);
 };
 
-
-
-
-
-/* MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA MEDIA */
 /**
  * Represents a media item that has been loaded into the receiver application.
  * @param {string} sessionId      Identifies the session that is hosting the media.
@@ -941,6 +919,7 @@ chrome.cast.media.Media = function(sessionId, mediaSessionId) {
 	this._lastUpdatedTime = Date.now();
 	this.media = {};
 };
+
 chrome.cast.media.Media.prototype = Object.create(EventEmitter.prototype);
 
 /**
@@ -1161,7 +1140,6 @@ chrome.cast.media.Media.prototype._update = function(isAlive, obj) {
 	this.emit('_mediaUpdated', isAlive);
 };
 
-
 function createRouteElement(route) {
 	var el = document.createElement('li');
 	el.classList.add('route');
@@ -1199,8 +1177,8 @@ chrome.cast.getRouteListElement = function() {
 	return _routeListEl;
 };
 
-
 var _connectingListeners = [];
+
 chrome.cast.addConnectingListener = function(cb) {
 	_connectingListeners.push(cb);
 };
@@ -1302,7 +1280,6 @@ chrome.cast._ = {
 	}
 };
 
-
 module.exports = chrome.cast;
 
 function execute (action) {
@@ -1346,7 +1323,6 @@ function handleError(err, callback) {
 		callback(error);
 	}
 }
-
 
 execute('setup', function(err) {
 	if (!err) {

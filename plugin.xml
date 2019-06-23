@@ -18,7 +18,6 @@
   <js-module src="tests/tests.js" name="tests"></js-module>
 
   <platform name="android">
-
     <config-file target="res/xml/config.xml" parent="/*">
       <feature name="Chromecast">
         <param name="android-package" value="acidhax.cordova.chromecast.Chromecast"/>
@@ -49,5 +48,34 @@
     <source-file src="src/android/ChromecastOnSessionUpdatedListener.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/ChromecastException.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/ChromecastUtilities.java" target-dir="src/acidhax/cordova/chromecast" />
+  </platform>
+
+  <platform name="ios">
+    <config-file target="config.xml" parent="/*">
+      <feature name="Chromecast">
+        <param name="ios-package" value="Chromecast"/>
+      </feature>
+    </config-file>
+
+    <podspec>
+      <config>
+        <source url="https://github.com/CocoaPods/Specs.git"/>
+      </config>
+      <pods use-frameworks="true">
+        <pod name="google-cast-sdk" spec="~> 4.4.1" />
+      </pods>
+    </podspec>
+
+    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Debug.plist">
+      <true/>
+    </config-file>
+    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Release.plist">
+      <true/>
+    </config-file>
+
+    <source-file src="src/ios/Chromecast.swift" />
+    <source-file src="src/ios/ChromecastSession.swift" />
+    <source-file src="src/ios/CastUtilities.swift" />
+    <source-file src="src/ios/CastRequestDelegate.swift" />
   </platform>
 </plugin>

@@ -19,51 +19,44 @@ import android.util.Log;
 
 public class ChromecastMediaController {
 	private RemoteMediaPlayer remote = null;
+
 	public ChromecastMediaController(RemoteMediaPlayer mRemoteMediaPlayer) {
 		this.remote = mRemoteMediaPlayer;
 	}
 
 	public MediaInfo createLoadUrlRequest(String contentId, JSONObject customData, String contentType, long duration, String streamType, JSONObject metadata, JSONObject textTrackStyle) {
-
-		// Try creating a GENERIC MediaMetadata obj
+		// create GENERIC MediaMetadata first and fallback to movie
 		MediaMetadata mediaMetadata = new MediaMetadata();
 		try {
-
 			int metadataType = metadata.has("metadataType") ? metadata.getInt("metadataType") : MediaMetadata.MEDIA_TYPE_MOVIE;
-
-			// GENERIC
 			if (metadataType == MediaMetadata.MEDIA_TYPE_GENERIC) {
-				mediaMetadata = new MediaMetadata(); // Creates GENERIC MediaMetaData
-				mediaMetadata.putString(MediaMetadata.KEY_TITLE, (metadata.has("title")) ? metadata.getString("title") : "[Title not set]" ); // TODO: What should it default to?
-				mediaMetadata.putString(MediaMetadata.KEY_SUBTITLE, (metadata.has("title")) ? metadata.getString("subtitle") : "[Subtitle not set]" ); // TODO: What should it default to?
+				mediaMetadata.putString(MediaMetadata.KEY_TITLE, (metadata.has("title")) ? metadata.getString("title") : "[Title not set]"); // TODO: What should it default to?
+				mediaMetadata.putString(MediaMetadata.KEY_SUBTITLE, (metadata.has("title")) ? metadata.getString("subtitle") : "[Subtitle not set]"); // TODO: What should it default to?
 				mediaMetadata = addImages(metadata, mediaMetadata);
 			}
-
-		} catch(Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
-			// Fallback
 			mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE);
 		}
 
-		int _streamType = MediaInfo.STREAM_TYPE_BUFFERED;
+		int _streamType;
 		if (streamType.equals("buffered")) {
-
+			_streamType = MediaInfo.STREAM_TYPE_BUFFERED;
 		} else if (streamType.equals("live")) {
 			_streamType = MediaInfo.STREAM_TYPE_LIVE;
-		} else if (streamType.equals("other")) {
+		} else {
 			_streamType = MediaInfo.STREAM_TYPE_NONE;
 		}
 
 		TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
-
 		MediaInfo mediaInfo = new MediaInfo.Builder(contentId)
-			.setContentType(contentType)
-			.setCustomData(customData)
-			.setStreamType(_streamType)
-			.setStreamDuration(duration)
-			.setMetadata(mediaMetadata)
-			.setTextTrackStyle(trackStyle)
-			.build();
+				.setContentType(contentType)
+				.setCustomData(customData)
+				.setStreamType(_streamType)
+				.setStreamDuration(duration)
+				.setMetadata(mediaMetadata)
+				.setTextTrackStyle(trackStyle)
+				.build();
 
 		return mediaInfo;
 	}
@@ -77,7 +70,6 @@ public class ChromecastMediaController {
 		PendingResult<MediaChannelResult> res = this.remote.pause(apiClient);
 		res.setResultCallback(this.createMediaCallback(callback));
 	}
-
 
 	public void stop(GoogleApiClient apiClient, ChromecastSessionCallback callback) {
 		PendingResult<MediaChannelResult> res = this.remote.stop(apiClient);
@@ -115,30 +107,31 @@ public class ChromecastMediaController {
 
 	private ResultCallback<RemoteMediaPlayer.MediaChannelResult> createMediaCallback(final ChromecastSessionCallback callback) {
 		return new ResultCallback<RemoteMediaPlayer.MediaChannelResult>() {
-		    @Override
-		    public void onResult(MediaChannelResult result) {
+			@Override
+			public void onResult(MediaChannelResult result) {
 				if (result.getStatus().isSuccess()) {
 					callback.onSuccess();
 				} else {
 					callback.onError("channel_error");
 				}
-		    }
+			}
 		};
 	}
 
 	private MediaMetadata addImages(JSONObject metadata, MediaMetadata mediaMetadata) throws JSONException {
 		if (metadata.has("images")) {
 			JSONArray imageUrls = metadata.getJSONArray("images");
-			for (int i=0; i<imageUrls.length(); i++) {
+			for (int i = 0; i < imageUrls.length(); i++) {
 				JSONObject imageObj = imageUrls.getJSONObject(i);
 				String imageUrl = imageObj.has("url") ? imageObj.getString("url") : "undefined";
-				if (imageUrl.indexOf("http://")<0) { continue; } // TODO: don't add image?
-				Uri imageURI = Uri.parse( imageUrl );
+				if (imageUrl.indexOf("http://") < 0) {
+					continue;
+				}
+				Uri imageURI = Uri.parse(imageUrl);
 				WebImage webImage = new WebImage(imageURI);
 				mediaMetadata.addImage(webImage);
 			}
 		}
 		return mediaMetadata;
 	}
-
 }

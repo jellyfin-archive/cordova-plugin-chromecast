@@ -1,7 +1,8 @@
 package acidhax.cordova.chromecast;
 
 import android.graphics.Color;
-import android.support.v4.content.ContextCompat;
+
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaStatus;
@@ -13,9 +14,8 @@ import org.json.JSONObject;
 import org.w3c.dom.Text;
 
 class ChromecastUtilities {
-
     static String getMediaIdleReason(MediaStatus mediaStatus) {
-        switch(mediaStatus.getIdleReason()) {
+        switch (mediaStatus.getIdleReason()) {
             case MediaStatus.IDLE_REASON_CANCELED:
                 return "canceled";
             case MediaStatus.IDLE_REASON_ERROR:
@@ -32,7 +32,7 @@ class ChromecastUtilities {
     }
 
     static String getMediaPlayerState(MediaStatus mediaStatus) {
-        switch(mediaStatus.getPlayerState()) {
+        switch (mediaStatus.getPlayerState()) {
             case MediaStatus.PLAYER_STATE_BUFFERING:
                 return "BUFFERING";
             case MediaStatus.PLAYER_STATE_IDLE:
@@ -49,7 +49,7 @@ class ChromecastUtilities {
     }
 
     static String getMediaInfoStreamType(MediaInfo mediaInfo) {
-        switch(mediaInfo.getStreamType()) {
+        switch (mediaInfo.getStreamType()) {
             case MediaInfo.STREAM_TYPE_BUFFERED:
                 return "buffered";
             case MediaInfo.STREAM_TYPE_LIVE:
@@ -175,11 +175,9 @@ class ChromecastUtilities {
             if (!textTrackSytle.isNull("foregroundColor")) {
                 out.setForegroundColor(Color.parseColor(textTrackSytle.getString("foregroundColor")));
             }
-
         } catch (JSONException e) {
             e.printStackTrace();
         }
-
 
         return out;
     }
@@ -190,8 +188,6 @@ class ChromecastUtilities {
 
     static JSONObject createTextTrackObject(TextTrackStyle textTrackStyle) {
         JSONObject out = new JSONObject();
-
-
         try {
             out.put("backgroundColor", getHexColor(textTrackStyle.getBackgroundColor()));
             out.put("customData", textTrackStyle.getCustomData());
@@ -205,12 +201,10 @@ class ChromecastUtilities {
             out.put("windowColor", getHexColor(textTrackStyle.getWindowColor()));
             out.put("windowRoundedCornerRadius", textTrackStyle.getWindowCornerRadius());
             out.put("windowType", getWindowType(textTrackStyle));
-
         } catch (JSONException e) {
             e.printStackTrace();
         }
 
         return out;
     }
-
 }

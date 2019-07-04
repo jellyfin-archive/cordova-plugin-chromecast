@@ -26,6 +26,20 @@ import GoogleCast
     )
   }
 
+  @objc(emitAllRoutes:)
+  func emitAllRoutes(command: CDVInvokedUrlCommand) {
+    // No arguments. It's only implemented to satisfy plugin's JS API.
+
+    let pluginResult = CDVPluginResult(
+        status: CDVCommandStatus_OK
+    )
+
+    self.commandDelegate!.send(
+        pluginResult,
+        callbackId: command.callbackId
+    )
+  }
+
   @objc(initialize:)
   func initialize(command: CDVInvokedUrlCommand) {
     self.devicesAvailable = [GCKDevice]()
@@ -57,6 +71,7 @@ import GoogleCast
     )
   }
 
+  @objc(checkReceiverAvailable:)
   func checkReceiverAvailable() {
     let sessionManager = GCKCastContext.sharedInstance().sessionManager
 

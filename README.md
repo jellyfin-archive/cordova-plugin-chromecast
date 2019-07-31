@@ -18,13 +18,38 @@ When you call `chrome.cast.requestSession()` a popup will be displayed to select
 
 The project is now pretty much feature complete - the only things that will possibly break are missing parameters. We haven't done any checking for optional paramaters. When using the plugin make sure your constructors and function calls have every parameter you can find in the method declarations.
 
-# Development
+<h3 align="center">Plugin Development<h3>
+
+* Link your local copy of the the plugin to a project for development and testing
+  * With admin permission run `cordova plugin add --link <relative path to the plugin's root dir>`
+* This links the plugin's **java** files directly to the Android platform.  So you can modify the files from Android studio and re-deploy from there.
+* Unfortunately it does **not** link the js files.
+* To update the js files you must run
+    * `cordova plugin remove <plugin-name>`
+    * `cordova plugin add --link <relative path to the plugin's root dir>`
+        * Don't forget the admin permission
 
 ## Formatting
 
 * Run `npm run test` (from the plugin directory)
-  * You may need to run `npm install` if you don't have eslint installed already
+  * If you get `Error: Cannot find module '<project root>\node_modules\eslint\bin\eslint'`
+    * Run `npm install`
+  * If it finds any formatting errors you can try and automatically fix them with:
+    * `node node_modules/eslint/bin/eslint <file-path> --fix`
+  * Otherwise, please manually fix the error before commiting
 
-If it finds errors you can try and automatically fix them with:
+## Testing
 
-`node node_modules/eslint/bin/eslint <file-path> --fix`
+This plugin has [cordova-plugin-test-framework](https://github.com/apache/cordova-plugin-test-framework) tests.
+
+To run these tests you can follow one of the below instructions:
+
+* [Use your existing Cordova project](https://github.com/apache/cordova-plugin-test-framework)
+  * Will kind of mess up your project
+  * Probably will have to delete + re-create the platform folder when done at least
+* [Use an empty project](https://github.com/miloproductionsinc/cordova-plugin-test-project) (recommended)
+  * Keep your project clean
+  * Most of the setup is done for you already
+
+
+

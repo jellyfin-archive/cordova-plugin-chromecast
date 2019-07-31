@@ -1,10 +1,7 @@
-exports.init = function () {
+exports.defineAutoTests = function () {
     /* eslint-disable no-undef */
 
-    eval(require('org.apache.cordova.test-framework.test').injectJasmineInterface(this, 'this')); // eslint-disable-line no-eval
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 25000;
-
-  // var cc = require('acidhax.cordova.chromecast.Chromecast');
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 9000;
 
     var applicationID = 'CC1AD845';
     var videoUrl = 'http://s3.nwgat.net/flvplayers3/bbb.mp4';

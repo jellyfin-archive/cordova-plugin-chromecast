@@ -34,8 +34,8 @@
       <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version" />
     </config-file>
 
-    <framework src="com.google.android.gms:play-services-cast:16.1.2" />
-    <framework src="androidx.appcompat:appcompat:1.0.0" />
+    <framework src="com.google.android.gms:play-services-cast:17.0.0" />
+    <framework src="androidx.appcompat:appcompat:1.0.2" />
     <framework src="androidx.mediarouter:mediarouter:1.0.0" />
     <framework src="androidx.legacy:legacy-support-v4:1.0.0" />
 

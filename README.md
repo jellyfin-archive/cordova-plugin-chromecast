@@ -8,12 +8,6 @@ Add the plugin with the command below in your cordova project directory.
 cordova plugin add https://github.com/jellyfin/cordova-plugin-chromecast.git
 ```
 
-If you have NodeJS installed, the dependencies should be automatically copied. Otrherwise, you will need to import the following projects as Library Projects in order for this plugin to work.
-
-- `adt-bundle\sdk\extras\google\google_play_services\libproject\google-play-services_lib`
-- `adt-bundle\sdk\extras\android\support\v7\appcompat`
-- `adt-bundle\sdk\extras\android\support\v7\mediarouter`
-
 ## Usage
 
 This project attempts to implement the official Google Cast SDK for Chrome within Cordova. We've made a lot of progress in making this possible, so check out the [offical documentation](https://developers.google.com/cast/docs/chrome_sender) for examples.

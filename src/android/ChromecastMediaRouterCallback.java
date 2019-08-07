@@ -11,7 +11,7 @@ public class ChromecastMediaRouterCallback extends MediaRouter.Callback {
 
 	private Chromecast callback = null;
 
-	public void registerCallbacks(Chromecast instance) {
+	public ChromecastMediaRouterCallback(Chromecast instance) {
 		this.callback = instance;
 	}
 

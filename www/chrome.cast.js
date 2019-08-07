@@ -585,10 +585,6 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
         errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
         return;
     }
-    if (_receiverAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.RECEIVER_UNAVAILABLE, 'No receiver was compatible with the session request.', {}));
-        return;
-    }
 
     execute('requestSession', function (err, obj) {
         if (!err) {

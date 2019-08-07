@@ -6,39 +6,33 @@ import android.os.Build;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.List;
-import java.util.ArrayList;
 
 import com.google.android.gms.cast.CastMediaControlIntent;
 
 import org.apache.cordova.CordovaPlugin;
-import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
-import org.apache.cordova.CordovaInterface;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 
+import androidx.appcompat.R;
+import androidx.mediarouter.app.MediaRouteChooserDialog;
 import androidx.mediarouter.media.MediaRouter;
 import androidx.mediarouter.media.MediaRouteSelector;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
-
-import android.util.Log;
-import android.widget.ArrayAdapter;
 
 public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdatedListener, ChromecastOnSessionUpdatedListener {
 
 	private static final String SETTINGS_NAME = "CordovaChromecastSettings";
 
-	private MediaRouter mMediaRouter;
-	private MediaRouteSelector mMediaRouteSelector;
-	private volatile ChromecastMediaRouterCallback mMediaRouterCallback = new ChromecastMediaRouterCallback();
+	private volatile MediaRouter mMediaRouter;
+	private volatile MediaRouteSelector mMediaRouteSelector;
+	private ChromecastMediaRouterCallback mMediaRouterCallback;
 	private String appId;
 
 	private boolean autoConnect = false;
@@ -54,13 +48,15 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		sendJavascript("console.log('" + s + "');");
 	}
 
-	public void initialize(final CordovaInterface cordova, CordovaWebView webView) {
-		super.initialize(cordova, webView);
+	@Override
+	protected void pluginInitialize() {
+		super.pluginInitialize();
 
 		// Restore preferences
 		this.settings = this.cordova.getActivity().getSharedPreferences(SETTINGS_NAME, 0);
 		this.lastSessionId = settings.getString("lastSessionId", "");
 		this.lastAppId = settings.getString("lastAppId", "");
+		this.mMediaRouterCallback = new ChromecastMediaRouterCallback(this);
 	}
 
 	@Override
@@ -163,12 +159,25 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 		activity.runOnUiThread(new Runnable() {
 			public void run() {
-				mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
-				mMediaRouteSelector = new MediaRouteSelector.Builder()
-						.addControlCategory(CastMediaControlIntent.categoryForCast(appId))
-						.build();
-				mMediaRouterCallback.registerCallbacks(that);
-				mMediaRouter.addCallback(mMediaRouteSelector, mMediaRouterCallback, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+				// Update the mediaRouteSelector and tha mediaRouter to use the current appId
+				synchronized(Chromecast.class) {
+					// Update the route selector
+					that.mMediaRouteSelector = new MediaRouteSelector.Builder()
+							.addControlCategory(CastMediaControlIntent.categoryForCast(appId))
+							.build();
+
+					// Ensure the media router exists
+					if (that.mMediaRouter == null) {
+						// We need to initialize the router exists
+						that.mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
+					} else {
+						// If it previously existed we must remove the old callback
+						that.mMediaRouter.removeCallback(that.mMediaRouterCallback);
+					}
+					// Add (or re-add) the callback to work with the new selector
+					that.mMediaRouter.addCallback(that.mMediaRouteSelector, that.mMediaRouterCallback);
+				}
+
 				callbackContext.success();
 
 				Chromecast.this.checkReceiverAvailable();
@@ -186,6 +195,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param callbackContext
 	 */
 	public boolean requestSession(final CallbackContext callbackContext) {
+		Chromecast that = this;
 		if (this.currentSession != null) {
 			callbackContext.success(this.currentSession.createSessionObject());
 			return true;
@@ -193,45 +203,21 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 		this.setLastSessionId("");
 
-		final Activity activity = cordova.getActivity();
+		final Activity activity = this.cordova.getActivity();
 		activity.runOnUiThread(new Runnable() {
 			public void run() {
-				mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
-				final List<RouteInfo> routeList = mMediaRouter.getRoutes();
 
-				AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-				builder.setTitle("Choose a Chromecast");
-				//CharSequence[] seq = new CharSequence[routeList.size() -1];
-				ArrayList<String> seq_tmp1 = new ArrayList<String>();
+				// Create the dialog
+				// TODO accept theme as a config.xml option
+				MediaRouteChooserDialog builder = new MediaRouteChooserDialog(activity, R.style.Theme_AppCompat_NoActionBar);
+				builder.setRouteSelector(that.mMediaRouteSelector);
+				builder.setCanceledOnTouchOutside(true);
 
-				final ArrayList<Integer> seq_tmp_cnt_final = new ArrayList<Integer>();
 
-				for (int n = 1; n < routeList.size(); n++) {
-					RouteInfo route = routeList.get(n);
-					if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
-						seq_tmp1.add(route.getName());
-						seq_tmp_cnt_final.add(n);
-						//seq[n-1] = route.getName();
-					}
-				}
-
-				CharSequence[] seq;
-				seq = seq_tmp1.toArray(new CharSequence[seq_tmp1.size()]);
-
-				builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+				builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
 					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						dialog.dismiss();
+					public void onCancel(DialogInterface dialog) {
 						callbackContext.success("cancel");
-					}
-				});
-
-				builder.setItems(seq, new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						which = seq_tmp_cnt_final.get(which);
-						RouteInfo selectedRoute = routeList.get(which);
-						Chromecast.this.createSession(selectedRoute, callbackContext);
 					}
 				});
 
@@ -426,8 +412,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param contentType             MIME type of the content
 	 * @param duration                Duration of the content
 	 * @param streamType              buffered | live | other
-	 * @param loadRequest.autoPlay    Whether or not to automatically start playing the media
-	 * @param loadRequest.currentTime Where to begin playing from
+	 * @param autoPlay                Whether or not to automatically start playing the media
+	 * @param currentTime             Where to begin playing from
 	 * @param callbackContext
 	 */
 	public boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
@@ -654,12 +640,12 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * Checks to see how many receivers are available - emits the receiver status down to Javascript
 	 */
 	private void checkReceiverAvailable() {
+		Chromecast that = this;
 		final Activity activity = cordova.getActivity();
 
 		activity.runOnUiThread(new Runnable() {
 			public void run() {
-				mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
-				List<RouteInfo> routeList = mMediaRouter.getRoutes();
+				List<RouteInfo> routeList = that.mMediaRouter.getRoutes();
 				boolean available = false;
 
 				for (RouteInfo route : routeList) {

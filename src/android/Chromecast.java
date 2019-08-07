@@ -12,6 +12,7 @@ import com.google.android.gms.cast.CastMediaControlIntent;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
+import org.apache.cordova.LOG;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,6 +29,7 @@ import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
 public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdatedListener, ChromecastOnSessionUpdatedListener {
 
+	private static final String TAG = "Chromecast";
 	private static final String SETTINGS_NAME = "CordovaChromecastSettings";
 
 	private volatile MediaRouter mMediaRouter;
@@ -43,10 +45,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 
 	private volatile ChromecastSession currentSession;
-
-	private void log(String s) {
-		sendJavascript("console.log('" + s + "');");
-	}
 
 	@Override
 	protected void pluginInitialize() {
@@ -148,12 +146,12 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		final Chromecast that = this;
 		this.appId = appId;
 
-		log("initialize " + autoJoinPolicy + " " + appId + " " + this.lastAppId);
+		LOG.d(TAG, "initialize autoJoinPolicy: " + autoJoinPolicy + " appId: " + appId + " lastAppId: " + this.lastAppId);
 		if (autoJoinPolicy.equals("origin_scoped") && appId.equals(this.lastAppId)) {
-			log("lastAppId " + lastAppId);
+			LOG.d(TAG, "lastAppId " + lastAppId);
 			autoConnect = true;
 		} else if (autoJoinPolicy.equals("origin_scoped")) {
-			log("setting lastAppId " + lastAppId);
+			LOG.d(TAG, "setting lastAppId " + lastAppId);
 			setLastAppId(appId);
 		}
 
@@ -291,7 +289,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			@Override
 			void onError(String reason) {
 				if (reason != null) {
-					Chromecast.this.log("createSession onError " + reason);
+					LOG.i(TAG, "createSession onError " + reason);
 					if (callbackContext != null) {
 						callbackContext.error(reason);
 					}
@@ -316,14 +314,14 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 						Chromecast.this.setLastSessionId(Chromecast.this.currentSession.getSessionId());
 						sendJavascript("chrome.cast._.sessionJoined(" + Chromecast.this.currentSession.createSessionObject().toString() + ");");
 					} catch (Exception e) {
-						log("wut.... " + e.getMessage() + e.getStackTrace());
+						LOG.e(TAG, "wut.... " + e.getMessage() + e.getStackTrace());
 					}
 				}
 			}
 
 			@Override
 			void onError(String reason) {
-				log("sessionJoinAttempt error " + reason);
+				LOG.i(TAG, "sessionJoinAttempt error " + reason);
 			}
 		});
 	}
@@ -551,7 +549,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				trackIds[i] = activeTrackIds.getLong(i);
 			}
 		} catch (JSONException ignored) {
-			log("Wrong format in activeTrackIds");
+			LOG.e(TAG, "Wrong format in activeTrackIds");
 		}
 
 
@@ -689,10 +687,10 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 */
 	protected void onRouteAdded(MediaRouter router, final RouteInfo route) {
 		if (this.autoConnect && this.currentSession == null && !route.getName().equals("Phone")) {
-			log("Attempting to join route " + route.getName());
+			LOG.d(TAG, "Attempting to join route " + route.getName());
 			this.joinSession(route);
 		} else {
-			log("For some reason, not attempting to join route " + route.getName() + ", " + this.currentSession + ", " + this.autoConnect);
+			LOG.d(TAG, "For some reason, not attempting to join route " + route.getName() + ", " + this.currentSession + ", " + this.autoConnect);
 		}
 		if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
 			sendJavascript("chrome.cast._.routeAdded(" + routeToJSON(route) + ")");
@@ -761,7 +759,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		if (isAlive) {
 			sendJavascript("chrome.cast._.sessionUpdated(true, " + session.toString() + ");");
 		} else {
-			log("SESSION DESTROYYYY");
+			LOG.d(TAG, "SESSION DESTROYYYY");
 			sendJavascript("chrome.cast._.sessionUpdated(false, " + session.toString() + ");");
 			this.currentSession = null;
 		}

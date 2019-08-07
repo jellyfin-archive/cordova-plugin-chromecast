@@ -31,16 +31,22 @@ The project is now pretty much feature complete - the only things that will poss
 
 ## Formatting
 
-* Run `npm run test` (from the plugin directory)
+* Run `npm test` (from the plugin directory)
   * If you get `Error: Cannot find module '<project root>\node_modules\eslint\bin\eslint'`
     * Run `npm install`
   * If it finds any formatting errors you can try and automatically fix them with:
     * `node node_modules/eslint/bin/eslint <file-path> --fix`
-  * Otherwise, please manually fix the error before commiting
+  * Otherwise, please manually fix the error before committing
 
 ## Testing
 
 This plugin has [cordova-plugin-test-framework](https://github.com/apache/cordova-plugin-test-framework) tests.
 
 To run these tests you can follow [these instructions](https://github.com/miloproductionsinc/cordova-testing).
+
+NOTE: You must run these tests from a project with the package name `com.miloproductionsinc.plugin_tests` otherwise `SPEC_00310` will fail.  (It uses a custom receiver which are only allowed receive from one package name.)
+  
+  * You can temporarily rename the project you are testing from:
+    * config.xml > `<widget id="com.miloproductionsinc.plugin_tests"`
+  * Or clone this project https://github.com/miloproductionsinc/cordova-testing
 

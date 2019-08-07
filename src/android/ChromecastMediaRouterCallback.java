@@ -1,13 +1,9 @@
 package acidhax.cordova.chromecast;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
 import androidx.mediarouter.media.MediaRouter;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
 public class ChromecastMediaRouterCallback extends MediaRouter.Callback {
-	private volatile ArrayList<RouteInfo> routes = new ArrayList<RouteInfo>();
 
 	private Chromecast callback = null;
 
@@ -15,26 +11,9 @@ public class ChromecastMediaRouterCallback extends MediaRouter.Callback {
 		this.callback = instance;
 	}
 
-	public synchronized RouteInfo getRoute(String id) {
-		for (RouteInfo i : this.routes) {
-			if (i.getId().equals(id)) {
-				return i;
-			}
-		}
-		return null;
-	}
-
-	public synchronized RouteInfo getRoute(int index) {
-		return routes.get(index);
-	}
-
-	public synchronized Collection<RouteInfo> getRoutes() {
-		return routes;
-	}
 
 	@Override
 	public synchronized void onRouteAdded(MediaRouter router, RouteInfo route) {
-		routes.add(route);
 		if (this.callback != null) {
 			this.callback.onRouteAdded(router, route);
 		}
@@ -42,7 +21,6 @@ public class ChromecastMediaRouterCallback extends MediaRouter.Callback {
 
 	@Override
 	public void onRouteRemoved(MediaRouter router, RouteInfo route) {
-		routes.remove(route);
 		if (this.callback != null) {
 			this.callback.onRouteRemoved(router, route);
 		}

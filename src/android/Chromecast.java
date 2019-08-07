@@ -8,8 +8,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import com.google.android.gms.cast.CastMediaControlIntent;
-
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.LOG;
@@ -24,7 +22,6 @@ import android.content.SharedPreferences;
 import androidx.appcompat.R;
 import androidx.mediarouter.app.MediaRouteChooserDialog;
 import androidx.mediarouter.media.MediaRouter;
-import androidx.mediarouter.media.MediaRouteSelector;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
 public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdatedListener, ChromecastOnSessionUpdatedListener {
@@ -32,10 +29,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	private static final String TAG = "Chromecast";
 	private static final String SETTINGS_NAME = "CordovaChromecastSettings";
 
-	private volatile MediaRouter mMediaRouter;
-	private volatile MediaRouteSelector mMediaRouteSelector;
-	private ChromecastMediaRouterCallback mMediaRouterCallback;
-	private String appId;
+	private ChromecastMediaRouterManager mMediaRouteManager;	private String appId;
 
 	private boolean autoConnect = false;
 	private String lastSessionId = null;
@@ -54,7 +48,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		this.settings = this.cordova.getActivity().getSharedPreferences(SETTINGS_NAME, 0);
 		this.lastSessionId = settings.getString("lastSessionId", "");
 		this.lastAppId = settings.getString("lastAppId", "");
-		this.mMediaRouterCallback = new ChromecastMediaRouterCallback(this);
+		this.mMediaRouteManager = new ChromecastMediaRouterManager(this.cordova.getActivity(), new ChromecastMediaRouterCallback(this));
 	}
 
 	@Override
@@ -142,46 +136,32 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param callbackContext
 	 */
 	public boolean initialize(final String appId, String autoJoinPolicy, String defaultActionPolicy, final CallbackContext callbackContext) {
-		final Activity activity = cordova.getActivity();
 		final Chromecast that = this;
+		boolean appIdStayedSame = appId.equals(this.lastAppId);
 		this.appId = appId;
+		this.setLastAppId(appId);
 
-		LOG.d(TAG, "initialize autoJoinPolicy: " + autoJoinPolicy + " appId: " + appId + " lastAppId: " + this.lastAppId);
-		if (autoJoinPolicy.equals("origin_scoped") && appId.equals(this.lastAppId)) {
+		LOG.d(TAG, "initialize autoJoinPolicy: " + autoJoinPolicy + " appId: " + appId);
+		if (autoJoinPolicy.equals("origin_scoped") && appIdStayedSame) {
 			LOG.d(TAG, "lastAppId " + lastAppId);
 			autoConnect = true;
 		} else if (autoJoinPolicy.equals("origin_scoped")) {
 			LOG.d(TAG, "setting lastAppId " + lastAppId);
-			setLastAppId(appId);
 		}
 
-		activity.runOnUiThread(new Runnable() {
-			public void run() {
-				// Update the mediaRouteSelector and tha mediaRouter to use the current appId
-				synchronized(Chromecast.class) {
-					// Update the route selector
-					that.mMediaRouteSelector = new MediaRouteSelector.Builder()
-							.addControlCategory(CastMediaControlIntent.categoryForCast(appId))
-							.build();
+		// Send no receivers available update while the new routeSelector is built.
+		// This matches the Chrome Desktop SDK behavior.
+		that.sendReceiverUpdate(false);
 
-					// Ensure the media router exists
-					if (that.mMediaRouter == null) {
-						// We need to initialize the router exists
-						that.mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
-					} else {
-						// If it previously existed we must remove the old callback
-						that.mMediaRouter.removeCallback(that.mMediaRouterCallback);
-					}
-					// Add (or re-add) the callback to work with the new selector
-					that.mMediaRouter.addCallback(that.mMediaRouteSelector, that.mMediaRouterCallback);
-				}
-
-				callbackContext.success();
-
-				Chromecast.this.checkReceiverAvailable();
-				Chromecast.this.emitAllRoutes(null);
+		// Update the mediaRouteSelector and tha mediaRouter to use the current appId
+		mMediaRouteManager.updateMediaRouter(appId, new ChromecastMediaRouterManager.Callback() {
+			@Override
+			public void onFoundRoute() {
+				that.sendReceiverUpdate(true);
 			}
 		});
+
+		callbackContext.success();
 
 		return true;
 	}
@@ -208,9 +188,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				// Create the dialog
 				// TODO accept theme as a config.xml option
 				MediaRouteChooserDialog builder = new MediaRouteChooserDialog(activity, R.style.Theme_AppCompat_NoActionBar);
-				builder.setRouteSelector(that.mMediaRouteSelector);
+				builder.setRouteSelector(mMediaRouteManager.getMediaRouteSelector());
 				builder.setCanceledOnTouchOutside(true);
-
 
 				builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
 					@Override
@@ -243,8 +222,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		final Activity activity = cordova.getActivity();
 		activity.runOnUiThread(new Runnable() {
 			public void run() {
-				mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
-				final List<RouteInfo> routeList = mMediaRouter.getRoutes();
+				final List<RouteInfo> routeList = mMediaRouteManager.getRoutes();
 
 				for (RouteInfo route : routeList) {
 					if (route.getId().equals(routeId)) {
@@ -618,11 +596,10 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 		activity.runOnUiThread(new Runnable() {
 			public void run() {
-				mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
-				List<RouteInfo> routeList = mMediaRouter.getRoutes();
+				List<RouteInfo> routeList = mMediaRouteManager.getRoutes();
 
 				for (RouteInfo route : routeList) {
-					onRouteAdded(mMediaRouter, route);
+					sendJavascript("chrome.cast._.routeAdded(" + routeToJSON(route) + ")");
 				}
 			}
 		});
@@ -634,31 +611,23 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		return true;
 	}
 
-	/**
-	 * Checks to see how many receivers are available - emits the receiver status down to Javascript
-	 */
-	private void checkReceiverAvailable() {
-		Chromecast that = this;
-		final Activity activity = cordova.getActivity();
+    /**
+     * Checks to see if any valid receivers are available - emits the receiver status out to Javascript
+     */
+    public void sendReceiverUpdate() {
+        this.sendReceiverUpdate(mMediaRouteManager.isRouteAvailable());
+    }
 
-		activity.runOnUiThread(new Runnable() {
-			public void run() {
-				List<RouteInfo> routeList = that.mMediaRouter.getRoutes();
-				boolean available = false;
-
-				for (RouteInfo route : routeList) {
-					if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
-						available = true;
-						break;
-					}
-				}
-				if (available || (Chromecast.this.currentSession != null && Chromecast.this.currentSession.isConnected())) {
-					sendJavascript("chrome.cast._.receiverAvailable()");
-				} else {
-					sendJavascript("chrome.cast._.receiverUnavailable()");
-				}
-			}
-		});
+    /**
+     * sends the receiverState.
+     * @param receiverState
+     */
+	private void sendReceiverUpdate(boolean receiverState) {
+        if (receiverState) {
+            this.sendJavascript("chrome.cast._.receiverAvailable()");
+        } else {
+            this.sendJavascript("chrome.cast._.receiverUnavailable()");
+        }
 	}
 
 	/**
@@ -692,10 +661,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		} else {
 			LOG.d(TAG, "For some reason, not attempting to join route " + route.getName() + ", " + this.currentSession + ", " + this.autoConnect);
 		}
-		if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
-			sendJavascript("chrome.cast._.routeAdded(" + routeToJSON(route) + ")");
-		}
-		this.checkReceiverAvailable();
 	}
 
 	/**
@@ -704,7 +669,6 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param route
 	 */
 	protected void onRouteRemoved(MediaRouter router, RouteInfo route) {
-		this.checkReceiverAvailable();
 		if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
 			sendJavascript("chrome.cast._.routeRemoved(" + routeToJSON(route) + ")");
 		}

@@ -42,14 +42,5 @@ The project is now pretty much feature complete - the only things that will poss
 
 This plugin has [cordova-plugin-test-framework](https://github.com/apache/cordova-plugin-test-framework) tests.
 
-To run these tests you can follow one of the below instructions:
-
-* [Use your existing Cordova project](https://github.com/apache/cordova-plugin-test-framework)
-  * Will kind of mess up your project
-  * Probably will have to delete + re-create the platform folder when done at least
-* [Use an empty project](https://github.com/miloproductionsinc/cordova-plugin-test-project) (recommended)
-  * Keep your project clean
-  * Most of the setup is done for you already
-
-
+To run these tests you can follow [these instructions](https://github.com/miloproductionsinc/cordova-testing).
 

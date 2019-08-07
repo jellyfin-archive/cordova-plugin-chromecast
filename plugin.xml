@@ -15,8 +15,6 @@
 
   <js-module src="www/EventEmitter.js" name="EventEmitter"></js-module>
 
-  <js-module src="tests/tests.js" name="tests"></js-module>
-
   <platform name="android">
     <config-file target="res/xml/config.xml" parent="/*">
       <feature name="Chromecast">

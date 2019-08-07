@@ -1,9 +1,16 @@
+/**
+ * The order of the tests is very important!
+ * Unfortunately using nested describes and beforeAll does not work correctly.
+ * So just be careful with the order of tests!
+ */
+
+/* eslint-env jasmine */
 exports.defineAutoTests = function () {
     /* eslint-disable no-undef */
 
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 9000;
 
-    var applicationID = 'CC1AD845';
+    var applicationID_default = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
     var videoUrl = 'http://s3.nwgat.net/flvplayers3/bbb.mp4';
 
     describe('chrome.cast', function () {
@@ -92,7 +99,7 @@ exports.defineAutoTests = function () {
 
         it('initialize should succeed', function (done) {
             console.log('initialize should succeed');
-            var sessionRequest = new chrome.cast.SessionRequest(applicationID);
+            var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
             var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
                 console.log('sessionCallback');
                 _session = session;

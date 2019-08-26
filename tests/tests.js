@@ -17,12 +17,6 @@ exports.defineAutoTests = function () {
 
     describe('chrome.cast', function () {
 
-        var _session = null;
-        var _receiverAvailability = [];
-        var _sessionUpdatedFired = false;
-        var _mediaUpdatedFired = false;
-        var media;
-
         it('SPEC_00100 should contain definitions', function () {
             expect(chrome.cast.VERSION).toBeDefined();
             expect(chrome.cast.ReceiverAvailability).toBeDefined();
@@ -200,22 +194,25 @@ exports.defineAutoTests = function () {
 
             it('SPEC_01000 Test valid session', function (done) {
                 alert('---TEST INSTRUCTION---\nPlease select a valid chromecast in the next dialog.');
-                chrome.cast.requestSession(function (session) {
-                    sessionProperties(session)
-                    .then(loadMedia)
-                    .then(done);
 
-                    var updateListener = function (isAlive) {
-                        console.log('session updated!!!!');
-                        _sessionUpdatedFired = true;
-                        session.removeUpdateListener(updateListener);
-                    };
-
-                    session.addUpdateListener(updateListener);
-                }, function (err) {
-                    expect(err).toEqual('We should not get an error.');
+                function handleErr (err) {
+                    console.error(err);
+                    console.log(new Error().stack);
+                    expect(err).toEqual('Should not have gotten an error at all');
                     done();
-                });
+                }
+
+                chrome.cast.requestSession(function (session) {
+
+                    // // Run all the session related tests
+                    Promise.resolve(session)
+                    .then(sessionProperties)
+                    .then(loadMedia)
+                    .then(stopSession)
+                    .then(done)
+                    .catch(handleErr);
+
+                }, handleErr);
             }, USER_INTERACTION_TIMEOUT);
 
             function sessionProperties (session) {
@@ -242,134 +239,125 @@ exports.defineAutoTests = function () {
                     expect(request).toBeTruthy();
 
                     session.loadMedia(request, function (media) {
-                        expect(media instanceof chrome.cast.media.Media).toBeTruthy();
 
-                        expect(media.sessionId).toEqual(session.sessionId);
-                        expect(media.addUpdateListener).toBeDefined();
-                        expect(media.removeUpdateListener).toBeDefined();
+                        // Run all the media related tests
+                        Promise.resolve({media: media, session: session})
+                        .then(mediaProperties)
+                        .then(pauseSuccess)
+                        .then(playSuccess)
+                        .then(seekSuccess)
+                        .then(setVolumeSuccess)
+                        .then(muteVolumeSuccess)
+                        .then(unmuteVolumeSuccess)
+                        .then(stopSuccess)
+                        .then(function (media) {
+                            resolve(session);
+                        })
+                        .catch(reject);
 
-                        var updateListener = function () {
-                            _mediaUpdatedFired = true;
-                            media.removeUpdateListener(updateListener);
-                        };
-
-                        media.addUpdateListener(updateListener);
-
-                        resolve(session);
-                    }, function (err) {
-                        expect(err).toEqual('We should not get an error.');
-                        reject(err);
-                    });
+                    }, reject);
                 });
             }
 
-        });
-
-        it('pause media should succeed', function (done) {
-            setTimeout(function () {
-                media.pause(null, function () {
-                    console.log('pause success');
-                    done();
-                }, function (err) {
-                    console.log('pause error', err);
-                    expect(err).toBeNull();
-                    done();
+            function mediaProperties (data) {
+                return new Promise(function (resolve, reject) {
+                    var media = data.media;
+                    var session = data.session;
+                    expect(media instanceof chrome.cast.media.Media).toBeTruthy();
+                    expect(media.sessionId).toEqual(session.sessionId);
+                    expect(media.addUpdateListener).toBeDefined();
+                    expect(media.removeUpdateListener).toBeDefined();
+                    resolve(media);
                 });
-            }, 5000);
-        });
+            }
 
-        it('play media should succeed', function (done) {
-            setTimeout(function () {
-                media.play(null, function () {
-                    console.log('play success');
-                    done();
-                }, function (err) {
-                    console.log('play error', err);
-                    expect(err).toBeNull();
-                    done();
+            function pauseSuccess (media) {
+                return new Promise(function (resolve, reject) {
+                    setTimeout(function () {
+                        media.pause(null, function () {
+                            resolve(media);
+                        }, reject);
+                    }, 500);
                 });
-            }, 1000);
-        });
+            }
 
-        it('seek media should succeed', function (done) {
-            setTimeout(function () {
-                var request = new chrome.cast.media.SeekRequest();
-                request.currentTime = 10;
-
-                media.seek(request, function () {
-                    done();
-                }, function (err) {
-                    expect(err).toBeNull();
-                    done();
+            function playSuccess (media) {
+                return new Promise(function (resolve, reject) {
+                    setTimeout(function () {
+                        media.play(null, function () {
+                            resolve(media);
+                        }, reject);
+                    }, 500);
                 });
-            }, 1000);
-        });
+            }
 
-        it('session updateListener', function (done) {
-            expect(_sessionUpdatedFired).toEqual(true);
-            done();
-        });
+            function seekSuccess (media) {
+                return new Promise(function (resolve, reject) {
+                    setTimeout(function () {
+                        var request = new chrome.cast.media.SeekRequest();
+                        request.currentTime = 3;
+                        media.seek(request, function () {
+                            resolve(media);
+                        }, reject);
+                    }, 500);
+                });
+            }
 
-        it('media updateListener', function (done) {
-            expect(_mediaUpdatedFired).toEqual(true);
-            done();
-        });
+            function setVolumeSuccess (media) {
+                return new Promise(function (resolve, reject) {
+                    var volume = new chrome.cast.Volume();
+                    volume.level = 0.2;
 
-        it('volume and muting', function (done) {
-            var volume = new chrome.cast.Volume();
-            volume.level = 0.5;
+                    var request = new chrome.cast.media.VolumeRequest();
+                    request.volume = volume;
 
-            var request = new chrome.cast.media.VolumeRequest();
-            request.volume = volume;
+                    media.setVolume(request, function () {
+                        resolve(media);
+                    }, reject);
+                });
+            }
 
-            media.setVolume(request, function () {
+            function muteVolumeSuccess (media) {
+                return new Promise(function (resolve, reject) {
+                    var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, true));
+                    media.setVolume(request, function () {
+                        resolve(media);
+                    }, reject);
+                });
+            }
 
-                var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, true));
-                media.setVolume(request, function () {
-
+            function unmuteVolumeSuccess (media) {
+                return new Promise(function (resolve, reject) {
                     var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, false));
                     media.setVolume(request, function () {
-                        done();
-                    }, function (err) {
-                        expect(err).toBeNull();
-                        done();
-                    });
-
-                }, function (err) {
-                    expect(err).toBeNull();
-                    done();
+                        resolve(media);
+                    }, reject);
                 });
+            }
 
-            }, function (err) {
-                expect(err).toBeNull();
-                done();
-            });
+            function stopSuccess (media) {
+                return new Promise(function (resolve, reject) {
+                    media.stop(null, function () {
+                        resolve(media);
+                    }, reject);
+                });
+            }
 
-        });
+            function stopSession (session) {
+                return new Promise(function (resolve, reject) {
+                    session.stop(function () {
+                        resolve(session);
+                    }, reject);
+                });
+            }
 
-        it('stopping the video', function (done) {
-            media.stop(null, function () {
-                setTimeout(done, 1000);
-            }, function (err) {
-                expect(err).toBeNull();
-                done();
-            });
-        });
-
-        it('unloading the session', function (done) {
-            _session.stop(function () {
-                done();
-            }, function (err) {
-                expect(err).toBeNull();
-                done();
-            });
         });
 
         it('SPEC_01200 should pass auto tests on second run', function () {
             alert('---TEST INSTRUCTION---\nPlease hit "Reset App" at the top and ensure all '
                 + 'tests pass again. (This simulates navigation to a new page where the '
                 + 'plugin is not loaded from scratch again).');
-            expect('succes').toBeDefined();
+            expect('success').toBeDefined();
         });
 
     });

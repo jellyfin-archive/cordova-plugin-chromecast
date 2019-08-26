@@ -20,7 +20,7 @@
     xmlns:rim="http://www.blackberry.com/ns/widgets"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-plugin-chromecast-tests"
-    version="2.0.4-dev">
+    version="1.0.0">
     <name>Cordova Chromecast Plugin Tests</name>
     <license>Apache 2.0</license>
 

@@ -27,16 +27,10 @@ public class ChromecastMediaRouterCallback extends MediaRouter.Callback {
 	}
 
 	@Override
-	public void onRouteSelected(MediaRouter router, RouteInfo info) {
+	public void onRouteUnselected(MediaRouter router, RouteInfo route, int reason) {
+		super.onRouteUnselected(router, route, reason);
 		if (this.callback != null) {
-			this.callback.onRouteSelected(router, info);
-		}
-	}
-
-	@Override
-	public void onRouteUnselected(MediaRouter router, RouteInfo info) {
-		if (this.callback != null) {
-			this.callback.onRouteUnselected(router, info);
+			this.callback.onRouteUnselected(router, route, reason);
 		}
 	}
 }

@@ -16,11 +16,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.app.Activity;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 
-import androidx.appcompat.R;
-import androidx.mediarouter.app.MediaRouteChooserDialog;
 import androidx.mediarouter.media.MediaRouter;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
@@ -153,10 +150,13 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		// This matches the Chrome Desktop SDK behavior.
 		that.sendReceiverUpdate(false);
 
-		// Update the mediaRouteSelector and tha mediaRouter to use the current appId
-		mMediaRouteManager.updateMediaRouter(appId, new ChromecastMediaRouterManager.Callback() {
+		// Search for a receiver for the appId for 1 minute.
+        // After that there probably won't be any routes, so don't drain their battery.
+        // The scan should will be triggered each time the client does api initialize
+        // (aka. every time the user goes to a new page that supports chromecast)
+		mMediaRouteManager.scanForReceiver(appId, 60000, new ChromecastMediaRouterManager.ScanCallback() {
 			@Override
-			public void onFoundRoute() {
+			public void onFoundReceiver() {
 				that.sendReceiverUpdate(true);
 			}
 		});
@@ -173,34 +173,30 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param callbackContext
 	 */
 	public boolean requestSession(final CallbackContext callbackContext) {
-		Chromecast that = this;
-		if (this.currentSession != null) {
-			callbackContext.success(this.currentSession.createSessionObject());
-			return true;
-		}
+		setLastSessionId("");
 
-		this.setLastSessionId("");
+		if (currentSession == null) {
+			// Show the route selection Dialog
+			mMediaRouteManager.showRouteSelectionDialog(new ChromecastMediaRouterManager.DialogCallback() {
+				@Override
+				void onConnect(RouteInfo route) {
+					super.onConnect(route);
+					createSession(route, callbackContext);
+				}
 
-		final Activity activity = this.cordova.getActivity();
-		activity.runOnUiThread(new Runnable() {
-			public void run() {
-
-				// Create the dialog
-				// TODO accept theme as a config.xml option
-				MediaRouteChooserDialog builder = new MediaRouteChooserDialog(activity, R.style.Theme_AppCompat_NoActionBar);
-				builder.setRouteSelector(mMediaRouteManager.getMediaRouteSelector());
-				builder.setCanceledOnTouchOutside(true);
-
-				builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
-					@Override
-					public void onCancel(DialogInterface dialog) {
+				@Override
+				void onError(String errorCode) {
+					super.onError(errorCode);
+					if (errorCode.equals("CANCEL")) {
 						callbackContext.success("cancel");
+					} else {
+						callbackContext.error(errorCode);
 					}
-				});
-
-				builder.show();
-			}
-		});
+				}
+			});
+		} else {
+			// TODO Show the disconnect dialog
+		}
 
 		return true;
 	}
@@ -675,20 +671,13 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	}
 
 	/**
-	 * Called when a route is selected through the MediaRouter
-	 * @param router
-	 * @param route
-	 */
-	protected void onRouteSelected(MediaRouter router, RouteInfo route) {
-		this.createSession(route, null);
-	}
-
-	/**
 	 * Called when a route is unselected through the MediaRouter
 	 * @param router
 	 * @param route
 	 */
-	protected void onRouteUnselected(MediaRouter router, RouteInfo route) {
+	protected void onRouteUnselected(MediaRouter router, RouteInfo route, int reason) {
+		// Let the client know they have been disconnected
+		sendJavascript("chrome.cast._.receiverUnavailable()");
 	}
 
 	/**

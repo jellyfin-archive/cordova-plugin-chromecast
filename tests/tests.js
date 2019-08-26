@@ -150,6 +150,7 @@ exports.defineAutoTests = function () {
 
         it('SPEC_00400 initialize should succeed (default receiver)', function (done) {
             _receiverAvailability = [];
+            _session = 'no_session';
             var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
             var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
                 _session = session;
@@ -158,7 +159,7 @@ exports.defineAutoTests = function () {
             });
 
             chrome.cast.initialize(apiConfig, function () {
-                expect('success').toBeDefined();
+                expect('success').toBeTruthy();
                 done();
             }, function (err) {
                 expect(err).toBe(null);
@@ -195,17 +196,10 @@ exports.defineAutoTests = function () {
             });
         }, USER_INTERACTION_TIMEOUT);
 
-        it('requestSession should succeed', function (done) {
+        it('SPEC_01000 Everything Session', function (done) {
+            alert('---TEST INSTRUCTION---\nPlease select a valid chromecast in the next dialog.');
             chrome.cast.requestSession(function (session) {
-                console.log('request session success');
-                _session = session;
-                expect(session).toBeDefined();
-                expect(session.appId).toBeDefined();
-                expect(session.displayName).toBeDefined();
-                expect(session.receiver).toBeDefined();
-                expect(session.receiver.friendlyName).toBeDefined();
-                expect(session.addUpdateListener).toBeDefined();
-                expect(session.removeUpdateListener).toBeDefined();
+                checkSessionProperties(session);
 
                 var updateListener = function (isAlive) {
                     _sessionUpdatedFired = true;
@@ -213,13 +207,24 @@ exports.defineAutoTests = function () {
                 };
 
                 session.addUpdateListener(updateListener);
+
                 done();
             }, function (err) {
-                console.log('request session error');
                 expect(err).toBe(null);
                 done();
             });
-        });
+        }, USER_INTERACTION_TIMEOUT);
+
+        function checkSessionProperties (session) {
+            expect(session).toBeTruthy();
+            expect(session).not.toBe('no_session');
+            expect(session.appId).toBeTruthy();
+            expect(session.hasOwnProperty('displayName')).toBeTruthy();
+            expect(session.hasOwnProperty('receiver')).toBeTruthy();
+            expect(session.hasOwnProperty('receiver.friendlyName')).toBeTruthy();
+            expect(session.hasOwnProperty('addUpdateListener')).toBeTruthy();
+            expect(session.hasOwnProperty('removeUpdateListener')).toBeTruthy();
+        }
 
         it('loadRequest should work', function (done) {
             var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');

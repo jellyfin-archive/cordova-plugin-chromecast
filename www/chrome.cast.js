@@ -535,6 +535,8 @@ _routeListEl.classList.add('route-list');
 var _routeList = {};
 var _routeRefreshInterval = null;
 
+var _receiverAvailable = false;
+
 /**
  * Initializes the API. Note that either successCallback and errorCallback will be invoked once the API has finished initialization.
  * The sessionListener and receiverListener may be invoked at any time afterwards, and possibly more than once.
@@ -557,13 +559,6 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
     execute('initialize', _sessionRequest.appId, _autoJoinPolicy, _defaultActionPolicy, function (err) {
         if (!err) {
             successCallback();
-
-            clearInterval(_routeRefreshInterval);
-            _routeRefreshInterval = setInterval(function () {
-                execute('emitAllRoutes');
-            }, 15000);
-
-            setTimeout(function () { execute('emitAllRoutes'); }, 2000);
         } else {
             handleError(err, errorCallback);
         }
@@ -792,7 +787,7 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
             _currentMedia.media.tracks = [];
 
             obj.media.tracks.forEach((track) => {
-                let newTrack = new chrome.cast.media.Track(track.trackId, track.type);
+                var newTrack = new chrome.cast.media.Track(track.trackId, track.type);
                 newTrack.customData = track.customData || null;
                 newTrack.language = track.language || null;
                 newTrack.name = track.name || null;
@@ -1199,9 +1194,11 @@ chrome.cast._emitConnecting = function () {
 chrome.cast._ = {
     receiverUnavailable: function () {
         _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
+        _receiverAvailable = false;
     },
     receiverAvailable: function () {
         _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
+        _receiverAvailable = true;
     },
     routeAdded: function (route) {
         if (!_routeList[route.id]) {

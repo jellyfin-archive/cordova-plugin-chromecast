@@ -13,7 +13,7 @@ exports.defineAutoTests = function () {
 
     var applicationID_default = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
     var applicationID_custom = 'F5EEDC6C';
-    var videoUrl = 'http://s3.nwgat.net/flvplayers3/bbb.mp4';
+    var videoUrl = location.origin + '/res/test.mp4';
 
     describe('chrome.cast', function () {
 
@@ -21,7 +21,7 @@ exports.defineAutoTests = function () {
         var _receiverAvailability = [];
         var _sessionUpdatedFired = false;
         var _mediaUpdatedFired = false;
-        var _currentMedia;
+        var media;
 
         it('SPEC_00100 should contain definitions', function () {
             expect(chrome.cast.VERSION).toBeDefined();
@@ -196,68 +196,78 @@ exports.defineAutoTests = function () {
             });
         }, USER_INTERACTION_TIMEOUT);
 
-        it('SPEC_01000 Everything Session', function (done) {
-            alert('---TEST INSTRUCTION---\nPlease select a valid chromecast in the next dialog.');
-            chrome.cast.requestSession(function (session) {
-                checkSessionProperties(session);
+        describe('Everything Session', function () {
 
-                var updateListener = function (isAlive) {
-                    _sessionUpdatedFired = true;
-                    session.removeUpdateListener(updateListener);
-                };
+            it('SPEC_01000 Test valid session', function (done) {
+                alert('---TEST INSTRUCTION---\nPlease select a valid chromecast in the next dialog.');
+                chrome.cast.requestSession(function (session) {
+                    sessionProperties(session)
+                    .then(loadMedia)
+                    .then(done);
 
-                session.addUpdateListener(updateListener);
+                    var updateListener = function (isAlive) {
+                        console.log('session updated!!!!');
+                        _sessionUpdatedFired = true;
+                        session.removeUpdateListener(updateListener);
+                    };
 
-                done();
-            }, function (err) {
-                expect(err).toBe(null);
-                done();
-            });
-        }, USER_INTERACTION_TIMEOUT);
+                    session.addUpdateListener(updateListener);
+                }, function (err) {
+                    expect(err).toEqual('We should not get an error.');
+                    done();
+                });
+            }, USER_INTERACTION_TIMEOUT);
 
-        function checkSessionProperties (session) {
-            expect(session).toBeTruthy();
-            expect(session).not.toBe('no_session');
-            expect(session.appId).toBeTruthy();
-            expect(session.hasOwnProperty('displayName')).toBeTruthy();
-            expect(session.hasOwnProperty('receiver')).toBeTruthy();
-            expect(session.hasOwnProperty('receiver.friendlyName')).toBeTruthy();
-            expect(session.hasOwnProperty('addUpdateListener')).toBeTruthy();
-            expect(session.hasOwnProperty('removeUpdateListener')).toBeTruthy();
-        }
+            function sessionProperties (session) {
+                return new Promise(function (resolve, reject) {
+                    expect(session instanceof chrome.cast.Session).toBeTruthy();
+                    expect(session.appId).toBeDefined();
+                    expect(session.displayName).toBeDefined();
+                    expect(session.receiver).toBeDefined();
+                    expect(session.receiver.friendlyName).toBeDefined();
+                    expect(session.addUpdateListener).toBeDefined();
+                    expect(session.removeUpdateListener).toBeDefined();
+                    expect(session.loadMedia).toBeDefined();
 
-        it('loadRequest should work', function (done) {
-            var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-            var request = new chrome.cast.media.LoadRequest(mediaInfo);
-            expect(_session).not.toBeNull();
-            _session.loadMedia(request, function (media) {
-                console.log('loadRequest success', media);
-                _currentMedia = media;
-        // expect(_currentMedia instanceof chrome.cast.media.Media).toBe(true);
+                    resolve(session);
+                });
+            }
 
-                expect(_currentMedia.sessionId).toEqual(_session.sessionId);
-                expect(_currentMedia.addUpdateListener).toBeDefined();
-                expect(_currentMedia.removeUpdateListener).toBeDefined();
+            function loadMedia (session) {
+                return new Promise(function (resolve, reject) {
+                    var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
+                    expect(mediaInfo).toBeTruthy();
 
-                var updateListener = function () {
-                    _mediaUpdatedFired = true;
-                    _currentMedia.removeUpdateListener(updateListener);
-                };
+                    var request = new chrome.cast.media.LoadRequest(mediaInfo);
+                    expect(request).toBeTruthy();
 
-                _currentMedia.addUpdateListener(updateListener);
+                    session.loadMedia(request, function (media) {
+                        expect(media instanceof chrome.cast.media.Media).toBeTruthy();
 
-                done();
-            }, function (err) {
-                console.log('loadRequest error', err);
-                expect(err).toBeNull();
-                done();
-            });
+                        expect(media.sessionId).toEqual(session.sessionId);
+                        expect(media.addUpdateListener).toBeDefined();
+                        expect(media.removeUpdateListener).toBeDefined();
+
+                        var updateListener = function () {
+                            _mediaUpdatedFired = true;
+                            media.removeUpdateListener(updateListener);
+                        };
+
+                        media.addUpdateListener(updateListener);
+
+                        resolve(session);
+                    }, function (err) {
+                        expect(err).toEqual('We should not get an error.');
+                        reject(err);
+                    });
+                });
+            }
 
         });
 
         it('pause media should succeed', function (done) {
             setTimeout(function () {
-                _currentMedia.pause(null, function () {
+                media.pause(null, function () {
                     console.log('pause success');
                     done();
                 }, function (err) {
@@ -270,7 +280,7 @@ exports.defineAutoTests = function () {
 
         it('play media should succeed', function (done) {
             setTimeout(function () {
-                _currentMedia.play(null, function () {
+                media.play(null, function () {
                     console.log('play success');
                     done();
                 }, function (err) {
@@ -286,7 +296,7 @@ exports.defineAutoTests = function () {
                 var request = new chrome.cast.media.SeekRequest();
                 request.currentTime = 10;
 
-                _currentMedia.seek(request, function () {
+                media.seek(request, function () {
                     done();
                 }, function (err) {
                     expect(err).toBeNull();
@@ -312,13 +322,13 @@ exports.defineAutoTests = function () {
             var request = new chrome.cast.media.VolumeRequest();
             request.volume = volume;
 
-            _currentMedia.setVolume(request, function () {
+            media.setVolume(request, function () {
 
                 var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, true));
-                _currentMedia.setVolume(request, function () {
+                media.setVolume(request, function () {
 
                     var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, false));
-                    _currentMedia.setVolume(request, function () {
+                    media.setVolume(request, function () {
                         done();
                     }, function (err) {
                         expect(err).toBeNull();
@@ -338,7 +348,7 @@ exports.defineAutoTests = function () {
         });
 
         it('stopping the video', function (done) {
-            _currentMedia.stop(null, function () {
+            media.stop(null, function () {
                 setTimeout(done, 1000);
             }, function (err) {
                 expect(err).toBeNull();

@@ -24,10 +24,11 @@ The project is now pretty much feature complete - the only things that will poss
   * With admin permission run `cordova plugin add --link <relative path to the plugin's root dir>`
 * This links the plugin's **java** files directly to the Android platform.  So you can modify the files from Android studio and re-deploy from there.
 * Unfortunately it does **not** link the js files.
-* To update the js files you must run
+* To update the js files you must run:
     * `cordova plugin remove <plugin-name>`
     * `cordova plugin add --link <relative path to the plugin's root dir>`
         * Don't forget the admin permission
+    * Or, you can follow these [hot reloading js instructions](https://github.com/miloproductionsinc/cordova-testing#hot-reload-js)
 
 ## Formatting
 
@@ -40,6 +41,12 @@ The project is now pretty much feature complete - the only things that will poss
 
 ## Testing
 
+**1)** 
+
+Run `npm test` to ensure your code fits the styling.  It will also pick some errors.
+
+**2)**
+
 This plugin has [cordova-plugin-test-framework](https://github.com/apache/cordova-plugin-test-framework) tests.
 
 To run these tests you can follow [these instructions](https://github.com/miloproductionsinc/cordova-testing).
@@ -50,3 +57,8 @@ NOTE: You must run these tests from a project with the package name `com.milopro
     * config.xml > `<widget id="com.miloproductionsinc.plugin_tests"`
   * Or clone this project https://github.com/miloproductionsinc/cordova-testing
 
+
+## Contributing
+
+* Make sure all tests pass
+* Preferably, write a test for your contribution if applicable (for a bug fix, new feature, etc)

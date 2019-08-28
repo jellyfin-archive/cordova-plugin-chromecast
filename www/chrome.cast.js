@@ -581,9 +581,6 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
 
     execute('requestSession', function (err, obj) {
         if (!err) {
-            if (obj === 'cancel') {
-                return;
-            }
             var sessionId = obj.sessionId;
             var appId = obj.appId;
             var displayName = obj.displayName;
@@ -1310,7 +1307,7 @@ function handleError (err, callback) {
         errorDescription = 'A session could not be created, or a session was invalid.';
     }
 
-    var error = new Error(errorCode, errorDescription, errorData);
+    var error = new chrome.cast.Error(errorCode, errorDescription, errorData);
     if (callback) {
         callback(error);
     }

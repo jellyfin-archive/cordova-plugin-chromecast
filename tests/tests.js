@@ -190,6 +190,17 @@ exports.defineAutoTests = function () {
             });
         }, USER_INTERACTION_TIMEOUT);
 
+        it('requestSession click outside of dialog should return the cancel error', function (done) {
+            alert('---TEST INSTRUCTION---\nPlease click outside of the next dialog to dismiss it.');
+            chrome.cast.requestSession(function () {
+                fail('We should not reach here on dismiss');
+            }, function (err) {
+                expect(err instanceof chrome.cast.Error).toBeTruthy();
+                expect(err.code).toBe(chrome.cast.ErrorCode.CANCEL);
+                done();
+            });
+        }, USER_INTERACTION_TIMEOUT);
+
         describe('Everything Session', function () {
 
             it('SPEC_01000 Test valid session', function (done) {

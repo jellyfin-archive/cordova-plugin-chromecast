@@ -188,7 +188,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				void onError(String errorCode) {
 					super.onError(errorCode);
 					if (errorCode.equals("CANCEL")) {
-						callbackContext.success("cancel");
+						callbackContext.error("cancel");
 					} else {
 						callbackContext.error(errorCode);
 					}

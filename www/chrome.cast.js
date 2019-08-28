@@ -533,9 +533,6 @@ var _currentMedia = null;
 var _routeListEl = document.createElement('ul');
 _routeListEl.classList.add('route-list');
 var _routeList = {};
-var _routeRefreshInterval = null;
-
-var _receiverAvailable = false;
 
 /**
  * Initializes the API. Note that either successCallback and errorCallback will be invoked once the API has finished initialization.
@@ -1191,11 +1188,9 @@ chrome.cast._emitConnecting = function () {
 chrome.cast._ = {
     receiverUnavailable: function () {
         _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
-        _receiverAvailable = false;
     },
     receiverAvailable: function () {
         _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
-        _receiverAvailable = true;
     },
     routeAdded: function (route) {
         if (!_routeList[route.id]) {

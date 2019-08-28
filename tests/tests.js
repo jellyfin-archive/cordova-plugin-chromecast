@@ -103,7 +103,7 @@ exports.defineAutoTests = function () {
                     expect('success').toBeDefined();
                     done();
                 }, function (err) {
-                    expect(err).toBe(null);
+                    expect(err).toEqual('no_error_no');
                     done();
                 });
             });
@@ -156,7 +156,7 @@ exports.defineAutoTests = function () {
                 expect('success').toBeTruthy();
                 done();
             }, function (err) {
-                expect(err).toBe(null);
+                expect(err).toEqual('no_error_no');
                 done();
             });
         });
@@ -195,28 +195,24 @@ exports.defineAutoTests = function () {
             it('SPEC_01000 Test valid session', function (done) {
                 alert('---TEST INSTRUCTION---\nPlease select a valid chromecast in the next dialog.');
 
-                function handleErr (err) {
-                    console.error(err);
-                    console.log(new Error().stack);
-                    expect(err).toEqual('Should not have gotten an error at all');
-                    done();
-                }
-
                 chrome.cast.requestSession(function (session) {
 
-                    // // Run all the session related tests
+                    // Run all the session related tests
                     Promise.resolve(session)
                     .then(sessionProperties)
                     .then(loadMedia)
                     .then(stopSession)
-                    .then(done)
-                    .catch(handleErr);
+                    .then(done);
 
-                }, handleErr);
+                }, function (err) {
+                    expect(err).toEqual('no_error_no');
+                    done();
+                });
+
             }, USER_INTERACTION_TIMEOUT);
 
             function sessionProperties (session) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     expect(session instanceof chrome.cast.Session).toBeTruthy();
                     expect(session.appId).toBeDefined();
                     expect(session.displayName).toBeDefined();
@@ -231,7 +227,7 @@ exports.defineAutoTests = function () {
             }
 
             function loadMedia (session) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
                     expect(mediaInfo).toBeTruthy();
 
@@ -252,15 +248,17 @@ exports.defineAutoTests = function () {
                         .then(stopSuccess)
                         .then(function (media) {
                             resolve(session);
-                        })
-                        .catch(reject);
+                        });
 
-                    }, reject);
+                    }, function (err) {
+                        expect(err).toEqual('no_error_no');
+                        resolve();
+                    });
                 });
             }
 
             function mediaProperties (data) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     var media = data.media;
                     var session = data.session;
                     expect(media instanceof chrome.cast.media.Media).toBeTruthy();
@@ -272,39 +270,48 @@ exports.defineAutoTests = function () {
             }
 
             function pauseSuccess (media) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     setTimeout(function () {
                         media.pause(null, function () {
                             resolve(media);
-                        }, reject);
+                        }, function (err) {
+                            expect(err).toEqual('no_error_no');
+                            resolve();
+                        });
                     }, 500);
                 });
             }
 
             function playSuccess (media) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     setTimeout(function () {
                         media.play(null, function () {
                             resolve(media);
-                        }, reject);
+                        }, function (err) {
+                            expect(err).toEqual('no_error_no');
+                            resolve();
+                        });
                     }, 500);
                 });
             }
 
             function seekSuccess (media) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     setTimeout(function () {
                         var request = new chrome.cast.media.SeekRequest();
                         request.currentTime = 3;
                         media.seek(request, function () {
                             resolve(media);
-                        }, reject);
+                        }, function (err) {
+                            expect(err).toEqual('no_error_no');
+                            resolve();
+                        });
                     }, 500);
                 });
             }
 
             function setVolumeSuccess (media) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     var volume = new chrome.cast.Volume();
                     volume.level = 0.2;
 
@@ -313,41 +320,56 @@ exports.defineAutoTests = function () {
 
                     media.setVolume(request, function () {
                         resolve(media);
-                    }, reject);
+                    }, function (err) {
+                        expect(err).toEqual('no_error_no');
+                        resolve();
+                    });
                 });
             }
 
             function muteVolumeSuccess (media) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, true));
                     media.setVolume(request, function () {
                         resolve(media);
-                    }, reject);
+                    }, function (err) {
+                        expect(err).toEqual('no_error_no');
+                        resolve();
+                    });
                 });
             }
 
             function unmuteVolumeSuccess (media) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, false));
                     media.setVolume(request, function () {
                         resolve(media);
-                    }, reject);
+                    }, function (err) {
+                        expect(err).toEqual('no_error_no');
+                        resolve();
+                    });
                 });
             }
 
             function stopSuccess (media) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     media.stop(null, function () {
                         resolve(media);
-                    }, reject);
+                    }, function (err) {
+                        expect(err).toEqual('no_error_no');
+                        resolve();
+                    });
                 });
             }
 
             function stopSession (session) {
-                return new Promise(function (resolve, reject) {
+                return new Promise(function (resolve) {
                     session.stop(function () {
                         resolve(session);
-                    }, reject);
+                    }, function (err) {
+                        expect(err).toEqual('no_error_no');
+                        resolve();
+                    });
                 });
             }
 

@@ -6,7 +6,7 @@
     "eslint": "node node_modules/eslint/bin/eslint src && node node_modules/eslint/bin/eslint www && node node_modules/eslint/bin/eslint tests"
   },
   "author": "",
-  "license": "GPL-2.0-only",
+  "license": "dual GPLv3/MPLv2",
   "readme": "README.md",
   "description": "README.md",
   "devDependencies": {

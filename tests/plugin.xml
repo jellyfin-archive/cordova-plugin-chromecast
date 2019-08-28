@@ -27,5 +27,5 @@
     <js-module src="tests.js" name="tests">
     </js-module>
 
-    <asset src="res" target="res" />
+    <asset src="res" target="plugins/cordova-plugin-chromecast-tests/res" />
 </plugin>

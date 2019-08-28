@@ -13,7 +13,7 @@ exports.defineAutoTests = function () {
 
     var applicationID_default = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
     var applicationID_custom = 'F5EEDC6C';
-    var videoUrl = location.origin + '/res/test.mp4';
+    var videoUrl = location.origin + '/plugins/cordova-plugin-chromecast-tests/res/test.mp4';
 
     describe('chrome.cast', function () {
 

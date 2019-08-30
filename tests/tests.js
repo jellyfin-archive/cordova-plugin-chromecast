@@ -83,77 +83,20 @@ exports.defineAutoTests = function () {
         });
 
         it('SPEC_00200 api should be available', function (done) {
-            tryUntilSuccess(function () {
-                return chrome.cast.isAvailable;
-            }, done);
+            var interval = setInterval(function () {
+                if (chrome.cast.isAvailable) {
+                    expect(chrome.cast.isAvailable).toEqual(true);
+                    clearInterval(interval);
+                    done();
+                }
+            }, 500);
         });
 
-        describe('Custom Receiver', function () {
-            var _customReceiverAvailability = [];
-
-            it('SPEC_00300 initialize should succeed (custom receiver)', function (done) {
-                var sessionRequest = new chrome.cast.SessionRequest(applicationID_custom);
-                var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
-                    _session = session;
-                }, function (available) {
-                    _customReceiverAvailability.push(available);
-                });
-
-                chrome.cast.initialize(apiConfig, function () {
-                    expect('success').toBeDefined();
-                    done();
-                }, function (err) {
-                    expect(err).toEqual('no_error_no');
-                    done();
-                });
-            });
-
-            /**
-             * Pre-requisite: You must have a valid receiver (chromecast) plugged in and available.
-             * You must also be running this test from a project with the package name:
-             * com.miloproductionsinc.plugin_tests
-             * You can rename your project, or clone this:
-             * https://github.com/miloproductionsinc/cordova-testing
-             */
-            it('SPEC_00310 receiver available (custom receiver)', function (done) {
-                tryUntilSuccess(function () {
-
-                    if (_customReceiverAvailability.length >= 1) {
-                        // We should see that the receiver is unavailable always first
-                        expect(_customReceiverAvailability[0]).toBe(chrome.cast.ReceiverAvailability.UNAVAILABLE);
-                        return true;
-                    }
-                    // We need to return false until the first entry to _receiverAvailability is added
-                    return false;
-
-                }, function () {
-
-                    tryUntilSuccess(function () {
-                        if (_customReceiverAvailability.length >= 2) {
-                            // Then we should receive an available notification
-                            expect(_customReceiverAvailability[1]).toBe(chrome.cast.ReceiverAvailability.AVAILABLE);
-                            return true;
-                        }
-                        // We need to return false until the second entry to _receiverAvailability is added
-                        return false;
-
-                    }, done);
-                });
-            }, USER_INTERACTION_TIMEOUT);
-        });
-
-        it('SPEC_00400 initialize should succeed (default receiver)', function (done) {
-            _receiverAvailability = [];
-            _session = 'no_session';
-            var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
-            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
-                _session = session;
-            }, function (available) {
-                _receiverAvailability.push(available);
-            });
-
+        it('SPEC_00300 initialize should succeed (custom receiver)', function (done) {
+            var sessionRequest = new chrome.cast.SessionRequest(applicationID_custom);
+            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {}, function (available) {});
             chrome.cast.initialize(apiConfig, function () {
-                expect('success').toBeTruthy();
+                expect('success').toBeDefined();
                 done();
             }, function (err) {
                 expect(err).toEqual('no_error_no');
@@ -162,33 +105,39 @@ exports.defineAutoTests = function () {
         });
 
         /**
-         * Pre-requisite: You must have a valid receiver (chromecast) plugged in and available
+         * Pre-requisite: You must have a valid receiver (chromecast) plugged in and available.
          */
-        it('SPEC_00410 receiver available (default receiver)', function (done) {
-            tryUntilSuccess(function () {
-
-                if (_receiverAvailability.length >= 1) {
-                    // We should see that the receiver is unavailable always first
-                    expect(_receiverAvailability[0]).toBe(chrome.cast.ReceiverAvailability.UNAVAILABLE);
-                    return true;
-                }
-                // We need to return false until the first entry to _receiverAvailability is added
-                return false;
-
-            }, function () {
-
-                tryUntilSuccess(function () {
-                    if (_receiverAvailability.length >= 2) {
-                        // Then we should receive an available notification
-                        expect(_receiverAvailability[1]).toBe(chrome.cast.ReceiverAvailability.AVAILABLE);
-                        return true;
+        it('SPEC_00400 initialize should succeed (default receiver)', function (done) {
+            var step = 1;
+            var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
+            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {}, function receiverListener (available) {
+                switch (step) {
+                case 1:
+                    // The first update must be unavailable
+                    if (available === 'unavailable') {
+                        step++;
+                    } else {
+                        expect(available).toEqual('unavailable');
                     }
-                    // We need to return false until the second entry to _receiverAvailability is added
-                    return false;
-
-                }, done);
+                    break;
+                case 2:
+                    // The second step waits until we receive available
+                    // Can receive unavailable while waiting
+                    if (available === 'available') {
+                        expect(available).toEqual('available');
+                        step++;
+                        done();
+                    } else {
+                        expect(available).toEqual('unavailable');
+                    }
+                    break;
+                }
             });
-        }, USER_INTERACTION_TIMEOUT);
+            chrome.cast.initialize(apiConfig, function () {}, function (err) {
+                expect(err).toEqual('no_error_no');
+                done();
+            });
+        });
 
         it('requestSession click outside of dialog should return the cancel error', function (done) {
             alert('---TEST INSTRUCTION---\nPlease click outside of the next dialog to dismiss it.');
@@ -395,19 +344,3 @@ exports.defineAutoTests = function () {
 
     });
 };
-
-//* *****************************************************************************************
-//* ***********************************Helper Functions**************************************
-//* *****************************************************************************************
-
-function tryUntilSuccess (successFn, callback, waitBetweenTries) {
-    waitBetweenTries = waitBetweenTries || 500;
-    if (successFn()) {
-        expect(callback).toBeDefined();
-        callback();
-    } else {
-        setTimeout(function () {
-            tryUntilSuccess(successFn, callback, waitBetweenTries);
-        }, waitBetweenTries);
-    }
-}

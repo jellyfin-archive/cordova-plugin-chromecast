@@ -1,6 +1,6 @@
 /**
- * Portions of this page are modifications based on work created and shared by 
- * Google and used according to terms described in the Creative Commons 3.0 
+ * Portions of this page are modifications based on work created and shared by
+ * Google and used according to terms described in the Creative Commons 3.0
  * Attribution License.
  */
 var EventEmitter = require('cordova-plugin-chromecast.EventEmitter');
@@ -592,9 +592,6 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
 
 	execute('requestSession', function(err, obj) {
 		if (!err) {
-			if (obj === 'cancel') {
-				return
-			}
 			var sessionId = obj.sessionId;
 			var appId = obj.appId;
 			var displayName = obj.displayName;

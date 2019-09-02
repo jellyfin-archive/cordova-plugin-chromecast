@@ -9,6 +9,7 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Comparator;
 
 import com.google.android.gms.cast.CastMediaControlIntent;
 
@@ -198,6 +199,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			public void run() {
 				mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
 				final List<RouteInfo> routeList = mMediaRouter.getRoutes();
+				routeList.sort(Comparator.comparing(RouteInfo::getName));
 
 				AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 				builder.setTitle("Choose a Chromecast");
@@ -208,7 +210,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 				for (int n = 1; n < routeList.size(); n++) {
 					RouteInfo route = routeList.get(n);
-					if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
+					if (isRouteUsable(route)) {
 						seq_tmp1.add(route.getName());
 						seq_tmp_cnt_final.add(n);
 						//seq[n-1] = route.getName();
@@ -670,7 +672,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				boolean available = false;
 
 				for (RouteInfo route : routeList) {
-					if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
+					if (isRouteUsable(route)) {
 						available = true;
 						break;
 					}
@@ -715,7 +717,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		} else {
 			log("For some reason, not attempting to join route " + route.getName() + ", " + this.currentSession + ", " + this.autoConnect);
 		}
-		if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
+		if (isRouteUsable(route)) {
 			sendJavascript("chrome.cast._.routeAdded(" + routeToJSON(route) + ")");
 		}
 		this.checkReceiverAvailable();
@@ -728,7 +730,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 */
 	protected void onRouteRemoved(MediaRouter router, RouteInfo route) {
 		this.checkReceiverAvailable();
-		if (!route.getName().equals("Phone") && route.getId().indexOf("Cast") > -1) {
+		if (isRouteUsable(route)) {
 			sendJavascript("chrome.cast._.routeRemoved(" + routeToJSON(route) + ")");
 		}
 	}
@@ -766,6 +768,15 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		}
 
 		return obj;
+	}
+
+	/**
+	 * Makes sure that the route points to a Google Cast device and that it isn't a member of a Google Home group.
+	 * @param route
+	 * @return
+	 */
+	private boolean isRouteUsable(RouteInfo route) {
+		return (route.getId().indexOf("Cast") > -1 && !route.getDescription().equals("Google Cast Multizone Member"));
 	}
 
 	@Override

@@ -2,6 +2,12 @@ package acidhax.cordova.chromecast;
 
 import android.annotation.TargetApi;
 import android.os.Build;
+import android.os.Bundle;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.graphics.Color;
+import android.text.Spanned;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -11,6 +17,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Comparator;
 
+import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.CastMediaControlIntent;
 
 import org.apache.cordova.CordovaPlugin;
@@ -203,17 +210,23 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 
 				AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 				builder.setTitle("Choose a Chromecast");
-				//CharSequence[] seq = new CharSequence[routeList.size() -1];
-				ArrayList<String> seq_tmp1 = new ArrayList<String>();
 
+				ArrayList<SpannableString> seq_tmp1 = new ArrayList<SpannableString>();
 				final ArrayList<Integer> seq_tmp_cnt_final = new ArrayList<Integer>();
 
 				for (int n = 1; n < routeList.size(); n++) {
 					RouteInfo route = routeList.get(n);
+
 					if (isRouteUsable(route)) {
-						seq_tmp1.add(route.getName());
+						String name = route.getName();
+						String description = route.getDescription();
+
+						SpannableString text = new SpannableString(name + "\n" + description);
+						text.setSpan(new ForegroundColorSpan(Color.parseColor("lightgray")), name.length() + 1, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+						text.setSpan(new RelativeSizeSpan(0.9f), name.length() + 1, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+						seq_tmp1.add(text);
 						seq_tmp_cnt_final.add(n);
-						//seq[n-1] = route.getName();
 					}
 				}
 
@@ -771,12 +784,23 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	}
 
 	/**
-	 * Makes sure that the route points to a Google Cast device and that it isn't a member of a Google Home group.
+	 * Makes sure that the route points to a Google Cast device, that
+	 * a member of a Google Home Group isn't listed more than once and
+	 * that other applications streaming to a device aren't shown as
+	 * a separate device to avoid duplicate routes.
 	 * @param route
 	 * @return
 	 */
 	private boolean isRouteUsable(RouteInfo route) {
-		return (route.getId().indexOf("Cast") > -1 && !route.getDescription().equals("Google Cast Multizone Member"));
+		Bundle bundle = route.getExtras();
+		String sessionId = null;
+
+		if (bundle != null) {
+			CastDevice device = CastDevice.getFromBundle(bundle);
+			sessionId = bundle.getString("com.google.android.gms.cast.EXTRA_SESSION_ID");
+		}
+
+		return (route.getId().indexOf("Cast") > -1 && !route.getDescription().equals("Google Cast Multizone Member") && sessionId == null);
 	}
 
 	@Override

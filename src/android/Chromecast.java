@@ -214,7 +214,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 				ArrayList<SpannableString> seq_tmp1 = new ArrayList<SpannableString>();
 				final ArrayList<Integer> seq_tmp_cnt_final = new ArrayList<Integer>();
 
-				for (int n = 1; n < routeList.size(); n++) {
+				for (int n = 0; n < routeList.size(); n++) {
 					RouteInfo route = routeList.get(n);
 
 					if (isRouteUsable(route)) {

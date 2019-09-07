@@ -547,15 +547,16 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
         return;
     }
 
-    _sessionListener = apiConfig.sessionListener;
     _autoJoinPolicy = apiConfig.autoJoinPolicy;
     _defaultActionPolicy = apiConfig.defaultActionPolicy;
-    _receiverListener = apiConfig.receiverListener;
     _sessionRequest = apiConfig.sessionRequest;
 
     execute('initialize', _sessionRequest.appId, _autoJoinPolicy, _defaultActionPolicy, function (err) {
         if (!err) {
             successCallback();
+            // Only set the listeners once initialize has completed successfully
+            _sessionListener = apiConfig.sessionListener;
+            _receiverListener = apiConfig.receiverListener;
         } else {
             handleError(err, errorCallback);
         }
@@ -595,7 +596,6 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
             }
 
             successCallback(session);
-            _sessionListener(session); /* Fix - Already has a sessionListener */
         } else {
             handleError(err, errorCallback);
         }
@@ -780,7 +780,9 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
 
             _currentMedia.media.tracks = [];
 
-            obj.media.tracks.forEach((track) => {
+            var track;
+            for (var i = 0; i < obj.media.tracks.length; i++) {
+                track = obj.media.tracks[i];
                 var newTrack = new chrome.cast.media.Track(track.trackId, track.type);
                 newTrack.customData = track.customData || null;
                 newTrack.language = track.language || null;
@@ -790,7 +792,7 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
                 newTrack.trackContentType = track.trackContentType || null;
 
                 _currentMedia.media.tracks.push(newTrack);
-            });
+            }
 
             successCallback(_currentMedia);
 
@@ -1238,17 +1240,15 @@ chrome.cast._ = {
             console.log('mediaLoaded --- but there is no session tied to it', media);
         }
     },
+    sessionListener: function (javaSession) {
+        var session = getJsSession(javaSession);
+        _sessionListener && _sessionListener(session);
+    },
     sessionJoined: function (obj) {
-        var sessionId = obj.sessionId;
-        var appId = obj.appId;
-        var displayName = obj.displayName;
-        var appImages = obj.appImages || [];
-        var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.receiver.volume || null);
-
-        var session = _sessions[sessionId] = new chrome.cast.Session(sessionId, appId, displayName, appImages, receiver);
+        var session = getJsSession(obj);
 
         if (obj.media && obj.media.sessionId) {
-            _currentMedia = new chrome.cast.media.Media(sessionId, obj.media.mediaSessionId);
+            _currentMedia = new chrome.cast.media.Media(session.sessionId, obj.media.mediaSessionId);
             _currentMedia.currentTime = obj.media.currentTime;
             _currentMedia.playerState = obj.media.playerState;
             _currentMedia.media = obj.media.media;
@@ -1265,6 +1265,21 @@ chrome.cast._ = {
 };
 
 module.exports = chrome.cast;
+
+function getJsSession (javaSession) {
+    return new chrome.cast.Session(
+        javaSession.sessionId,
+        javaSession.appId,
+        javaSession.displayName,
+        javaSession.appImages || [],
+        new chrome.cast.Receiver(
+            javaSession.receiver.label,
+            javaSession.receiver.friendlyName,
+            javaSession.receiver.capabilities || [],
+            javaSession.receiver.volume || null
+            )
+        );
+}
 
 function execute (action) {
     var args = [].slice.call(arguments);

@@ -2,7 +2,7 @@ package acidhax.cordova.chromecast;
 
 import android.app.Activity;
 import android.content.DialogInterface;
-import android.os.Handler;
+import android.content.Intent;
 
 import androidx.mediarouter.app.MediaRouteChooserDialog;
 import androidx.mediarouter.media.MediaRouteSelector;
@@ -10,155 +10,346 @@ import androidx.mediarouter.media.MediaRouter;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
 import com.google.android.gms.cast.CastMediaControlIntent;
+import com.google.android.gms.cast.framework.CastContext;
+import com.google.android.gms.cast.framework.CastSession;
+import com.google.android.gms.cast.framework.SessionManager;
+import com.google.android.gms.cast.framework.SessionManagerListener;
 
-import java.util.List;
+public class ChromecastConnection {
 
-public class ChromecastMediaRouterManager {
+	// Lifetime variables
+	private Activity activity;
+	private ChromecastSession media;
+	private SessionListener newConnectionListener;
 
-	private Activity mActivity;
-	private String mAppId;
-	private volatile MediaRouter mMediaRouter;
-	private volatile MediaRouteSelector mMediaRouteSelector;
-	private MediaRouter.Callback mMediaRouterCallback;
-	private volatile boolean mDialogCancelled;
+	// initialize lifetime variables
+	private String appId;
 
-	public ChromecastMediaRouterManager(Activity context, MediaRouter.Callback mediaRouterCallback) {
-		mActivity = context;
-		mMediaRouterCallback = mediaRouterCallback;
+	// session lifetime variables
+	private CastSession session;
+
+	public ChromecastConnection(Activity activity, ChromecastSession media, ConnectionListener listener) {
+		this.activity = activity;
+		this.media = media;
+
+		// Add the session end/disconnect listener
+		activity.runOnUiThread(new Runnable() {
+			public void run() {
+				getSessionManager().addSessionManagerListener(new SessionListener() {
+					@Override
+					public void onSessionEnded(CastSession castSession, int error) {
+						setSession(null);
+						if (listener != null) {
+							listener.onDisconnected(error);
+						}
+					}
+				}, CastSession.class);
+			}
+		});
 	}
 
 	/**
-	 * Actively searches for a valid receiver for appId for seekDuration.
-	 * This uses lots of battery power, so it's best to limit the search time.
+	 * Must be called each time the appId changes and at least once before any other method is called.
 	 * @param appId
-	 * @param seekDuration (milli seconds)
 	 * @param callback
 	 */
-	public void scanForReceiver(String appId, int seekDuration, ScanCallback callback) {
-		mActivity.runOnUiThread(new Runnable() {
+	public void initialize(String appId, Callback callback) {
+		// If the appId changed
+		if (!appId.equals(this.appId)) {
+			// Else we need to save the new appId
+			this.setAppId(appId);
+			// And reset the session
+			this.setSession(null);
+		}
+
+		activity.runOnUiThread(new Runnable() {
 			public void run() {
-				synchronized(ChromecastMediaRouterManager.class) {
-
-					boolean appIdIsSame = appId.equals(mAppId);
-					mAppId = appId;
-
-					// Ensure the media router exists
-					if (mMediaRouter == null) {
-						// We need to initialize the router exists
-						mMediaRouter = MediaRouter.getInstance(mActivity);
-					}
-
-					if (appIdIsSame && isRouteAvailable()) {
-						// In this case, it most likely this the user navigated to a new page and called api initialize again.
-						// To replicate chrome desktop behavior, we must manually send the receiver available update.
-						// Scan will not find a new route since we already have one.
-						callback.onFoundReceiver();
-
-					} else {
-						// Else, scan because, the app Id has changed, this is our first time here, or no routes are known
-
-						// Update/create the route selector as needed
-						if (!appIdIsSame || mMediaRouteSelector == null) {
-							mMediaRouteSelector = new MediaRouteSelector.Builder()
-									.addControlCategory(CastMediaControlIntent.categoryForCast(appId))
-									.build();
-						}
-
-						// Add a callback that will solely search for receivers.
-						// We will remove the active seeking callback after it finds a route or
-						// after seekDuration.  It uses a lot of power.  We will then add a less
-						// power-hungry callback.
-
-						// Create our route detection callback
-						MediaRouter.Callback routeChangedCallback = new MediaRouter.Callback() {
-							@Override
-							public void onRouteChanged(MediaRouter router, RouteInfo route) {
-								super.onRouteChanged(router, route);
-								if (isRouteAvailable()) {
-									callback.onFoundReceiver();
-									mMediaRouter.removeCallback(this);
-								}
-							}
-						};
-
-						// Create and start our timeout
-						final Handler handler = new Handler();
-						final Runnable r = new Runnable() {
-							@Override
-							public void run() {
-								// Quit scanning
-								mMediaRouter.removeCallback(routeChangedCallback);
-							}
-						};
-						handler.postDelayed(r, seekDuration);
-
-						// Add the callback in active scan mode
-						mMediaRouter.addCallback(mMediaRouteSelector, routeChangedCallback, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
-					}
-				}
-
+				// Set the new appId
+				CastContext.getSharedInstance(activity).setReceiverApplicationId(appId);
+				// Tell the client we are done
+				callback.run();
 			}
 		});
 	}
 
-	public void showRouteSelectionDialog(DialogCallback callback) {
-		mDialogCancelled = false;
+	private MediaRouter getMediaRouter() {
+		return MediaRouter.getInstance(activity);
+	}
 
-		mActivity.runOnUiThread(new Runnable() {
+	private SessionManager getSessionManager() {
+		return CastContext.getSharedInstance(activity).getSessionManager();
+	}
+
+	private void setAppId(String appId) {
+		this.appId = appId;
+	}
+
+	private void setSession(CastSession castSession) {
+		this.session = castSession;
+		this.media.setSession(this.session);
+	}
+
+	/**
+	 * Attempts to join the last route we were connected to.
+	 *
+	 * @param callback
+	 */
+	public void rejoin(JoinCallback callback) {
+		if (session != null) {
+			callback.onJoin(session);
+		}
+		// TODO is it even possible to rejoin a session automatically?
+		//  https://stackoverflow.com/questions/57801427/how-to-rejoin-cast-session-after-app-restart
+		//  https://stackoverflow.com/questions/57832467/how-to-check-if-mediarouter-routeinfo-route-is-already-in-use
+	}
+
+	/**
+	 * This will create a new session or seamlessly join an existing one if we created it.
+	 * @param routeId
+	 * @param callback
+	 */
+	public void join(String routeId, JoinCallback callback) {
+		activity.runOnUiThread(new Runnable() {
 			public void run() {
+				if (session != null) {
+					// We are are already connected to a route
+					callback.onJoin(session);
+					return;
+				}
+				listenForConnection(callback);
 
-				// Create the dialog
-				// TODO accept theme as a config.xml option
-				MediaRouteChooserDialog builder = new MediaRouteChooserDialog(mActivity, androidx.appcompat.R.style.Theme_AppCompat_NoActionBar);
-				builder.setRouteSelector(mMediaRouteSelector);
-				builder.setCanceledOnTouchOutside(true);
-				builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
-					@Override
-					public void onCancel(DialogInterface dialog) {
-						mDialogCancelled = true;
-					}
-				});
-				builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
-					@Override
-					public void onDismiss(DialogInterface dialog) {
-						RouteInfo route = mMediaRouter.getSelectedRoute();
-						if (mDialogCancelled) {
-							callback.onError("CANCEL");
-						} else if (route.isDefault()) {
-							callback.onError("RECEIVER_UNAVAILABLE");
-						} else {
-							callback.onConnect(route);
-						}
-					}
-				});
+				Intent castIntent = new Intent();
+				castIntent.putExtra("CAST_INTENT_TO_CAST_ROUTE_ID_KEY", routeId);
+				// Not sure of this one's purpose, possibly just for display
+				// castIntent.putExtra("CAST_INTENT_TO_CAST_DEVICE_NAME_KEY", deviceName);
+				castIntent.putExtra("CAST_INTENT_TO_CAST_NO_TOAST_KEY", false);
 
-				builder.show();
+				getSessionManager().startSession(castIntent);
 			}
 		});
 	}
 
 	/**
-	 * Checks if it appears that any routes are available.
-	 * @return True, if there has been a receiver available (it is possible that it has been disconnected).
-	 *         False, if there has been no confirmed receiver.
+	 * Will do one of two things:
+	 *
+	 * If no current connection will:
+	 * 1)
+	 * Displays the built in native prompt to the user.
+	 * It will actively scan for routes and display them to the user.
+	 * Upon selection it will immediately attempt to join the route.
+	 * Will call onJoin or onError of callback.
+	 *
+	 * Else we have a connection, so:
+	 * 2)
+	 * Displays the active connection dialog which includes the option
+	 * to disconnect.
+	 * Will only call onError of callback if the user cancels the dialog.
+	 *
+	 * @param callback
 	 */
-	public boolean isRouteAvailable() {
-		if (mMediaRouter != null && mMediaRouteSelector != null) {
-			return mMediaRouter.isRouteAvailable(mMediaRouteSelector, MediaRouter.AVAILABILITY_FLAG_IGNORE_DEFAULT_ROUTE);
+	public void showConnectionDialog(JoinCallback callback) {
+		activity.runOnUiThread(new Runnable() {
+			public void run() {
+				if (session == null) {
+					// show the "choose a connection" dialog
+
+					// Add the connection listener callback
+					listenForConnection(callback);
+
+					// Create the dialog
+					// TODO accept theme as a config.xml option
+					MediaRouteChooserDialog builder = new MediaRouteChooserDialog(activity, androidx.appcompat.R.style.Theme_AppCompat_NoActionBar);
+					builder.setRouteSelector(new MediaRouteSelector.Builder()
+							.addControlCategory(CastMediaControlIntent.categoryForCast(appId))
+							.build());
+					builder.setCanceledOnTouchOutside(true);
+					builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+						@Override
+						public void onCancel(DialogInterface dialog) {
+							getSessionManager().removeSessionManagerListener(newConnectionListener, CastSession.class);
+							callback.onError("CANCEL");
+						}
+					});
+					builder.show();
+				} else {
+					// We are are already connected, so show the "connection options" Dialog
+					// TODO
+				}
+			}
+		});
+	}
+
+	/**
+	 * Must be called from the main thread
+	 * @param callback
+	 */
+	private void listenForConnection(JoinCallback callback) {
+		// We should only ever have one of these listeners active at a time, so remove previous
+		getSessionManager().removeSessionManagerListener(newConnectionListener, CastSession.class);
+		newConnectionListener = new SessionListener() {
+			@Override
+			public void onSessionStarted(CastSession castSession, String sessionId) {
+				getSessionManager().removeSessionManagerListener(this, CastSession.class);
+				setSession(castSession);
+				callback.onJoin(session);
+			}
+			@Override
+			public void onSessionStartFailed(CastSession castSession, int errCode) {
+				getSessionManager().removeSessionManagerListener(this, CastSession.class);
+				setSession(null);
+				callback.onError(Integer.toString(errCode));
+			}
+		};
+		getSessionManager().addSessionManagerListener(newConnectionListener, CastSession.class);
+	}
+
+
+	/**
+	 * Starts listening for receiver updates.
+	 * Must call stopScan(callback) or the battery will drain with non-stop active scanning.
+	 * @param callback
+	 */
+	public void scanForRoutes(ScanCallback callback) {
+		// Add the callback in active scan mode
+		activity.runOnUiThread(new Runnable() {
+			public void run() {
+
+				// Send out the initial routes
+				for (RouteInfo route : getMediaRouter().getRoutes()) {
+					callback.onFilteredRouteUpdate(route);
+				}
+
+				// Add the callback in active scan mode
+				getMediaRouter().addCallback(new MediaRouteSelector.Builder()
+						.addControlCategory(CastMediaControlIntent.categoryForCast(appId))
+						.build(),
+						callback,
+						MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+			}
+		});
+	}
+
+	/**
+	 * Call to stop the active scan if any exist.
+	 */
+	public void stopScan(ScanCallback callback) {
+		activity.runOnUiThread(new Runnable() {
+			public void run() {
+				callback.stop();
+				getMediaRouter().removeCallback(callback);
+			}
+		});
+	}
+
+	public void leave() {
+		activity.runOnUiThread(new Runnable() {
+			public void run() {
+				setSession(null);
+				getMediaRouter().unselect(MediaRouter.UNSELECT_REASON_DISCONNECTED);
+			}
+		});
+	}
+
+	public void kill() {
+		activity.runOnUiThread(new Runnable() {
+			public void run() {
+				setSession(null);
+				getSessionManager().endCurrentSession(true);
+			}
+		});
+	}
+
+	private class SessionListener implements SessionManagerListener<CastSession> {
+
+		@Override
+		public void onSessionStarting(CastSession castSession) {
 		}
-		return false;
+
+		@Override
+		public void onSessionStarted(CastSession castSession, String sessionId) {
+		}
+
+		@Override
+		public void onSessionStartFailed(CastSession castSession, int error) {
+		}
+
+		@Override
+		public void onSessionEnding(CastSession castSession) {
+		}
+
+		@Override
+		public void onSessionEnded(CastSession castSession, int error) {
+		}
+
+		@Override
+		public void onSessionResuming(CastSession castSession, String sessionId) {
+		}
+
+		@Override
+		public void onSessionResumed(CastSession castSession, boolean wasSuspended) {
+		}
+
+		@Override
+		public void onSessionResumeFailed(CastSession castSession, int error) {
+		}
+
+		@Override
+		public void onSessionSuspended(CastSession castSession, int reason) {
+		}
 	}
 
-	public List<RouteInfo> getRoutes() {
-		return mMediaRouter.getRoutes();
+	public interface Callback {
+		void run();
+	}
+	
+	public interface ConnectionListener {
+		/**
+		 * Called whenever a connection ends
+		 */
+		void onDisconnected(int reason);
 	}
 
-	public static class ScanCallback {
-		void onFoundReceiver() {}
+	public interface JoinCallback {
+		/**
+		 * Successfully joined a session on a route.
+		 */
+		void onJoin(CastSession session);
+
+		/**
+		 * @param errorCode "CANCEL" means the user cancelled
+		 *                  If the errorCode is an integer, you can find the meaning here:
+		 *                 https://developers.google.com/android/reference/com/google/android/gms/cast/CastStatusCodes
+		 */
+		void onError(String errorCode);
 	}
 
-	public static class DialogCallback {
-		void onConnect(RouteInfo route) {}
-		void onError(String errorCode) {}
+	public static abstract class ScanCallback extends MediaRouter.Callback {
+		abstract void onRouteUpdate(RouteInfo route);
+
+		private boolean stopped = false;
+		void stop() {
+			stopped = true;
+		}
+		private void onFilteredRouteUpdate(RouteInfo route) {
+			if (stopped) {
+				return;
+			}
+			if (!route.isDefault()) {
+				onRouteUpdate(route);
+			}
+		}
+		@Override
+		public void onRouteAdded(MediaRouter router, RouteInfo route) {
+			onFilteredRouteUpdate(route);
+		}
+		@Override
+		public void onRouteChanged(MediaRouter router, RouteInfo route) {
+			onFilteredRouteUpdate(route);
+		}
+		@Override
+		public void onRouteRemoved(MediaRouter router, RouteInfo route) {
+			onFilteredRouteUpdate(route);
+		}
 	}
+
 }

@@ -99,7 +99,7 @@ exports.defineAutoTests = function () {
                 expect('success').toBeDefined();
                 done();
             }, function (err) {
-                expect(err).toEqual('no_error_no');
+                fail(err.code + ': ' + err.description);
                 done();
             });
         });
@@ -110,39 +110,48 @@ exports.defineAutoTests = function () {
         it('SPEC_00400 initialize should succeed (default receiver)', function (done) {
             var step = 1;
             var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
-            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {}, function receiverListener (available) {
-                switch (step) {
-                case 1:
-                    // The first update must be unavailable
-                    if (available === 'unavailable') {
-                        step++;
+            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
+                fail('should not receive a session (make sure there is no active cast session when starting the tests)');
+            }, function receiverListener (available) {
+                if (step === 1) {
+                    fail('SPEC_00400 - Did not hit initialize Step 1 first');
+                }
+                if (step === 2) {
+                    // Step 2 - We must get the unavailable notification
+                    if (available !== 'unavailable') {
+                        fail('SPEC_00400 - Step 2 - Hit receiver listener with non-unavailable status');
                     } else {
-                        expect(available).toEqual('unavailable');
+                        step++;
                     }
-                    break;
-                case 2:
-                    // The second step waits until we receive available
-                    // Can receive unavailable while waiting
+                }
+                if (step === 3) {
+                    // Step 3 - We are allowed to receive multiple unavailable until we receive the first available in this step
+                    if (available !== 'unavailable' && available !== 'available') {
+                        fail('SPEC_00400 - Step 3 - Hit receiver listener with incorrect status');
+                    }
                     if (available === 'available') {
-                        expect(available).toEqual('available');
-                        step++;
+                        expect('success').toBeDefined();
                         done();
-                    } else {
-                        expect(available).toEqual('unavailable');
                     }
-                    break;
                 }
             });
-            chrome.cast.initialize(apiConfig, function () {}, function (err) {
-                expect(err).toEqual('no_error_no');
+            chrome.cast.initialize(apiConfig, function () {
+                // Step 1
+                if (step !== 1) {
+                    fail('SPEC_00400 - Step 1 - Expected to hit this first, but did not');
+                }
+                step++;
+            }, function (err) {
+                fail(err.code + ': ' + err.description);
                 done();
             });
         });
 
         it('requestSession click outside of dialog should return the cancel error', function (done) {
             alert('---TEST INSTRUCTION---\nPlease click outside of the next dialog to dismiss it.');
-            chrome.cast.requestSession(function () {
-                fail('We should not reach here on dismiss');
+            chrome.cast.requestSession(function (session) {
+                fail('We should not reach here on dismiss (make sure you cancelled the dialog for this test!)');
+                done();
             }, function (err) {
                 expect(err instanceof chrome.cast.Error).toBeTruthy();
                 expect(err.code).toBe(chrome.cast.ErrorCode.CANCEL);
@@ -160,16 +169,69 @@ exports.defineAutoTests = function () {
                     // Run all the session related tests
                     Promise.resolve(session)
                     .then(sessionProperties)
+                    .then(newPageSharesSession)
+                    .then(sessionProperties)
                     .then(loadMedia)
                     .then(stopSession)
                     .then(done);
 
                 }, function (err) {
-                    expect(err).toEqual('no_error_no');
+                    fail(err.code + ': ' + err.description);
                     done();
                 });
 
             }, USER_INTERACTION_TIMEOUT);
+
+            /**
+             * When on a new page, it will call initialize again
+             * This should result in the session being passed to the
+             * session listener as long as teh requested appId does
+             * not change.
+             */
+            function newPageSharesSession (session) {
+                return new Promise(function (resolve) {
+                    var step = 1;
+                    var sessionRequest = new window.chrome.cast.SessionRequest(window.chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID);
+                    var apiConfig = new window.chrome.cast.ApiConfig(sessionRequest, function (session) {
+                        if (step !== 4) {
+                            fail('newPageSharesSession.js - Did not hit session listener as 4th step');
+                        }
+                        resolve(session);
+                    }, function receiverListener (available) {
+                        if (step === 1) {
+                            fail('newPageSharesSession.js - Did not hit initialize Step 1 first');
+                        }
+                        if (step === 2) {
+                            // Step 2 - We must get the unavailable notification
+                            if (available !== 'unavailable') {
+                                fail('newPageSharesSession.js - Step 2 - Hit receiver listener with non-unavailable status');
+                            } else {
+                                step++;
+                            }
+                        }
+                        if (step === 3) {
+                            // Step 3 - We are allowed to receive multiple unavailable until we receive the first available in this step
+                            if (available !== 'unavailable' && available !== 'available') {
+                                fail('newPageSharesSession.js - Step 3 - Hit receiver listener with incorrect status');
+                            }
+                            if (available === 'available') {
+                                step++;
+                            }
+                        }
+                    });
+
+                    // Initialize
+                    window.chrome.cast.initialize(apiConfig, function () {
+                        // Step 1
+                        if (step !== 1) {
+                            fail('newPageSharesSession.js - Step 1 - Expected to hit this first, but did not');
+                        }
+                        step++;
+                    }, function (err) {
+                        fail(err.code + ': ' + err.description);
+                    });
+                });
+            }
 
             function sessionProperties (session) {
                 return new Promise(function (resolve) {
@@ -211,7 +273,7 @@ exports.defineAutoTests = function () {
                         });
 
                     }, function (err) {
-                        expect(err).toEqual('no_error_no');
+                        fail(err.code + ': ' + err.description);
                         resolve();
                     });
                 });
@@ -235,7 +297,7 @@ exports.defineAutoTests = function () {
                         media.pause(null, function () {
                             resolve(media);
                         }, function (err) {
-                            expect(err).toEqual('no_error_no');
+                            fail(err.code + ': ' + err.description);
                             resolve();
                         });
                     }, 500);
@@ -248,7 +310,7 @@ exports.defineAutoTests = function () {
                         media.play(null, function () {
                             resolve(media);
                         }, function (err) {
-                            expect(err).toEqual('no_error_no');
+                            fail(err.code + ': ' + err.description);
                             resolve();
                         });
                     }, 500);
@@ -263,7 +325,7 @@ exports.defineAutoTests = function () {
                         media.seek(request, function () {
                             resolve(media);
                         }, function (err) {
-                            expect(err).toEqual('no_error_no');
+                            fail(err.code + ': ' + err.description);
                             resolve();
                         });
                     }, 500);
@@ -281,7 +343,7 @@ exports.defineAutoTests = function () {
                     media.setVolume(request, function () {
                         resolve(media);
                     }, function (err) {
-                        expect(err).toEqual('no_error_no');
+                        fail(err.code + ': ' + err.description);
                         resolve();
                     });
                 });
@@ -293,7 +355,7 @@ exports.defineAutoTests = function () {
                     media.setVolume(request, function () {
                         resolve(media);
                     }, function (err) {
-                        expect(err).toEqual('no_error_no');
+                        fail(err.code + ': ' + err.description);
                         resolve();
                     });
                 });
@@ -305,7 +367,7 @@ exports.defineAutoTests = function () {
                     media.setVolume(request, function () {
                         resolve(media);
                     }, function (err) {
-                        expect(err).toEqual('no_error_no');
+                        fail(err.code + ': ' + err.description);
                         resolve();
                     });
                 });
@@ -316,7 +378,7 @@ exports.defineAutoTests = function () {
                     media.stop(null, function () {
                         resolve(media);
                     }, function (err) {
-                        expect(err).toEqual('no_error_no');
+                        fail(err.code + ': ' + err.description);
                         resolve();
                     });
                 });
@@ -327,7 +389,7 @@ exports.defineAutoTests = function () {
                     session.stop(function () {
                         resolve(session);
                     }, function (err) {
-                        expect(err).toEqual('no_error_no');
+                        fail(err.code + ': ' + err.description);
                         resolve();
                     });
                 });
@@ -335,11 +397,49 @@ exports.defineAutoTests = function () {
 
         });
 
-        it('SPEC_01200 should pass auto tests on second run', function () {
-            alert('---TEST INSTRUCTION---\nPlease hit "Reset App" at the top and ensure all '
-                + 'tests pass again. (This simulates navigation to a new page where the '
-                + 'plugin is not loaded from scratch again).');
-            expect('success').toBeDefined();
+        /**
+         * This tests that after the session has been stopped that we do not receive
+         * the old (dead) session on initialize if we ask to initialize again with
+         * the same app id.
+         */
+        it('SPEC_01400 initialize should succeed (default receiver) but no session', function (done) {
+            var step = 1;
+            var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
+            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
+                fail('SPEC_01400 should not receive a session');
+            }, function receiverListener (available) {
+                if (step === 1) {
+                    fail('SPEC_01400 - Did not hit initialize Step 1 first');
+                }
+                if (step === 2) {
+                    // Step 2 - We must get the unavailable notification
+                    if (available !== 'unavailable') {
+                        fail('SPEC_01400 - Step 2 - Hit receiver listener with non-unavailable status');
+                    } else {
+                        step++;
+                    }
+                }
+                if (step === 3) {
+                    // Step 3 - We are allowed to receive multiple unavailable until we receive the first available in this step
+                    if (available !== 'unavailable' && available !== 'available') {
+                        fail('SPEC_01400 - Step 3 - Hit receiver listener with incorrect status');
+                    }
+                    if (available === 'available') {
+                        expect('success').toBeDefined();
+                        done();
+                    }
+                }
+            });
+            chrome.cast.initialize(apiConfig, function () {
+                // Step 1
+                if (step !== 1) {
+                    fail('SPEC_01400 - Step 1 - Expected to hit this first, but did not');
+                }
+                step++;
+            }, function (err) {
+                fail(err.code + ': ' + err.description);
+                done();
+            });
         });
 
     });

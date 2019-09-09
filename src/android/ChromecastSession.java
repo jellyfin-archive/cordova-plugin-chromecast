@@ -433,7 +433,6 @@ public class ChromecastSession {
         });
     }
 
-
     /**
      * Sets the receiver volume level.
      * @param volume volume to set the receiver to
@@ -502,12 +501,11 @@ public class ChromecastSession {
         return out;
     }
 
-    private JSONObject createAppImagesObject() {
-        JSONObject out = new JSONObject();
+    private JSONArray createAppImagesObject() {
+        JSONArray appImages = new JSONArray();
         try {
             MediaMetadata metadata = client.getMediaInfo().getMetadata();
             List<WebImage> images = metadata.getImages();
-            JSONArray appImages = new JSONArray();
             if (images != null) {
                 for (WebImage o : images) {
                     appImages.put(o.toString());
@@ -516,7 +514,7 @@ public class ChromecastSession {
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
-        return out;
+        return appImages;
     }
 
     private JSONObject createReceiverObject() {

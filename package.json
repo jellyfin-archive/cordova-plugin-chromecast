@@ -2,8 +2,7 @@
   "name": "cordova-plugin-chromecast",
   "version": "1.0.0",
   "scripts": {
-    "test": "npm run eslint",
-    "eslint": "node node_modules/eslint/bin/eslint src && node node_modules/eslint/bin/eslint www && node node_modules/eslint/bin/eslint tests"
+    "style": "node node_modules/eslint/bin/eslint src && node node_modules/eslint/bin/eslint www && node node_modules/eslint/bin/eslint tests && node ./node_modules/java-checkstyle/bin/index.js ./src/android/ -c ./check_style.xml"
   },
   "author": "",
   "license": "dual GPLv3/MPLv2",
@@ -16,6 +15,7 @@
     "eslint-plugin-import": "~2.3.0",
     "eslint-plugin-node": "~5.0.0",
     "eslint-plugin-promise": "~3.5.0",
-    "eslint-plugin-standard": "~3.0.1"
+    "eslint-plugin-standard": "~3.0.1",
+    "java-checkstyle": "0.0.1"
   }
 }

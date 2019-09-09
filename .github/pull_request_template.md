@@ -28,6 +28,6 @@ Thanks!
 
 - [ ] I've updated the documentation as necessary
 - [ ] If this Pull Request resolves an issue, I linked to the issue in the text above (and used the correct [keyword to close issues using keywords](https://help.github.com/articles/closing-issues-using-keywords/))
-- [ ] I've run `npm test` and no errors were found
+- [ ] I've run `npm run style` and no errors were found
 - [ ] I've run the `test-framework` tests for Android (See Readme)
 - [ ] I added automated test coverage as appropriate for this change

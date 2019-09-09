@@ -2,8 +2,6 @@ package acidhax.cordova.chromecast;
 
 import android.graphics.Color;
 
-import androidx.core.content.ContextCompat;
-
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaStatus;
 import com.google.android.gms.cast.MediaTrack;
@@ -11,9 +9,13 @@ import com.google.android.gms.cast.TextTrackStyle;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.w3c.dom.Text;
 
-class ChromecastUtilities {
+final class ChromecastUtilities {
+
+    private ChromecastUtilities() {
+        //not called
+    }
+
     static String getMediaIdleReason(MediaStatus mediaStatus) {
         switch (mediaStatus.getIdleReason()) {
             case MediaStatus.IDLE_REASON_CANCELED:

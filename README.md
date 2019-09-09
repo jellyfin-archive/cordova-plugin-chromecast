@@ -32,7 +32,7 @@ The project is now pretty much feature complete - the only things that will poss
 
 ## Formatting
 
-* Run `npm test` (from the plugin directory)
+* Run `npm run style` (from the plugin directory)
   * If you get `Error: Cannot find module '<project root>\node_modules\eslint\bin\eslint'`
     * Run `npm install`
   * If it finds any formatting errors you can try and automatically fix them with:

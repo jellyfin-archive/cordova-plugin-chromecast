@@ -528,11 +528,8 @@ var _defaultActionPolicy = null;
 var _receiverListener = null;
 var _sessionListener = null;
 
-var _sessions = {};
+var _session;
 var _currentMedia = null;
-var _routeListEl = document.createElement('ul');
-_routeListEl.classList.add('route-list');
-var _routeList = {};
 
 /**
  * Initializes the API. Note that either successCallback and errorCallback will be invoked once the API has finished initialization.
@@ -579,23 +576,7 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
 
     execute('requestSession', function (err, obj) {
         if (!err) {
-            var sessionId = obj.sessionId;
-            var appId = obj.appId;
-            var displayName = obj.displayName;
-            var appImages = obj.appImages || [];
-            var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.receiver.volume || null);
-
-            var session = _sessions[sessionId] = new chrome.cast.Session(sessionId, appId, displayName, appImages, receiver);
-
-            if (obj.media && obj.media.sessionId) {
-                _currentMedia = new chrome.cast.media.Media(sessionId, obj.media.mediaSessionId);
-                _currentMedia.currentTime = obj.media.currentTime;
-                _currentMedia.playerState = obj.media.playerState;
-                _currentMedia.media = obj.media.media;
-                session.media[0] = _currentMedia;
-            }
-
-            successCallback(session);
+            successCallback(updateSession(obj));
         } else {
             handleError(err, errorCallback);
         }
@@ -819,6 +800,10 @@ chrome.cast.Session.prototype.addUpdateListener = function (listener) {
  */
 chrome.cast.Session.prototype.removeUpdateListener = function (listener) {
     this.removeListener('_sessionUpdated', listener);
+    // var index = array.indexOf(5);
+    // if (index > -1) {
+    //     array.splice(index, 1);
+    // }
 };
 
 /**
@@ -1129,44 +1114,67 @@ chrome.cast.media.Media.prototype._update = function (isAlive, obj) {
     this.emit('_mediaUpdated', isAlive);
 };
 
-function createRouteElement (route) {
-    var el = document.createElement('li');
-    el.classList.add('route');
-    el.addEventListener('touchstart', onRouteClick);
-    el.textContent = route.name;
-    el.setAttribute('data-routeid', route.id);
-    return el;
-}
+/**
+ * This contains function exclusive the cordova plugin
+ * and equivalents are not available in the chromecast
+ * desktop SDK.  Use with caution if you also want your
+ * site to work with chrome on desktop.
+ */
+chrome.cast.cordova = {
 
-function onRouteClick () {
-    var id = this.getAttribute('data-routeid');
-
-    if (id) {
-        try {
-            chrome.cast._emitConnecting();
-        } catch (e) {
-            console.error('Error in connectingListener', e);
-        }
-
-        execute('selectRoute', id, function (err, obj) {
-            if (err) {
-                // TODO
+    /**
+     * Will actively scan for routes and send the complete list of
+     * active routes whenever a route change is detected.
+     * It is super important that client calls "stopScan", otherwise the
+     * battery could drain quickly.
+     * @param {function(routes)} successCallback
+     * @param {function(chrome.cast.Error)} successCallback
+     */
+    startRouteScan: function (successCallback, errorCallback) {
+        execute('startRouteScan', function (err, routes) {
+            if (!err) {
+                for (var i = 0; i < routes.length; i++) {
+                    routes[i] = new chrome.cast.cordova.Route(routes[i].id, routes[i].name);
+                }
+                successCallback(routes);
+            } else {
+                handleError(err, errorCallback);
             }
-            var sessionId = obj.sessionId;
-            var appId = obj.appId;
-            var displayName = obj.displayName;
-            var appImages = obj.appImages || [];
-            var receiver = new chrome.cast.Receiver(obj.receiver.label, obj.receiver.friendlyName, obj.receiver.capabilities || [], obj.receiver.volume || null);
-
-            var session = _sessions[sessionId] = new chrome.cast.Session(sessionId, appId, displayName, appImages, receiver);
-
-            _sessionListener && _sessionListener(session);
         });
+    },
+    /**
+     * Stops any active scanForRoutes.
+     * @param {function(routes)} successCallback
+     * @param {function(chrome.cast.Error)} successCallback
+     */
+    stopRouteScan: function (successCallback, errorCallback) {
+        execute('stopRouteScan', function (err) {
+            if (!err) {
+                successCallback();
+            } else {
+                handleError(err, errorCallback);
+            }
+        });
+    },
+    /**
+     * Attempts to join the requested route
+     * @param {chrome.cast.cordova.Route} route
+     * @param {function(routes)} successCallback
+     * @param {function(chrome.cast.Error)} successCallback
+     */
+    selectRoute: function (route, successCallback, errorCallback) {
+        execute('selectRoute', route.id, route.name, function (err, session) {
+            if (!err) {
+                successCallback(updateSession(session));
+            } else {
+                handleError(err, errorCallback);
+            }
+        });
+    },
+    Route: function (id, name) {
+        this.id = id;
+        this.name = name;
     }
-}
-
-chrome.cast.getRouteListElement = function () {
-    return _routeListEl;
 };
 
 var _connectingListeners = [];
@@ -1194,23 +1202,9 @@ chrome.cast._ = {
     receiverAvailable: function () {
         _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
     },
-    routeAdded: function (route) {
-        if (!_routeList[route.id]) {
-            route.el = createRouteElement(route);
-            _routeList[route.id] = route;
-
-            _routeListEl.appendChild(route.el);
-        }
-    },
-    routeRemoved: function (route) {
-        if (_routeList[route.id]) {
-            _routeList[route.id].el.remove();
-            delete _routeList[route.id];
-        }
-    },
     sessionUpdated: function (isAlive, session) {
-        if (session && session.sessionId && _sessions[session.sessionId]) {
-            _sessions[session.sessionId]._update(isAlive, session);
+        if (session && session.sessionId && _session) {
+            _session._update(isAlive, session);
         }
     },
     mediaUpdated: function (isAlive, media) {
@@ -1223,29 +1217,29 @@ chrome.cast._ = {
                 _currentMedia.playerState = media.playerState;
                 _currentMedia.media = media.media;
 
-                _sessions[media.sessionId].media[0] = _currentMedia;
-                _sessionListener && _sessionListener(_sessions[media.sessionId]);
+                _session.media[0] = _currentMedia;
+                _sessionListener && _sessionListener(_session);
             }
         }
     },
     mediaLoaded: function (isAlive, media) {
-        if (_sessions[media.sessionId]) {
+        if (_session) {
 
             if (!_currentMedia) {
                 _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
             }
             _currentMedia._update(isAlive, media);
-            _sessions[media.sessionId].emit('_mediaListener', _currentMedia);
+            _session.emit('_mediaListener', _currentMedia);
         } else {
             console.log('mediaLoaded --- but there is no session tied to it', media);
         }
     },
     sessionListener: function (javaSession) {
-        var session = getJsSession(javaSession);
+        var session = updateSession(javaSession);
         _sessionListener && _sessionListener(session);
     },
     sessionJoined: function (obj) {
-        var session = getJsSession(obj);
+        var session = updateSession(obj);
 
         if (obj.media && obj.media.sessionId) {
             _currentMedia = new chrome.cast.media.Media(session.sessionId, obj.media.mediaSessionId);
@@ -1258,16 +1252,16 @@ chrome.cast._ = {
         _sessionListener && _sessionListener(session);
     },
     onMessage: function (sessionId, namespace, message) {
-        if (_sessions[sessionId]) {
-            _sessions[sessionId].emit('message:' + namespace, namespace, message);
+        if (_session) {
+            _session.emit('message:' + namespace, namespace, message);
         }
     }
 };
 
 module.exports = chrome.cast;
 
-function getJsSession (javaSession) {
-    return new chrome.cast.Session(
+function updateSession (javaSession) {
+    _session = new chrome.cast.Session(
         javaSession.sessionId,
         javaSession.appId,
         javaSession.displayName,
@@ -1279,6 +1273,14 @@ function getJsSession (javaSession) {
             javaSession.receiver.volume || null
             )
         );
+    if (javaSession.media && javaSession.media.sessionId) {
+        _currentMedia = new chrome.cast.media.Media(javaSession.sessionId, javaSession.media.mediaSessionId);
+        _currentMedia.currentTime = javaSession.media.currentTime;
+        _currentMedia.playerState = javaSession.media.playerState;
+        _currentMedia.media = javaSession.media.media;
+        _session.media[0] = _currentMedia;
+    }
+    return _session;
 }
 
 function execute (action) {

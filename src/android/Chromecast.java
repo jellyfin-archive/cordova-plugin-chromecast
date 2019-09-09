@@ -6,10 +6,12 @@ import android.os.Build;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.util.List;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.LOG;
+import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -29,7 +31,9 @@ public final class Chromecast extends CordovaPlugin {
     /** Object to control the connection to the chromecast. */
     private ChromecastConnection connection;
     /** Object to control the media. */
-    private volatile ChromecastSession media;
+    private ChromecastSession media;
+    /** Holds the reference to the current client initiated scan. */
+    private ChromecastConnection.ScanCallback clientScan;
 
     @Override
     protected void pluginInitialize() {
@@ -136,7 +140,12 @@ public final class Chromecast extends CordovaPlugin {
                 // See if there are any available routes
                 ChromecastConnection.ScanCallback scanCallback = new ChromecastConnection.ScanCallback() {
                     @Override
-                    public void onRouteUpdate(RouteInfo route) {
+                    public void onRouteUpdate(List<RouteInfo> routes) {
+                        if (routes.size() == 0) {
+                            // If no routes, just return, wait for a real route to be discovered
+                            return;
+                        }
+
                         // We found at least 1 route! so stop the scan
                         connection.stopScan(this);
 
@@ -205,11 +214,12 @@ public final class Chromecast extends CordovaPlugin {
     /**
      * Selects a route by its id.
      * @param routeId the id of the route to join
+     * @param routeName the name of the route
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova
      */
-    public boolean selectRoute(final String routeId, final CallbackContext callbackContext) {
-        connection.join(routeId, new ChromecastConnection.JoinCallback() {
+    public boolean selectRoute(final String routeId, final String routeName, final CallbackContext callbackContext) {
+        connection.join(routeId, routeName, new ChromecastConnection.JoinCallback() {
             @Override
             public void onJoin(CastSession castSession) {
                 callbackContext.success(media.createSessionObject());
@@ -418,18 +428,46 @@ public final class Chromecast extends CordovaPlugin {
     }
 
     /**
-     * Emits all routes.
+     * Will actively scan for routes and send a json array to the client.
+     * It is super important that client calls "stopScan", otherwise the
+     * battery could drain quickly.
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova
      */
-    public boolean emitAllRoutes(CallbackContext callbackContext) {
-        // TODO will use connection.scanForRoutes();
+    public boolean startRouteScan(CallbackContext callbackContext) {
+        if (clientScan != null) {
+            // Stop any other existing clientScan
+            connection.stopScan(clientScan);
+        }
+        clientScan = new ChromecastConnection.ScanCallback() {
+            @Override
+            void onRouteUpdate(List<RouteInfo> routes) {
+                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, routesToJSON(routes));
+                pluginResult.setKeepCallback(true);
+                callbackContext.sendPluginResult(pluginResult);
+            }
+        };
+        connection.scanForRoutes(clientScan);
 
         return true;
     }
 
     /**
-     * Sends the receiverState.
+     * Stops the scan started by startRouteScan.
+     * @param callbackContext called with .success or .error depending on the result
+     * @return true for cordova
+     */
+    public boolean stopRouteScan(CallbackContext callbackContext) {
+        if (clientScan != null) {
+            // Stop any other existing clientScan
+            connection.stopScan(clientScan);
+        }
+        callbackContext.success();
+        return true;
+    }
+
+    /**
+     * sends the receiverState.
      * @param receiverState true if we should send receiverAvailable,
      *                      false if we should send receiverUnavailable
      */
@@ -443,20 +481,21 @@ public final class Chromecast extends CordovaPlugin {
 
     /**
      * Simple helper to convert a route to JSON for passing down to the javascript side.
-     * @param route the route to convert
-     * @return a JSON representation of the route
+     * @param routes the routes to convert
+     * @return a JSON Array of JSON representations of the routes
      */
-    private JSONObject routeToJSON(RouteInfo route) {
-        JSONObject obj = new JSONObject();
-
-        try {
-            obj.put("name", route.getName());
-            obj.put("id", route.getId());
-        } catch (JSONException e) {
-            e.printStackTrace();
+    private JSONArray routesToJSON(List<RouteInfo> routes) {
+        JSONArray routesArray = new JSONArray();
+        for (RouteInfo route : routes) {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("name", route.getName());
+                obj.put("id", route.getId());
+                routesArray.put(obj);
+            } catch (JSONException e) {
+            }
         }
-
-        return obj;
+        return routesArray;
     }
 
     /** Handles remoteMediaClient callbacks. */

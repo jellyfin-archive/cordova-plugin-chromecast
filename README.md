@@ -12,7 +12,31 @@ cordova plugin add https://github.com/jellyfin/cordova-plugin-chromecast.git
 
 This project attempts to implement the official Google Cast SDK for Chrome within Cordova. We've made a lot of progress in making this possible, so check out the [offical documentation](https://developers.google.com/cast/docs/chrome_sender) for examples.
 
-When you call `chrome.cast.requestSession()` a popup will be displayed to select a Chromecast. If you would prefer to make your own interface you can call `chrome.cast.getRouteListElement()` which will return a `<ul>` tag that contains the Chromecasts in a list. All you have to do is style that bad boy and you're off to the races!
+When you call `chrome.cast.requestSession()` a popup will be displayed to select a Chromecast. 
+
+Calling `chrome.cast.requestSession()` when you have an active session will display a popup with the option to "Stop Casting".
+
+**Specific to this plugin** (Not supported on desktop chrome)
+
+To make your own custom route selector use this:
+```
+// This will begin an active scan for routes
+chrome.cast.cordova.scanForRoutes(function (routes) {
+  // Here is where you should update your route selector view with the current routes
+  // This will called each time the routes change
+});
+
+// When the user selects a route
+// stop the scan to save battery power
+chrome.cast.cordova.stopScan();
+// and use the selected route.id to join the route
+chrome.cast.cordova.selectRoute(route.id, function (session) {
+  // Save the session for your use
+}, function (err) {
+
+});
+
+```
 
 ## Status
 

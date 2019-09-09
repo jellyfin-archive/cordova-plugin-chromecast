@@ -81,6 +81,20 @@ exports.defineAutoTests = function () {
             expect(chrome.cast.media.Media.prototype.removeUpdateListener).toBeDefined();
         });
 
+        it('SPEC_00300 chrome.cast.cordova functions', function (done) {
+            setupEarlyTerminator(done);
+            Promise.resolve()
+            .then(apiAvailable)
+            .then(initialize('SPEC_00300', function (session) {
+                throw new Error('should not receive a session (make sure there is no active cast session when starting the tests)');
+            }))
+            .then(startRouteScan)
+            .then(stopRouteScan)
+            .then(selectRoute)
+            .then(sessionStop)
+            .then(done);
+        }, USER_INTERACTION_TIMEOUT);
+
         /**
          * Pre-requisite: You must have a valid receiver (chromecast) plugged in and available.
          */
@@ -386,6 +400,52 @@ exports.defineAutoTests = function () {
                     resolve(session);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function startRouteScan () {
+            return new Promise(function (resolve) {
+                var once = true;
+                chrome.cast.cordova.startRouteScan(function routeUpdate (routes) {
+                    if (once && routes.length > 0) {
+                        once = false;
+
+                        var route = routes[0];
+                        test(route).toBeInstanceOf(chrome.cast.cordova.Route);
+                        test(route.id).toBeDefined();
+                        test(route.name).toBeDefined();
+
+                        resolve(routes);
+                    }
+                }, function (err) {
+                    fail(err.code + ': ' + err.description);
+                    resolve();
+                });
+            });
+        }
+
+        function stopRouteScan (routes) {
+            return new Promise(function (resolve) {
+                // Make sure we can stop the scan
+                chrome.cast.cordova.stopRouteScan(function () {
+                    resolve(routes);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                    resolve();
+                });
+            });
+        }
+
+        function selectRoute (routes) {
+            return new Promise(function (resolve) {
+                chrome.cast.cordova.selectRoute(routes[0], function (session) {
+                    Promise.resolve(session)
+                    .then(sessionProperties)
+                    .then(resolve);
+                }, function (err) {
+                    fail(err.code + ': ' + err.description);
+                    resolve(routes);
                 });
             });
         }

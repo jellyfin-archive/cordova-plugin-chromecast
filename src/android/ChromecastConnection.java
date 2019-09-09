@@ -16,6 +16,9 @@ import com.google.android.gms.cast.framework.CastSession;
 import com.google.android.gms.cast.framework.SessionManager;
 import com.google.android.gms.cast.framework.SessionManagerListener;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ChromecastConnection {
 
     /** Lifetime variable. */
@@ -114,10 +117,11 @@ public class ChromecastConnection {
     /**
      * This will create a new session or seamlessly join an existing one if we created it.
      * @param routeId the id of the route to join
+     * @param routeName the name of the route
      * @param callback calls callback.onJoin when we have joined a session,
      *                 or callback.onError if an error occurred
      */
-    public void join(String routeId, JoinCallback callback) {
+    public void join(final String routeId, final String routeName, JoinCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 if (session != null) {
@@ -129,8 +133,8 @@ public class ChromecastConnection {
 
                 Intent castIntent = new Intent();
                 castIntent.putExtra("CAST_INTENT_TO_CAST_ROUTE_ID_KEY", routeId);
-                // Not sure of this one's purpose, possibly just for display
-                // castIntent.putExtra("CAST_INTENT_TO_CAST_DEVICE_NAME_KEY", deviceName);
+                // RouteName and toast are just for display
+                castIntent.putExtra("CAST_INTENT_TO_CAST_DEVICE_NAME_KEY", routeName);
                 castIntent.putExtra("CAST_INTENT_TO_CAST_NO_TOAST_KEY", false);
 
                 getSessionManager().startSession(castIntent);
@@ -237,11 +241,10 @@ public class ChromecastConnection {
         // Add the callback in active scan mode
         activity.runOnUiThread(new Runnable() {
             public void run() {
+                callback.setMediaRouter(getMediaRouter());
 
                 // Send out the initial routes
-                for (RouteInfo route : getMediaRouter().getRoutes()) {
-                    callback.onFilteredRouteUpdate(route);
-                }
+                callback.onFilteredRouteUpdate();
 
                 // Add the callback in active scan mode
                 getMediaRouter().addCallback(new MediaRouteSelector.Builder()
@@ -363,12 +366,22 @@ public class ChromecastConnection {
     public abstract static class ScanCallback extends MediaRouter.Callback {
         /**
          * Called whenever a route is updated.
-         * @param route the route that was just updated
+         * @param routes the currently available routes
          */
-        abstract void onRouteUpdate(RouteInfo route);
+        abstract void onRouteUpdate(List<RouteInfo> routes);
 
         /** records whether we have been stopped or not. */
         private boolean stopped = false;
+        /** Global mediaRouter object. */
+        private MediaRouter mediaRouter;
+
+        /**
+         * Sets the mediaRouter object.
+         * @param router mediaRouter object
+         */
+        void setMediaRouter(MediaRouter router) {
+            this.mediaRouter = router;
+        }
 
         /**
          * Call this method when you wish to stop scanning.
@@ -378,25 +391,33 @@ public class ChromecastConnection {
         void stop() {
             stopped = true;
         }
-        private void onFilteredRouteUpdate(RouteInfo route) {
-            if (stopped) {
+        private void onFilteredRouteUpdate() {
+            if (stopped || mediaRouter == null) {
                 return;
             }
-            if (!route.isDefault()) {
-                onRouteUpdate(route);
+            List<RouteInfo> routes = mediaRouter.getRoutes();
+            List<RouteInfo> outRoutes = new ArrayList<>();
+            // Filter the routes
+            for (RouteInfo route : routes) {
+                // We don't want default routes
+                // or multizone duplicates https://github.com/jellyfin/cordova-plugin-chromecast/issues/32
+                if (!route.isDefault()) {
+                    outRoutes.add(route);
+                }
             }
+            onRouteUpdate(outRoutes);
         }
         @Override
         public final void onRouteAdded(MediaRouter router, RouteInfo route) {
-            onFilteredRouteUpdate(route);
+            onFilteredRouteUpdate();
         }
         @Override
         public final void onRouteChanged(MediaRouter router, RouteInfo route) {
-            onFilteredRouteUpdate(route);
+            onFilteredRouteUpdate();
         }
         @Override
         public final void onRouteRemoved(MediaRouter router, RouteInfo route) {
-            onFilteredRouteUpdate(route);
+            onFilteredRouteUpdate();
         }
     }
 

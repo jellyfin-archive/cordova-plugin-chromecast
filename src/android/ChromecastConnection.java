@@ -1,6 +1,7 @@
 package acidhax.cordova.chromecast;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 
@@ -182,7 +183,21 @@ public class ChromecastConnection {
                     builder.show();
                 } else {
                     // We are are already connected, so show the "connection options" Dialog
-                    // TODO
+                    AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+                    builder.setTitle(session.getCastDevice().getFriendlyName());
+                    builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                        @Override
+                        public void onDismiss(DialogInterface dialog) {
+                            callback.onError("CANCEL");
+                        }
+                    });
+                    builder.setPositiveButton("Stop Casting", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            kill();
+                        }
+                    });
+                    builder.show();
                 }
             }
         });

@@ -11,8 +11,7 @@ exports.defineAutoTests = function () {
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 9000;
     var USER_INTERACTION_TIMEOUT = 60 * 1000; // 1 min
 
-    var applicationID_default = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
-    var applicationID_custom = 'F5EEDC6C';
+    var appId = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
     var videoUrl = location.origin + '/plugins/cordova-plugin-chromecast-tests/res/test.mp4';
 
     describe('chrome.cast', function () {
@@ -82,129 +81,83 @@ exports.defineAutoTests = function () {
             expect(chrome.cast.media.Media.prototype.removeUpdateListener).toBeDefined();
         });
 
-        it('SPEC_00200 api should be available', function (done) {
-            var interval = setInterval(function () {
-                if (chrome.cast.isAvailable) {
-                    expect(chrome.cast.isAvailable).toEqual(true);
-                    clearInterval(interval);
-                    done();
-                }
-            }, 500);
-        });
-
-        it('SPEC_00300 initialize should succeed (custom receiver)', function (done) {
-            var sessionRequest = new chrome.cast.SessionRequest(applicationID_custom);
-            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {}, function (available) {});
-            chrome.cast.initialize(apiConfig, function () {
-                expect('success').toBeDefined();
-                done();
-            }, function (err) {
-                fail(err.code + ': ' + err.description);
-                done();
-            });
-        });
-
         /**
          * Pre-requisite: You must have a valid receiver (chromecast) plugged in and available.
          */
-        it('SPEC_00400 initialize should succeed (default receiver)', function (done) {
-            var step = 1;
-            var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
-            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
-                fail('should not receive a session (make sure there is no active cast session when starting the tests)');
-            }, function receiverListener (available) {
-                if (step === 1) {
-                    fail('SPEC_00400 - Did not hit initialize Step 1 first');
-                }
-                if (step === 2) {
-                    // Step 2 - We must get the unavailable notification
-                    if (available !== 'unavailable') {
-                        fail('SPEC_00400 - Step 2 - Hit receiver listener with non-unavailable status');
-                    } else {
-                        step++;
-                    }
-                }
-                if (step === 3) {
-                    // Step 3 - We are allowed to receive multiple unavailable until we receive the first available in this step
-                    if (available !== 'unavailable' && available !== 'available') {
-                        fail('SPEC_00400 - Step 3 - Hit receiver listener with incorrect status');
-                    }
-                    if (available === 'available') {
-                        expect('success').toBeDefined();
-                        done();
-                    }
-                }
-            });
-            chrome.cast.initialize(apiConfig, function () {
-                // Step 1
-                if (step !== 1) {
-                    fail('SPEC_00400 - Step 1 - Expected to hit this first, but did not');
-                }
-                step++;
-            }, function (err) {
-                fail(err.code + ': ' + err.description);
-                done();
-            });
-        });
+        it('SPEC_00400 Normal usage cycle', function (done) {
+            setupEarlyTerminator(done);
+            Promise.resolve()
+            .then(apiAvailable)
+            .then(initialize('SPEC_00400', function (session) {
+                test().fail('should not receive a session (make sure there is no active cast session when starting the tests)');
+            }))
+            .then(requestSessionCancel)
+            .then(requestSessionSuccess)
+            .then(loadMediaVideo)
+            .then(requestSessionStopCastingUiCancel)
+            .then(requestSessionStopCastingUiStopSuccess)
+            .then(done);
 
-        it('requestSession click outside of dialog should return the cancel error', function (done) {
-            alert('---TEST INSTRUCTION---\nPlease click outside of the next dialog to dismiss it.');
-            chrome.cast.requestSession(function (session) {
-                fail('We should not reach here on dismiss (make sure you cancelled the dialog for this test!)');
-                done();
-            }, function (err) {
-                expect(err instanceof chrome.cast.Error).toBeTruthy();
-                expect(err.code).toBe(chrome.cast.ErrorCode.CANCEL);
-                done();
-            });
         }, USER_INTERACTION_TIMEOUT);
 
-        describe('Everything Session', function () {
+        /**
+         * When on a new page, initialize should be called again
+         * This should result in the session being passed to the
+         * session listener as long as teh requested appId does
+         * not change.
+         */
+        it('SPEC_00500 stopSession and new page simulation', function (done) {
+            setupEarlyTerminator(done);
+            Promise.resolve()
+            .then(apiAvailable)
+            .then(initialize('SPEC_00503', function (session) {
+                throw new Error('should not receive a session (make sure there is no active cast session when starting the tests)');
+            }))
+            .then(requestSessionSuccess)
+            .then(initialize('SPEC_00506', function (session) {
+                Promise.resolve(session)
+                .then(sessionProperties)
+                .then(sessionStop)
+                .then(done);
+            }));
+        }, USER_INTERACTION_TIMEOUT);
 
-            it('SPEC_01000 Test valid session', function (done) {
-                alert('---TEST INSTRUCTION---\nPlease select a valid chromecast in the next dialog.');
+        function setupEarlyTerminator (done) {
+            // Add this so that thrown errors are not obscured.
+            // This is required for early test termination
+            window.addEventListener('cordovacallbackerror', function (e) {
+                window.removeEventListener('cordovacallbackerror', this);
+                fail(e.stack);
+                done();
+            });
+            expect('just to make jasmine happy that there is an expect in the tests').toBeDefined();
+        }
 
-                chrome.cast.requestSession(function (session) {
+        function apiAvailable () {
+            return new Promise(function (resolve) {
+                var interval = setInterval(function () {
+                    if (chrome.cast.isAvailable) {
+                        test(chrome.cast.isAvailable).toEqual(true);
+                        clearInterval(interval);
+                        resolve();
+                    }
+                }, 500);
+            });
+        }
 
-                    // Run all the session related tests
-                    Promise.resolve(session)
-                    .then(sessionProperties)
-                    .then(newPageSharesSession)
-                    .then(sessionProperties)
-                    .then(loadMedia)
-                    .then(stopSession)
-                    .then(done);
-
-                }, function (err) {
-                    fail(err.code + ': ' + err.description);
-                    done();
-                });
-
-            }, USER_INTERACTION_TIMEOUT);
-
-            /**
-             * When on a new page, it will call initialize again
-             * This should result in the session being passed to the
-             * session listener as long as teh requested appId does
-             * not change.
-             */
-            function newPageSharesSession (session) {
+        function initialize (specName, sessionListener) {
+            return function () {
                 return new Promise(function (resolve) {
                     var step = 1;
-                    var sessionRequest = new window.chrome.cast.SessionRequest(window.chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID);
-                    var apiConfig = new window.chrome.cast.ApiConfig(sessionRequest, function (session) {
-                        if (step !== 4) {
-                            fail('newPageSharesSession.js - Did not hit session listener as 4th step');
-                        }
-                        resolve(session);
-                    }, function receiverListener (available) {
+                    var sessionRequest = new chrome.cast.SessionRequest(appId);
+                    var apiConfig = new chrome.cast.ApiConfig(sessionRequest, sessionListener, function receiverListener (available) {
                         if (step === 1) {
-                            fail('newPageSharesSession.js - Did not hit initialize Step 1 first');
+                            test().fail(specName + ' - Initialize did not hit Step 1 first');
                         }
                         if (step === 2) {
                             // Step 2 - We must get the unavailable notification
                             if (available !== 'unavailable') {
-                                fail('newPageSharesSession.js - Step 2 - Hit receiver listener with non-unavailable status');
+                                test().fail(specName + ' - Initialize - Step 2 - Hit receiver listener with non-unavailable status');
                             } else {
                                 step++;
                             }
@@ -212,235 +165,253 @@ exports.defineAutoTests = function () {
                         if (step === 3) {
                             // Step 3 - We are allowed to receive multiple unavailable until we receive the first available in this step
                             if (available !== 'unavailable' && available !== 'available') {
-                                fail('newPageSharesSession.js - Step 3 - Hit receiver listener with incorrect status');
+                                test().fail(specName + ' - Initialize - Step 3 - Hit receiver listener with incorrect status');
                             }
                             if (available === 'available') {
-                                step++;
+                                resolve();
                             }
                         }
                     });
-
-                    // Initialize
-                    window.chrome.cast.initialize(apiConfig, function () {
+                    chrome.cast.initialize(apiConfig, function () {
                         // Step 1
                         if (step !== 1) {
-                            fail('newPageSharesSession.js - Step 1 - Expected to hit this first, but did not');
+                            test().fail(specName + ' - Initialize - Step 1 - Expected to hit this first, but did not');
                         }
                         step++;
                     }, function (err) {
-                        fail(err.code + ': ' + err.description);
+                        test().fail(err.code + ': ' + err.description);
                     });
                 });
-            }
+            };
+        }
 
-            function sessionProperties (session) {
-                return new Promise(function (resolve) {
-                    expect(session instanceof chrome.cast.Session).toBeTruthy();
-                    expect(session.appId).toBeDefined();
-                    expect(session.displayName).toBeDefined();
-                    expect(session.receiver).toBeDefined();
-                    expect(session.receiver.friendlyName).toBeDefined();
-                    expect(session.addUpdateListener).toBeDefined();
-                    expect(session.removeUpdateListener).toBeDefined();
-                    expect(session.loadMedia).toBeDefined();
+        function requestSessionCancel () {
+            return new Promise(function (resolve) {
+                alert('---TEST INSTRUCTION---\nPlease click outside of the next dialog to dismiss it.');
+                chrome.cast.requestSession(function (session) {
+                    test().fail('We should not reach here on dismiss (make sure you cancelled the dialog for this test!)');
+                }, function (err) {
+                    test(err).toBeInstanceOf(chrome.cast.Error);
+                    test(err.code).toEqual(chrome.cast.ErrorCode.CANCEL);
+                    resolve();
+                });
+            });
+        }
 
+        function requestSessionSuccess () {
+            return new Promise(function (resolve) {
+                alert('---TEST INSTRUCTION---\nPlease select a valid chromecast in the next dialog.');
+                chrome.cast.requestSession(function (session) {
+                    Promise.resolve(session)
+                    .then(sessionProperties)
+                    .then(resolve);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function sessionProperties (session) {
+            return new Promise(function (resolve) {
+                test(session).toBeInstanceOf(chrome.cast.Session);
+                test(session.appId).toBeDefined();
+                test(session.displayName).toBeDefined();
+                test(session.receiver).toBeDefined();
+                test(session.receiver.friendlyName).toBeDefined();
+                test(session.addUpdateListener).toBeDefined();
+                test(session.removeUpdateListener).toBeDefined();
+                test(session.loadMedia).toBeDefined();
+
+                resolve(session);
+            });
+        }
+
+        function loadMediaVideo (session) {
+            return new Promise(function (resolve) {
+                var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
+                test(mediaInfo).toBeDefined();
+
+                var request = new chrome.cast.media.LoadRequest(mediaInfo);
+                test(request).toBeDefined();
+
+                session.loadMedia(request, function (media) {
+
+                    // Run all the media related tests
+                    Promise.resolve({media: media, session: session})
+                    .then(mediaProperties)
+                    .then(pauseSuccess)
+                    .then(playSuccess)
+                    .then(seekSuccess)
+                    .then(setVolumeSuccess)
+                    .then(muteVolumeSuccess)
+                    .then(unmuteVolumeSuccess)
+                    .then(stopSuccess)
+                    .then(function (media) {
+                        resolve(session);
+                    });
+
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function mediaProperties (data) {
+            return new Promise(function (resolve) {
+                var media = data.media;
+                var session = data.session;
+                test(media).toBeInstanceOf(chrome.cast.media.Media);
+                test(media.sessionId).toEqual(session.sessionId);
+                test(media.addUpdateListener).toBeDefined();
+                test(media.removeUpdateListener).toBeDefined();
+                resolve(media);
+            });
+        }
+
+        function pauseSuccess (media) {
+            return new Promise(function (resolve) {
+                setTimeout(function () {
+                    media.pause(null, function () {
+                        resolve(media);
+                    }, function (err) {
+                        test().fail(err.code + ': ' + err.description);
+                    });
+                }, 500);
+            });
+        }
+
+        function playSuccess (media) {
+            return new Promise(function (resolve) {
+                setTimeout(function () {
+                    media.play(null, function () {
+                        resolve(media);
+                    }, function (err) {
+                        test().fail(err.code + ': ' + err.description);
+                    });
+                }, 500);
+            });
+        }
+
+        function seekSuccess (media) {
+            return new Promise(function (resolve) {
+                setTimeout(function () {
+                    var request = new chrome.cast.media.SeekRequest();
+                    request.currentTime = 3;
+                    media.seek(request, function () {
+                        resolve(media);
+                    }, function (err) {
+                        test().fail(err.code + ': ' + err.description);
+                    });
+                }, 500);
+            });
+        }
+
+        function setVolumeSuccess (media) {
+            return new Promise(function (resolve) {
+                var volume = new chrome.cast.Volume();
+                volume.level = 0.2;
+
+                var request = new chrome.cast.media.VolumeRequest();
+                request.volume = volume;
+
+                media.setVolume(request, function () {
+                    resolve(media);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function muteVolumeSuccess (media) {
+            return new Promise(function (resolve) {
+                var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, true));
+                media.setVolume(request, function () {
+                    resolve(media);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function unmuteVolumeSuccess (media) {
+            return new Promise(function (resolve) {
+                var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, false));
+                media.setVolume(request, function () {
+                    resolve(media);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function stopSuccess (media) {
+            return new Promise(function (resolve) {
+                media.stop(null, function () {
+                    resolve(media);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function requestSessionStopCastingUiCancel (session) {
+            return new Promise(function (resolve) {
+                alert('---TEST INSTRUCTION---\nPlease click outside of the next dialog to dismiss it.');
+                chrome.cast.requestSession(function () {
+                    test().fail('We should not reach here on dismiss');
+                }, function (err) {
+                    test(err).toBeInstanceOf(chrome.cast.Error);
+                    test(err.code).toEqual(chrome.cast.ErrorCode.CANCEL);
                     resolve(session);
                 });
-            }
-
-            function loadMedia (session) {
-                return new Promise(function (resolve) {
-                    var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                    expect(mediaInfo).toBeTruthy();
-
-                    var request = new chrome.cast.media.LoadRequest(mediaInfo);
-                    expect(request).toBeTruthy();
-
-                    session.loadMedia(request, function (media) {
-
-                        // Run all the media related tests
-                        Promise.resolve({media: media, session: session})
-                        .then(mediaProperties)
-                        .then(pauseSuccess)
-                        .then(playSuccess)
-                        .then(seekSuccess)
-                        .then(setVolumeSuccess)
-                        .then(muteVolumeSuccess)
-                        .then(unmuteVolumeSuccess)
-                        .then(stopSuccess)
-                        .then(function (media) {
-                            resolve(session);
-                        });
-
-                    }, function (err) {
-                        fail(err.code + ': ' + err.description);
-                        resolve();
-                    });
-                });
-            }
-
-            function mediaProperties (data) {
-                return new Promise(function (resolve) {
-                    var media = data.media;
-                    var session = data.session;
-                    expect(media instanceof chrome.cast.media.Media).toBeTruthy();
-                    expect(media.sessionId).toEqual(session.sessionId);
-                    expect(media.addUpdateListener).toBeDefined();
-                    expect(media.removeUpdateListener).toBeDefined();
-                    resolve(media);
-                });
-            }
-
-            function pauseSuccess (media) {
-                return new Promise(function (resolve) {
-                    setTimeout(function () {
-                        media.pause(null, function () {
-                            resolve(media);
-                        }, function (err) {
-                            fail(err.code + ': ' + err.description);
-                            resolve();
-                        });
-                    }, 500);
-                });
-            }
-
-            function playSuccess (media) {
-                return new Promise(function (resolve) {
-                    setTimeout(function () {
-                        media.play(null, function () {
-                            resolve(media);
-                        }, function (err) {
-                            fail(err.code + ': ' + err.description);
-                            resolve();
-                        });
-                    }, 500);
-                });
-            }
-
-            function seekSuccess (media) {
-                return new Promise(function (resolve) {
-                    setTimeout(function () {
-                        var request = new chrome.cast.media.SeekRequest();
-                        request.currentTime = 3;
-                        media.seek(request, function () {
-                            resolve(media);
-                        }, function (err) {
-                            fail(err.code + ': ' + err.description);
-                            resolve();
-                        });
-                    }, 500);
-                });
-            }
-
-            function setVolumeSuccess (media) {
-                return new Promise(function (resolve) {
-                    var volume = new chrome.cast.Volume();
-                    volume.level = 0.2;
-
-                    var request = new chrome.cast.media.VolumeRequest();
-                    request.volume = volume;
-
-                    media.setVolume(request, function () {
-                        resolve(media);
-                    }, function (err) {
-                        fail(err.code + ': ' + err.description);
-                        resolve();
-                    });
-                });
-            }
-
-            function muteVolumeSuccess (media) {
-                return new Promise(function (resolve) {
-                    var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, true));
-                    media.setVolume(request, function () {
-                        resolve(media);
-                    }, function (err) {
-                        fail(err.code + ': ' + err.description);
-                        resolve();
-                    });
-                });
-            }
-
-            function unmuteVolumeSuccess (media) {
-                return new Promise(function (resolve) {
-                    var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, false));
-                    media.setVolume(request, function () {
-                        resolve(media);
-                    }, function (err) {
-                        fail(err.code + ': ' + err.description);
-                        resolve();
-                    });
-                });
-            }
-
-            function stopSuccess (media) {
-                return new Promise(function (resolve) {
-                    media.stop(null, function () {
-                        resolve(media);
-                    }, function (err) {
-                        fail(err.code + ': ' + err.description);
-                        resolve();
-                    });
-                });
-            }
-
-            function stopSession (session) {
-                return new Promise(function (resolve) {
-                    session.stop(function () {
-                        resolve(session);
-                    }, function (err) {
-                        fail(err.code + ': ' + err.description);
-                        resolve();
-                    });
-                });
-            }
-
-        });
-
-        /**
-         * This tests that after the session has been stopped that we do not receive
-         * the old (dead) session on initialize if we ask to initialize again with
-         * the same app id.
-         */
-        it('SPEC_01400 initialize should succeed (default receiver) but no session', function (done) {
-            var step = 1;
-            var sessionRequest = new chrome.cast.SessionRequest(applicationID_default);
-            var apiConfig = new chrome.cast.ApiConfig(sessionRequest, function (session) {
-                fail('SPEC_01400 should not receive a session');
-            }, function receiverListener (available) {
-                if (step === 1) {
-                    fail('SPEC_01400 - Did not hit initialize Step 1 first');
-                }
-                if (step === 2) {
-                    // Step 2 - We must get the unavailable notification
-                    if (available !== 'unavailable') {
-                        fail('SPEC_01400 - Step 2 - Hit receiver listener with non-unavailable status');
-                    } else {
-                        step++;
-                    }
-                }
-                if (step === 3) {
-                    // Step 3 - We are allowed to receive multiple unavailable until we receive the first available in this step
-                    if (available !== 'unavailable' && available !== 'available') {
-                        fail('SPEC_01400 - Step 3 - Hit receiver listener with incorrect status');
-                    }
-                    if (available === 'available') {
-                        expect('success').toBeDefined();
-                        done();
-                    }
-                }
             });
-            chrome.cast.initialize(apiConfig, function () {
-                // Step 1
-                if (step !== 1) {
-                    fail('SPEC_01400 - Step 1 - Expected to hit this first, but did not');
-                }
-                step++;
-            }, function (err) {
-                fail(err.code + ': ' + err.description);
-                done();
+        }
+
+        function requestSessionStopCastingUiStopSuccess (session) {
+            return new Promise(function (resolve) {
+                alert('---TEST INSTRUCTION---\nPlease click "Stop casting"');
+                chrome.cast.requestSession(function () {
+                    test().fail('We should not reach here on stop casting');
+                }, function (err) {
+                    test(err).toBeInstanceOf(chrome.cast.Error);
+                    test(err.code).toEqual(chrome.cast.ErrorCode.CANCEL);
+                    resolve(session);
+                });
             });
-        });
+        }
+
+        function sessionStop (session) {
+            return new Promise(function (resolve) {
+                session.stop(function () {
+                    resolve(session);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function test (actual) {
+            return {
+                toEqual: function (expected) {
+                    if (actual !== expected) {
+                        throw new Error('Expected "' + actual + '" to be "' + expected + '"');
+                    }
+                },
+                toBeInstanceOf: function (expected) {
+                    if (!(actual instanceof expected)) {
+                        throw new Error('Expected "' + actual + '" to be an instance of "' + expected.name + '"');
+                    }
+                },
+                toBeDefined: function () {
+                    if (actual === null || actual === undefined) {
+                        throw new Error('Expected "' + actual + '" to be defined.');
+                    }
+                },
+                fail: function (message) {
+                    throw new Error(message);
+                }
+            };
+        }
 
     });
 };

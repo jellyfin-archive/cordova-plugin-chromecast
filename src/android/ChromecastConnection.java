@@ -4,12 +4,14 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.Bundle;
 
 import androidx.mediarouter.app.MediaRouteChooserDialog;
 import androidx.mediarouter.media.MediaRouteSelector;
 import androidx.mediarouter.media.MediaRouter;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
+import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.CastMediaControlIntent;
 import com.google.android.gms.cast.framework.CastContext;
 import com.google.android.gms.cast.framework.CastSession;
@@ -399,9 +401,16 @@ public class ChromecastConnection {
             List<RouteInfo> outRoutes = new ArrayList<>();
             // Filter the routes
             for (RouteInfo route : routes) {
-                // We don't want default routes
+                // We don't want default routes, or duplicate active routes
                 // or multizone duplicates https://github.com/jellyfin/cordova-plugin-chromecast/issues/32
-                if (!route.isDefault()) {
+                Bundle extras = route.getExtras();
+                if (extras != null) {
+                    CastDevice.getFromBundle(extras);
+                    if (extras.getString("com.google.android.gms.cast.EXTRA_SESSION_ID") != null) {
+                        continue;
+                    }
+                }
+                if (!route.isDefault() && !route.getDescription().equals("Google Cast Multizone Member")) {
                     outRoutes.add(route);
                 }
             }

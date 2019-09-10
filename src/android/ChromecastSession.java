@@ -694,8 +694,15 @@ public class ChromecastSession
 
 	@Override
 	public void onMessageReceived(CastDevice castDevice, String namespace, String message) {
-		if (this.onSessionUpdatedListener != null) {
-			this.onSessionUpdatedListener.onMessage(this, namespace, message);
+		try {
+			JSONObject json = new JSONObject(message);
+
+			if (this.onSessionUpdatedListener != null) {
+				this.onSessionUpdatedListener.onMessage(this, namespace, json);
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 }

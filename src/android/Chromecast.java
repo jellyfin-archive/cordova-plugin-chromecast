@@ -59,6 +59,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	private volatile ChromecastSession currentSession;
 
 	private void log(String s) {
+		s = s.replace("'", "\\'");
 		sendJavascript("console.log('" + s + "');");
 	}
 
@@ -829,8 +830,8 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	}
 
 	@Override
-	public void onMessage(ChromecastSession session, String namespace, String message) {
-		sendJavascript("chrome.cast._.onMessage('" + session.getSessionId() + "', '" + namespace + "', '" + message.replace("\\", "\\\\") + "')");
+	public void onMessage(ChromecastSession session, String namespace, JSONObject message) {
+		sendJavascript("chrome.cast._.onMessage('" + session.getSessionId() + "', '" + namespace + "', " + message.toString() + ")");
 	}
 
 	//Change all @deprecated this.webView.sendJavascript(String) to this local function sendJavascript(String)

@@ -724,7 +724,7 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 	 * @param route
 	 */
 	protected void onRouteAdded(MediaRouter router, final RouteInfo route) {
-		if (this.autoConnect && this.currentSession == null && !route.getName().equals("Phone")) {
+		if (this.autoConnect && this.currentSession == null && !route.getName().equals("Phone") && !this.isNearByDevice(route)) {
 			log("Attempting to join route " + route.getName());
 			this.joinSession(route);
 		} else {
@@ -801,6 +801,23 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 		}
 
 		return (route.getId().indexOf("Cast") > -1 && !route.getDescription().equals("Google Cast Multizone Member") && sessionId == null);
+	}
+
+	/**
+	 * Check if device is not on local network to verify if the device is a
+	 * near by device
+	 * @param route
+	 * @return true if device is not on local network, by default returns false.
+	 */
+	private boolean isNearByDevice(RouteInfo route) {
+		Bundle bundle = route.getExtras();
+
+		if (bundle != null) {
+			CastDevice device = CastDevice.getFromBundle(bundle);
+			return !device.isOnLocalNetwork();
+		}
+
+		return false;
 	}
 
 	@Override

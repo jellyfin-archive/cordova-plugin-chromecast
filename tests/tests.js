@@ -81,17 +81,18 @@ exports.defineAutoTests = function () {
             expect(chrome.cast.media.Media.prototype.removeUpdateListener).toBeDefined();
         });
 
-        it('SPEC_00300 chrome.cast.cordova functions', function (done) {
+        it('SPEC_00300 chrome.cast.cordova functions and leaveSession', function (done) {
             setupEarlyTerminator(done);
             Promise.resolve()
             .then(apiAvailable)
             .then(initialize('SPEC_00300', function (session) {
-                throw new Error('should not receive a session (make sure there is no active cast session when starting the tests)');
+                test().fail('should not receive a session (make sure there is no active cast session when starting the tests)');
             }))
             .then(startRouteScan)
             .then(stopRouteScan)
             .then(selectRoute)
-            .then(sessionStop)
+            .then(sessionLeaveSuccess)
+            .then(sessionLeaveError_alreadyLeft)
             .then(done);
         }, USER_INTERACTION_TIMEOUT);
 
@@ -131,7 +132,9 @@ exports.defineAutoTests = function () {
             .then(initialize('SPEC_00506', function (session) {
                 Promise.resolve(session)
                 .then(sessionProperties)
-                .then(sessionStop)
+                .then(sessionStopSuccess)
+                .then(sessionStopError_noSession)
+                .then(sessionLeaveError_noSession)
                 .then(done);
             }));
         }, USER_INTERACTION_TIMEOUT);
@@ -384,22 +387,131 @@ exports.defineAutoTests = function () {
         function requestSessionStopCastingUiStopSuccess (session) {
             return new Promise(function (resolve) {
                 alert('---TEST INSTRUCTION---\nPlease click "Stop casting"');
+                // We need to hit both of there callbacks
+                var hitUpdateListener = false;
+                var hitErrHandler = false;
+                session.addUpdateListener(function (isAlive) {
+                    if (hitUpdateListener) {
+                        test().fail('requestSessionStopCastingUISuccess - we already hit the updateListener once!  What is going on?');
+                    }
+                    hitUpdateListener = true;
+                    test(isAlive).toEqual(false);
+                    if (hitErrHandler) {
+                        resolve(session);
+                    }
+                });
+
                 chrome.cast.requestSession(function () {
                     test().fail('We should not reach here on stop casting');
                 }, function (err) {
+                    if (hitErrHandler) {
+                        test().fail('requestSessionStopCastingUISuccess - we already hit the errorHandler once!  What is going on?');
+                    }
+                    hitErrHandler = true;
                     test(err).toBeInstanceOf(chrome.cast.Error);
                     test(err.code).toEqual(chrome.cast.ErrorCode.CANCEL);
+                    if (hitUpdateListener) {
+                        resolve(session);
+                    }
+                });
+            });
+        }
+
+        function sessionLeaveSuccess (session) {
+            return new Promise(function (resolve) {
+                // We need to hit both of there callbacks
+                var hitUpdateListener = false;
+                var hitErrHandler = false;
+                session.addUpdateListener(function (isAlive) {
+                    if (hitUpdateListener) {
+                        test().fail('session.leave - we already hit the updateListener once!  What is going on?');
+                    }
+                    hitUpdateListener = true;
+                    test(isAlive).toEqual(true);
+                    test(session.status).toEqual(chrome.cast.SessionStatus.DISCONNECTED);
+                    if (hitErrHandler) {
+                        resolve(session);
+                    }
+                });
+                session.leave(function () {
+                    if (hitErrHandler) {
+                        test().fail('session.leave - we already hit the errorHandler once!  What is going on?');
+                    }
+                    hitErrHandler = true;
+                    if (hitUpdateListener) {
+                        resolve(session);
+                    }
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function sessionLeaveError_alreadyLeft (session) {
+            return new Promise(function (resolve) {
+                session.stop(function () {
+                    test().fail('session.leave - Should not call success');
+                }, function (err) {
+                    test(err).toBeInstanceOf(chrome.cast.Error);
+                    test(err.code).toEqual(chrome.cast.Error.INVALID_PARAMETER);
+                    test(err.description).toEqual('No active session');
                     resolve(session);
                 });
             });
         }
 
-        function sessionStop (session) {
+        function sessionLeaveError_noSession (session) {
             return new Promise(function (resolve) {
                 session.stop(function () {
+                    test().fail('session.leave - Should not call success');
+                }, function (err) {
+                    test(err).toBeInstanceOf(chrome.cast.Error);
+                    test(err.code).toEqual(chrome.cast.Error.INVALID_PARAMETER);
+                    test(err.description).toEqual('No active session');
                     resolve(session);
+                });
+            });
+        }
+
+        function sessionStopSuccess (session) {
+            return new Promise(function (resolve) {
+                // We need to hit both of there callbacks
+                var hitUpdateListener = false;
+                var hitErrHandler = false;
+                session.addUpdateListener(function (isAlive) {
+                    if (hitUpdateListener) {
+                        test().fail('session.stop - we already hit the updateListener once!  What is going on?');
+                    }
+                    hitUpdateListener = true;
+                    test(isAlive).toEqual(false);
+                    test(session.status).toEqual(chrome.cast.SessionStatus.STOPPED);
+                    if (hitErrHandler) {
+                        resolve(session);
+                    }
+                });
+                session.stop(function () {
+                    if (hitErrHandler) {
+                        test().fail('session.stop - we already hit the errorHandler once!  What is going on?');
+                    }
+                    hitErrHandler = true;
+                    if (hitUpdateListener) {
+                        resolve(session);
+                    }
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function sessionStopError_noSession (session) {
+            return new Promise(function (resolve) {
+                session.stop(function () {
+                    test().fail('session.stop - Should not call success');
+                }, function (err) {
+                    test(err).toBeInstanceOf(chrome.cast.Error);
+                    test(err.code).toEqual(chrome.cast.Error.INVALID_PARAMETER);
+                    test(err.description).toEqual('No active session');
+                    resolve(session);
                 });
             });
         }

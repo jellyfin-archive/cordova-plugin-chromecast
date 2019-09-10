@@ -18,6 +18,8 @@ import com.google.android.gms.cast.framework.CastSession;
 import com.google.android.gms.cast.framework.SessionManager;
 import com.google.android.gms.cast.framework.SessionManagerListener;
 
+import org.apache.cordova.CallbackContext;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +31,8 @@ public class ChromecastConnection {
     private ChromecastSession media;
     /** Lifetime variable. */
     private SessionListener newConnectionListener;
+    /** Should we pass disconnects to the client's externalDisconnectListener. */
+    private boolean enableClientExtenalDisconnectListener = false;
 
     /** Initialize lifetime variable. */
     private String appId;
@@ -42,7 +46,7 @@ public class ChromecastConnection {
      * @param chromecastSession the chromecastSession object that we should load with a new sessions
      * @param listener the listener that listens for session end event
      */
-    public ChromecastConnection(Activity act, ChromecastSession chromecastSession, ConnectionListener listener) {
+    public ChromecastConnection(Activity act, ChromecastSession chromecastSession, Callback listener) {
         this.activity = act;
         this.media = chromecastSession;
 
@@ -53,8 +57,8 @@ public class ChromecastConnection {
                     @Override
                     public void onSessionEnded(CastSession castSession, int error) {
                         setSession(null);
-                        if (listener != null) {
-                            listener.onDisconnected(error);
+                        if (listener != null && enableClientExtenalDisconnectListener) {
+                            listener.run();
                         }
                     }
                 }, CastSession.class);
@@ -190,7 +194,9 @@ public class ChromecastConnection {
                 } else {
                     // We are are already connected, so show the "connection options" Dialog
                     AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-                    builder.setTitle(session.getCastDevice().getFriendlyName());
+                    if (session.getCastDevice() != null) {
+                        builder.setTitle(session.getCastDevice().getFriendlyName());
+                    }
                     builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
                         @Override
                         public void onDismiss(DialogInterface dialog) {
@@ -200,7 +206,7 @@ public class ChromecastConnection {
                     builder.setPositiveButton("Stop Casting", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            kill();
+                            endSession(true, null, null);
                         }
                     });
                     builder.show();
@@ -272,25 +278,41 @@ public class ChromecastConnection {
     }
 
     /**
-     * Leaves the session.
+     * Exits the current session.
+     * @param stopCasting should the receiver application  be stopped as well?
+     * @param callback called with .success or .error depending on the initial result
+     * @param disconnected called when the session actually ends
      */
-    public void leave() {
+    public void endSession(boolean stopCasting, CallbackContext callback, Callback disconnected) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 setSession(null);
-                getMediaRouter().unselect(MediaRouter.UNSELECT_REASON_DISCONNECTED);
-            }
-        });
-    }
+                if (getSessionManager().getCurrentCastSession() == null) {
+                    if (callback != null) {
+                        callback.error("invalid_parameter");
+                    }
+                    return;
+                }
 
-    /**
-     * Kills the session.
-     */
-    public void kill() {
-        activity.runOnUiThread(new Runnable() {
-            public void run() {
-                setSession(null);
-                getSessionManager().endCurrentSession(true);
+                // Disable the externalDisconnectListener temporarily
+                enableClientExtenalDisconnectListener = false;
+
+                getSessionManager().addSessionManagerListener(new SessionListener() {
+                    @Override
+                    public void onSessionEnded(CastSession castSession, int error) {
+                        getSessionManager().removeSessionManagerListener(this, CastSession.class);
+                        // Re-enable the externalDisconnectListener
+                        enableClientExtenalDisconnectListener = true;
+                        if (disconnected != null) {
+                            disconnected.run();
+                        }
+                    }
+                }, CastSession.class);
+
+                getSessionManager().endCurrentSession(stopCasting);
+                if (callback != null) {
+                    callback.success();
+                }
             }
         });
     }

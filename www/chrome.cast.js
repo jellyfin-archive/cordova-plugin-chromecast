@@ -98,6 +98,8 @@ chrome.cast = {
         NOT_IMPLEMENTED: 'not_implemented'
     },
 
+    SessionStatus: { CONNECTED: 'connected', DISCONNECTED: 'disconnected', STOPPED: 'stopped' },
+
     /**
      * TODO: Update when the official API docs are finished
      * https://developers.google.com/cast/docs/reference/chrome/chrome.cast.timeout
@@ -291,7 +293,7 @@ chrome.cast = {
          * @property {number}                         currentTime Seconds from the beginning of the media to start playback.
          * @property {Object}                         customData     Custom data for the receiver application.
          */
-        LoadRequest: function (media) {
+        LoadRequest: function LoadRequest (media) {
             this.type = 'LOAD';
             this.sessionId = this.requestId = this.customData = this.currentTime = null;
             this.media = media;
@@ -302,7 +304,7 @@ chrome.cast = {
          * A request to play the currently paused media.
          * @property {Object} customData Custom data for the receiver application.
          */
-        PlayRequest: function () {
+        PlayRequest: function PlayRequest () {
             this.customData = null;
         },
 
@@ -312,7 +314,7 @@ chrome.cast = {
          * @property {chrome.cast.media.ResumeState} resumeState The desired media player state after the seek is complete.
          * @property {Object}                          customData Custom data for the receiver application.
          */
-        SeekRequest: function () {
+        SeekRequest: function SeekRequest () {
             this.customData = this.resumeState = this.currentTime = null;
         },
 
@@ -321,7 +323,7 @@ chrome.cast = {
          * @param {chrome.cast.Volume} volume The new volume of the stream.
          * @property {Object} customData Custom data for the receiver application.
          */
-        VolumeRequest: function (volume) {
+        VolumeRequest: function VolumeRequest (volume) {
             this.volume = volume;
             this.customData = null;
         },
@@ -330,7 +332,7 @@ chrome.cast = {
          * A request to stop the media player.
          * @property {Object} customData Custom data for the receiver application.
          */
-        StopRequest: function () {
+        StopRequest: function StopRequest () {
             this.customData = null;
         },
 
@@ -338,7 +340,7 @@ chrome.cast = {
          * A request to pause the currently playing media.
          * @property {Object} customData Custom data for the receiver application.
          */
-        PauseRequest: function () {
+        PauseRequest: function PauseRequest () {
             this.customData = null;
         },
 
@@ -351,7 +353,7 @@ chrome.cast = {
          * @property {string}                             title         Content title.
          * @property {chrome.cast.media.MetadataType}     type         The type of metadata.
          */
-        GenericMediaMetadata: function () {
+        GenericMediaMetadata: function GenericMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.GENERIC;
             this.releaseDate = this.releaseYear = this.images = this.subtitle = this.title = null;
         },
@@ -366,7 +368,7 @@ chrome.cast = {
          * @property {string}                             title         Content title.
          * @property {chrome.cast.media.MetadataType}     type         The type of metadata.
          */
-        MovieMediaMetadata: function () {
+        MovieMediaMetadata: function MovieMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.MOVIE;
             this.releaseDate = this.releaseYear = this.images = this.subtitle = this.studio = this.title = null;
         },
@@ -387,7 +389,7 @@ chrome.cast = {
          * @property {number}                             trackNumber    Track number in album.
          * @property {chrome.cast.media.MetadataType}     type         The type of metadata.
          */
-        MusicTrackMediaMetadata: function () {
+        MusicTrackMediaMetadata: function MusicTrackMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.MUSIC_TRACK;
             this.releaseDate = this.releaseYear = this.images = this.discNumber = this.trackNumber = this.artistName = this.songName = this.composer = this.artist = this.albumArtist = this.title = this.albumName = null;
         },
@@ -405,7 +407,7 @@ chrome.cast = {
          * @property {chrome.cast.media.MetadataType}     type                 The type of metadata.
          * @property {number}                             width                 Photo width, in pixels.
          */
-        PhotoMediaMetadata: function () {
+        PhotoMediaMetadata: function PhotoMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.PHOTO;
             this.creationDateTime = this.height = this.width = this.longitude = this.latitude = this.images = this.location = this.artist = this.title = null;
         },
@@ -424,7 +426,7 @@ chrome.cast = {
          * @property {string}                             title             TV episode title.
          * @property {chrome.cast.media.MetadataType}     type             The type of metadata.
          */
-        TvShowMediaMetadata: function () {
+        TvShowMediaMetadata: function TvShowMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.TV_SHOW;
             this.originalAirdate = this.releaseYear = this.images = this.episode = this.episodeNumber = this.season = this.seasonNumber = this.episodeTitle = this.title = this.seriesTitle = null;
         },
@@ -438,7 +440,7 @@ chrome.cast = {
          * @property {any type}                     metadata     Describes the media content.
          * @property {chrome.cast.media.StreamType} streamType     The type of media stream.
          */
-        MediaInfo: function (contentId, contentType) {
+        MediaInfo: function MediaInfo (contentId, contentType) {
             this.contentId = contentId;
             this.streamType = chrome.cast.media.StreamType.BUFFERED;
             this.contentType = contentType;
@@ -460,7 +462,7 @@ chrome.cast = {
          * @param {number}                                            trackId Unique identifier of the track within the context of a chrome.cast.media.MediaInfo objects
          * @param {chrome.cast.media.TrackType}    trackType The type of track. Value must not be null.
          */
-        Track: function (trackId, trackType) {
+        Track: function Track (trackId, trackType) {
             this.trackId = trackId;
             this.type = trackType;
             this.customData = this.language = this.name = this.subtype = this.trackContentId = this.trackContentType = null;
@@ -500,7 +502,7 @@ chrome.cast = {
          * the 0-255 value for the specific channel/color. It follows CSS 8-digit hex color notation (See
          * http://dev.w3.org/csswg/css-color/#hex-notation).
          */
-        TextTrackStyle: function () {
+        TextTrackStyle: function TextTrackStyle () {
             this.backgroundColor = this.customData = this.edgeColor = this.edgeType =
             this.fontFamily = this.fontGenericFamily = this.fontScale = this.fontStyle =
             this.foregroundColor = this.windowColor = this.windowRoundedCornerRadius =
@@ -514,7 +516,7 @@ chrome.cast = {
          * @param {number[]}                            opt_activeTrackIds Optional.
          * @param {chrome.cast.media.TextTrackStyle}    opt_textTrackSytle Optional.
          **/
-        EditTracksInfoRequest: function (opt_activeTrackIds, opt_textTrackSytle) {
+        EditTracksInfoRequest: function EditTracksInfoRequest (opt_activeTrackIds, opt_textTrackSytle) {
             this.activeTrackIds = opt_activeTrackIds;
             this.textTrackSytle = opt_textTrackSytle;
             this.requestId = null;
@@ -607,7 +609,7 @@ chrome.cast.setCustomReceivers = function (receivers, successCallback, errorCall
  * @property {chrome.cast.SenderApplication}     senderApps     The sender applications supported by the receiver application.
  * @property {string}                            statusText     Descriptive text for the current application content, for example “My Wedding Slideshow”.
  */
-chrome.cast.Session = function (sessionId, appId, displayName, appImages, receiver) {
+chrome.cast.Session = function Session (sessionId, appId, displayName, appImages, receiver) {
     EventEmitter.call(this);
     this.sessionId = sessionId;
     this.appId = appId;
@@ -615,6 +617,7 @@ chrome.cast.Session = function (sessionId, appId, displayName, appImages, receiv
     this.appImages = appImages || [];
     this.receiver = receiver;
     this.media = [];
+    this.status = chrome.cast.SessionStatus.CONNECTED;
 };
 
 chrome.cast.Session.prototype = Object.create(EventEmitter.prototype);
@@ -671,11 +674,19 @@ chrome.cast.Session.prototype.stop = function (successCallback, errorCallback) {
         errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
         return;
     }
-
+    if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
+        errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
+        return;
+    }
     execute('sessionStop', function (err) {
         if (!err) {
+            this.status = chrome.cast.SessionStatus.STOPPED;
             successCallback && successCallback();
         } else {
+            if (err === chrome.cast.ErrorCode.INVALID_PARAMETER) {
+                errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
+                return;
+            }
             handleError(err, errorCallback);
         }
     });
@@ -691,11 +702,19 @@ chrome.cast.Session.prototype.leave = function (successCallback, errorCallback) 
         errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
         return;
     }
-
+    if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
+        errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
+        return;
+    }
     execute('sessionLeave', function (err) {
         if (!err) {
+            this.status = chrome.cast.SessionStatus.DISCONNECTED;
             successCallback && successCallback();
         } else {
+            if (err === chrome.cast.ErrorCode.INVALID_PARAMETER) {
+                errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
+                return;
+            }
             handleError(err, errorCallback);
         }
     });
@@ -784,10 +803,15 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
 };
 
 /**
- * Adds a listener that is invoked when the status of the Session has changed.
- * Changes to the following properties will trigger the listener: statusText, namespaces, customData, and the volume of the receiver.
- * The callback will be invoked with 'true' (isAlive) parameter.
- * When this session is ended, the callback will be invoked with 'false' (isAlive);
+ * Adds a listener that is invoked when the Session has changed.
+ * Changes to the following properties will trigger the listener:
+ *     statusText, namespaces, status, and the volume of the receiver.
+ *
+ * Listeners should check the status property of the Session to
+ * determine its connection status. The boolean parameter isAlive is
+ * deprecated in favor of the status Session property. The isAlive
+ * parameter is still passed in for backwards compatibility, and is
+ * true unless status = chrome.cast.SessionStatus.STOPPED.
  * @param {function} listener The listener to add.
  */
 chrome.cast.Session.prototype.addUpdateListener = function (listener) {
@@ -800,10 +824,6 @@ chrome.cast.Session.prototype.addUpdateListener = function (listener) {
  */
 chrome.cast.Session.prototype.removeUpdateListener = function (listener) {
     this.removeListener('_sessionUpdated', listener);
-    // var index = array.indexOf(5);
-    // if (index > -1) {
-    //     array.splice(index, 1);
-    // }
 };
 
 /**
@@ -842,26 +862,6 @@ chrome.cast.Session.prototype.removeMediaListener = function (listener) {
     this.removeListener('_mediaListener', listener);
 };
 
-chrome.cast.Session.prototype._update = function (isAlive, obj) {
-    this.appId = obj.appId;
-    this.appImages = obj.appImages;
-    this.displayName = obj.displayName;
-
-    if (obj.receiver) {
-        if (!this.receiver) {
-            this.receiver = new chrome.cast.Receiver(null, null, null, null);
-        }
-        this.receiver.friendlyName = obj.receiver.friendlyName;
-        this.receiver.label = obj.receiver.label;
-
-        if (obj.receiver.volume) {
-            this.receiver.volume = new chrome.cast.Volume(obj.receiver.volume.level, obj.receiver.volume.muted);
-        }
-    }
-
-    this.emit('_sessionUpdated', isAlive);
-};
-
 /**
  * Represents a media item that has been loaded into the receiver application.
  * @param {string} sessionId      Identifies the session that is hosting the media.
@@ -876,7 +876,7 @@ chrome.cast.Session.prototype._update = function (isAlive, obj) {
  * @property {chrome.cast.Volume}                 volume             The media stream volume.
  * @property {string}                             idleReason         Reason for idling
  */
-chrome.cast.media.Media = function (sessionId, mediaSessionId) {
+chrome.cast.media.Media = function Media (sessionId, mediaSessionId) {
     EventEmitter.call(this);
     this.sessionId = sessionId;
     this.mediaSessionId = mediaSessionId;
@@ -1189,6 +1189,14 @@ chrome.cast.removeConnectingListener = function (cb) {
     }
 };
 
+/** ************* Cordova Events ********************/
+// TODO
+/**
+ * These are events that are triggered from the plugin using "sendJavascript"
+ * It is recommended by cordova that we avoid sendJavascript usage
+ * so we should try to remove all of these functions eventually.
+ */
+
 chrome.cast._emitConnecting = function () {
     for (var n = 0; n < _connectingListeners.length; n++) {
         _connectingListeners[n]();
@@ -1202,9 +1210,27 @@ chrome.cast._ = {
     receiverAvailable: function () {
         _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
     },
-    sessionUpdated: function (isAlive, session) {
-        if (session && session.sessionId && _session) {
-            _session._update(isAlive, session);
+    /**
+     * Function called from cordova when the Session has changed.
+     * Changes to the following properties will trigger the listener:
+     *     statusText, namespaces, status, and the volume of the receiver.
+     *
+     * Listeners should check the status property of the Session to
+     * determine its connection status. The boolean parameter isAlive is
+     * deprecated in favor of the status Session property. The isAlive
+     * parameter is still passed in for backwards compatibility, and is
+     * true unless status = chrome.cast.SessionStatus.STOPPED.
+     * @param {function} listener The listener to add.
+     */
+    sessionUpdated: function (status) {
+        var isAlive = (status !== chrome.cast.SessionStatus.STOPPED);
+        if (_session) {
+            _session.status = status;
+            // Call all the sessionUpdate listeners
+            _session.emit('_sessionUpdated', isAlive);
+        }
+        if (!isAlive) {
+            updateSession(null);
         }
     },
     mediaUpdated: function (isAlive, media) {
@@ -1260,27 +1286,52 @@ chrome.cast._ = {
 
 module.exports = chrome.cast;
 
+/**
+ * Updates the current session with the incoming javaSession
+ */
 function updateSession (javaSession) {
+    // Should we reset the sesion?
+    if (!javaSession) {
+        _session = undefined;
+        return;
+    }
     _session = new chrome.cast.Session(
         javaSession.sessionId,
         javaSession.appId,
         javaSession.displayName,
         javaSession.appImages || [],
-        new chrome.cast.Receiver(
-            javaSession.receiver.label,
-            javaSession.receiver.friendlyName,
-            javaSession.receiver.capabilities || [],
-            javaSession.receiver.volume || null
-            )
+        createReceiver(javaSession.receiver)
         );
-    if (javaSession.media && javaSession.media.sessionId) {
-        _currentMedia = new chrome.cast.media.Media(javaSession.sessionId, javaSession.media.mediaSessionId);
-        _currentMedia.currentTime = javaSession.media.currentTime;
-        _currentMedia.playerState = javaSession.media.playerState;
-        _currentMedia.media = javaSession.media.media;
-        _session.media[0] = _currentMedia;
-    }
+    _session.status = chrome.cast.SessionStatus.CONNECTED;
+    _session.media[0] = createMedia(javaSession.media, javaSession.sessionId);
+
     return _session;
+}
+
+function createMedia (media, sessionId) {
+    if (media && media.sessionId) {
+        _currentMedia = new chrome.cast.media.Media(sessionId, media.mediaSessionId);
+        _currentMedia.currentTime = media.currentTime;
+        _currentMedia.playerState = media.playerState;
+        _currentMedia.media = media.media;
+    }
+    return _currentMedia;
+}
+
+function createReceiver (receiver) {
+    if (!receiver) {
+        return new chrome.cast.Receiver(null, null, null, null);
+    }
+    var outReceiver = new chrome.cast.Receiver(
+        receiver.label,
+        receiver.friendlyName,
+        receiver.capabilities || [],
+        null
+    );
+    if (receiver.volume) {
+        outReceiver.volume = new chrome.cast.Volume(receiver.volume.level, receiver.volume.muted);
+    }
+    return outReceiver;
 }
 
 function execute (action) {
@@ -1294,32 +1345,26 @@ function execute (action) {
 }
 
 function handleError (err, callback) {
-    var errorCode = chrome.cast.ErrorCode.UNKNOWN;
     var errorDescription = err;
-    var errorData = {};
 
-    err = err || '';
-    if (err.toUpperCase() === 'TIMEOUT') {
-        errorCode = chrome.cast.ErrorCode.TIMEOUT;
+    err = err.toLowerCase() || '';
+    if (err === chrome.cast.ErrorCode.TIMEOUT) {
         errorDescription = 'The operation timed out.';
-    } else if (err.toUpperCase() === 'INVALID_PARAMETER') {
-        errorCode = chrome.cast.ErrorCode.INVALID_PARAMETER;
+    } else if (err === chrome.cast.ErrorCode.INVALID_PARAMETER) {
         errorDescription = 'The parameters to the operation were not valid.';
-    } else if (err.toUpperCase() === 'RECEIVER_UNAVAILABLE') {
-        errorCode = chrome.cast.ErrorCode.RECEIVER_UNAVAILABLE;
+    } else if (err === chrome.cast.ErrorCode.RECEIVER_UNAVAILABLE) {
         errorDescription = 'No receiver was compatible with the session request.';
-    } else if (err.toUpperCase() === 'CANCEL') {
-        errorCode = chrome.cast.ErrorCode.CANCEL;
+    } else if (err === chrome.cast.ErrorCode.CANCEL) {
         errorDescription = 'The operation was canceled by the user.';
-    } else if (err.toUpperCase() === 'CHANNEL_ERROR') {
-        errorCode = chrome.cast.ErrorCode.CHANNEL_ERROR;
+    } else if (err === chrome.cast.ErrorCode.CHANNEL_ERROR) {
         errorDescription = 'A channel to the receiver is not available.';
-    } else if (err.toUpperCase() === 'SESSION_ERROR') {
-        errorCode = chrome.cast.ErrorCode.SESSION_ERROR;
+    } else if (err === chrome.cast.ErrorCode.SESSION_ERROR) {
         errorDescription = 'A session could not be created, or a session was invalid.';
+    } else {
+        err = chrome.cast.ErrorCode.UNKNOWN;
     }
 
-    var error = new chrome.cast.Error(errorCode, errorDescription, errorData);
+    var error = new chrome.cast.Error(err, errorDescription, {});
     if (callback) {
         callback(error);
     }

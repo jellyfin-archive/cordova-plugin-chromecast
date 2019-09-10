@@ -40,11 +40,10 @@ public final class Chromecast extends CordovaPlugin {
         super.pluginInitialize();
 
         this.media = new ChromecastSession(cordova.getActivity(), remoteMediaClientCallback);
-        this.connection = new ChromecastConnection(cordova.getActivity(), this.media, new ChromecastConnection.ConnectionListener() {
+        this.connection = new ChromecastConnection(cordova.getActivity(), this.media, new ChromecastConnection.Callback() {
             @Override
-            public void onDisconnected(int reason) {
-                sendJavascript("chrome.cast.Session.prototype._update(false, {});");
-//                sendJavascript("chrome.cast._.sessionUpdated(false, " + session.toString() + ");");
+            public void run() {
+                sendSessionUpdate("stopped");
             }
         });
     }
@@ -260,16 +259,6 @@ public final class Chromecast extends CordovaPlugin {
     }
 
     /**
-     * Stop the session.
-     * @param callbackContext called with .success or .error depending on the result
-     * @return true for cordova
-     */
-    public boolean stopSession(CallbackContext callbackContext) {
-        connection.kill();
-        return true;
-    }
-
-    /**
      * Send a custom message to the receiver - we don't need this just yet... it was just simple to implement on the js side.
      * @param namespace namespace
      * @param message the message to send
@@ -411,8 +400,12 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean sessionStop(CallbackContext callbackContext) {
-        connection.kill();
-        callbackContext.success();
+        connection.endSession(true, callbackContext, new ChromecastConnection.Callback() {
+            @Override
+            public void run() {
+                sendSessionUpdate("stopped");
+            }
+        });
         return true;
     }
 
@@ -422,8 +415,12 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean sessionLeave(CallbackContext callbackContext) {
-        connection.leave();
-        callbackContext.success();
+        connection.endSession(true, callbackContext, new ChromecastConnection.Callback() {
+            @Override
+            public void run() {
+                sendSessionUpdate("disconnected");
+            }
+        });
         return true;
     }
 
@@ -464,6 +461,10 @@ public final class Chromecast extends CordovaPlugin {
         }
         callbackContext.success();
         return true;
+    }
+
+    private void sendSessionUpdate(String status) {
+        sendJavascript("chrome.cast._.sessionUpdated('" + status + "');");
     }
 
     /**

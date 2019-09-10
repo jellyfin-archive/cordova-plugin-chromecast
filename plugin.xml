@@ -62,7 +62,7 @@
         <source url="https://github.com/CocoaPods/Specs.git"/>
       </config>
       <pods use-frameworks="true">
-        <pod name="google-cast-sdk" spec="~> 4.4.1" />
+        <pod name="google-cast-sdk" spec="~> 4.4.4" />
       </pods>
     </podspec>
 

@@ -1126,6 +1126,7 @@ chrome.cast.media.Media.prototype._update = function(isAlive, obj) {
 	this.mediaSessionId = obj.mediaSessionId || this.mediaSessionId;
 	this.playbackRate = obj.playbackRate || this.playbackRate;
 	this.playerState = obj.playerState || this.playerState;
+  this.activeTrackIds = obj.activeTrackIds || this.activeTrackIds;
 
 	if (obj.media && obj.media.duration) {
 		this.media.duration = obj.media.duration || this.media.duration;

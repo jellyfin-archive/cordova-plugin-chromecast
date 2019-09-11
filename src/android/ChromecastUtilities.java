@@ -19,15 +19,15 @@ final class ChromecastUtilities {
     static String getMediaIdleReason(MediaStatus mediaStatus) {
         switch (mediaStatus.getIdleReason()) {
             case MediaStatus.IDLE_REASON_CANCELED:
-                return "canceled";
+                return "CANCELED";
             case MediaStatus.IDLE_REASON_ERROR:
-                return "error";
+                return "ERROR";
             case MediaStatus.IDLE_REASON_FINISHED:
-                return "finished";
+                return "FINISHED";
             case MediaStatus.IDLE_REASON_INTERRUPTED:
-                return "interrupted";
+                return "INTERRUPTED";
             case MediaStatus.IDLE_REASON_NONE:
-                return "none";
+                return "NONE";
             default:
                 return null;
         }
@@ -53,11 +53,11 @@ final class ChromecastUtilities {
     static String getMediaInfoStreamType(MediaInfo mediaInfo) {
         switch (mediaInfo.getStreamType()) {
             case MediaInfo.STREAM_TYPE_BUFFERED:
-                return "buffered";
+                return "BUFFERED";
             case MediaInfo.STREAM_TYPE_LIVE:
-                return "live";
+                return "LIVE";
             case MediaInfo.STREAM_TYPE_NONE:
-                return "other";
+                return "OTHER";
             default:
                 return null;
         }

@@ -26,12 +26,14 @@ class CastUtilities {
         return mediaInfoBuilder.build()
     }
 
-    static func buildTextTrackStyle(_ data: Data) -> GCKMediaTextTrackStyle {
+    static func buildTextTrackStyle(_ data: Data) -> GCKMediaTextTrackStyle? {
         let json = try? JSONSerialization.jsonObject(with: data, options: [])
 
-        let mediaTextTrackStyle = GCKMediaTextTrackStyle.createDefault()
+        let dict = json as? [String: Any] ?? [:]
 
-        if let dict = json as? [String: Any] {
+        if (dict.count != 0) {
+            let mediaTextTrackStyle = GCKMediaTextTrackStyle.createDefault()
+
             if let bkgColor = dict["backgroundColor"] as? String {
                 mediaTextTrackStyle.backgroundColor = GCKColor.init(cssString: bkgColor)
             }
@@ -80,17 +82,21 @@ class CastUtilities {
                 mediaTextTrackStyle.windowType = parseWindowType(windowType)
             }
 
+            return mediaTextTrackStyle
+        } else {
+            return nil
         }
 
-        return mediaTextTrackStyle
+
     }
 
     static func buildMediaMetadata(_ data: Data) -> GCKMediaMetadata {
         var mediaMetadata = GCKMediaMetadata(metadataType: GCKMediaMetadataType.generic)
 
         let json = try? JSONSerialization.jsonObject(with: data, options: [])
+        let dict = json as? [String: Any] ?? [:]
 
-        if let dict = json as? [String: Any] {
+        if (dict.count != 0) {
             if let metadataType = dict["metadataType"] as? Int {
                 mediaMetadata = GCKMediaMetadata(metadataType: parseMediaMetadataType(metadataType))
             }

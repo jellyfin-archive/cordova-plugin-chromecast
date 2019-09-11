@@ -168,7 +168,7 @@ import GoogleCast
         request?.delegate = delegate
     }
 
-    func setActiveTracks(_ withCommand: CDVInvokedUrlCommand, activeTrackIds: [NSNumber], textTrackStyle: GCKMediaTextTrackStyle) {
+    func setActiveTracks(_ withCommand: CDVInvokedUrlCommand, activeTrackIds: [NSNumber], textTrackStyle: GCKMediaTextTrackStyle?) {
         let delegate = self.createGeneralRequestDelegate(withCommand)
 
         var request = remoteMediaClient?.setActiveTrackIDs(activeTrackIds)

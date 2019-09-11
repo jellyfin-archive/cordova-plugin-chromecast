@@ -527,8 +527,8 @@ chrome.cast = {
 var _sessionRequest = null;
 var _autoJoinPolicy = null;
 var _defaultActionPolicy = null;
-var _receiverListener = null;
-var _sessionListener = null;
+var _sessionListener = function () {};
+var _receiverListener = function () {};
 
 var _session;
 var _currentMedia = null;
@@ -549,13 +549,13 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
     _autoJoinPolicy = apiConfig.autoJoinPolicy;
     _defaultActionPolicy = apiConfig.defaultActionPolicy;
     _sessionRequest = apiConfig.sessionRequest;
+    _sessionListener = apiConfig.sessionListener;
+    _receiverListener = apiConfig.receiverListener;
 
     execute('initialize', _sessionRequest.appId, _autoJoinPolicy, _defaultActionPolicy, function (err) {
         if (!err) {
             successCallback();
-            // Only set the listeners once initialize has completed successfully
-            _sessionListener = apiConfig.sessionListener;
-            _receiverListener = apiConfig.receiverListener;
+            chrome.cast._.receiverUnavailable();
         } else {
             handleError(err, errorCallback);
         }
@@ -1244,7 +1244,7 @@ chrome.cast._ = {
                 _currentMedia.media = media.media;
 
                 _session.media[0] = _currentMedia;
-                _sessionListener && _sessionListener(_session);
+                _sessionListener(_session);
             }
         }
     },
@@ -1262,7 +1262,7 @@ chrome.cast._ = {
     },
     sessionListener: function (javaSession) {
         var session = updateSession(javaSession);
-        _sessionListener && _sessionListener(session);
+        _sessionListener(session);
     },
     sessionJoined: function (obj) {
         var session = updateSession(obj);
@@ -1275,7 +1275,7 @@ chrome.cast._ = {
             session.media[0] = _currentMedia;
         }
 
-        _sessionListener && _sessionListener(session);
+        _sessionListener(session);
     },
     onMessage: function (sessionId, namespace, message) {
         if (_session) {
@@ -1293,6 +1293,8 @@ function updateSession (javaSession) {
     // Should we reset the sesion?
     if (!javaSession) {
         _session = undefined;
+        _sessionListener = function () {};
+        _receiverListener = function () {};
         return;
     }
     _session = new chrome.cast.Session(
@@ -1361,6 +1363,7 @@ function handleError (err, callback) {
     } else if (err === chrome.cast.ErrorCode.SESSION_ERROR) {
         errorDescription = 'A session could not be created, or a session was invalid.';
     } else {
+        errorDescription = err;
         err = chrome.cast.ErrorCode.UNKNOWN;
     }
 

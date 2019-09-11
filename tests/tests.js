@@ -396,6 +396,7 @@ exports.defineAutoTests = function () {
                     }
                     hitUpdateListener = true;
                     test(isAlive).toEqual(false);
+                    test(session.status).toEqual(chrome.cast.SessionStatus.STOPPED);
                     if (hitErrHandler) {
                         resolve(session);
                     }

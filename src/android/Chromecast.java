@@ -16,9 +16,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.os.Handler;
-import android.util.Log;
-
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
 import com.google.android.gms.cast.framework.CastSession;
@@ -125,62 +122,25 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean initialize(final String appId, String autoJoinPolicy, String defaultActionPolicy, final CallbackContext callbackContext) {
-
-        this.connection.initialize(appId, new ChromecastConnection.Callback() {
+        connection.setReceiverListener(new ChromecastConnection.ReceiverListener() {
             @Override
-            public void run() {
-                callbackContext.success();
+            public void onReceiverAvailable() {
+                sendReceiverUpdate(true);
+            }
 
-                // Send receiver unavailable update while the new routeSelector is built.
-                // This matches the Chrome Desktop SDK behavior.
+            @Override
+            public void onReceiverUnavailable() {
                 sendReceiverUpdate(false);
-
-
-                // See if there are any available routes
-                ChromecastConnection.ScanCallback scanCallback = new ChromecastConnection.ScanCallback() {
-                    @Override
-                    public void onRouteUpdate(List<RouteInfo> routes) {
-                        if (routes.size() == 0) {
-                            // If no routes, just return, wait for a real route to be discovered
-                            return;
-                        }
-
-                        // We found at least 1 route! so stop the scan
-                        connection.stopScan(this);
-
-                        // and send out receiver available
-                        sendReceiverUpdate(true);
-
-                        // Attempt to rejoin existing session if exists
-                        connection.rejoin(new ChromecastConnection.JoinCallback() {
-                            @Override
-                            public void onJoin(CastSession session) {
-                                // If we were able to join that means the client likely navigated to
-                                // a new page and the code has called initialize again
-                                // so, send out the session
-                                sendJavascript("chrome.cast._.sessionListener(" + media.createSessionObject().toString() + ");");
-                            }
-
-                            @Override
-                            public void onError(String errorCode) {
-                                Log.d(TAG, "Error rejoining session: " + errorCode);
-                            }
-                        });
-                    }
-                };
-                connection.scanForRoutes(scanCallback);
-
-                // Also start a time out to cancel the scan
-                // after 5 seconds to save power
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        connection.stopScan(scanCallback);
-                    }
-                }, 5000);
             }
         });
 
+        connection.initialize(appId, callbackContext, new ChromecastConnection.Callback() {
+            @Override
+            public void run() {
+                // We found a session!
+                sendJavascript("chrome.cast._.sessionListener(" + media.createSessionObject().toString() + ");");
+            }
+        });
         return true;
     }
 

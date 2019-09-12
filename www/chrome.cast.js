@@ -213,10 +213,9 @@ chrome.cast = {
      * @param {boolean} muted     Whether the receiver is muted, independent of the volume level.
      */
     Volume: function (level, muted) {
-        this.level = level || null;
-        this.muted = null;
-        if (muted === true || muted === false) {
-            this.muted = muted;
+        this.level = level;
+        if (muted || muted === false) {
+            this.muted = !!muted;
         }
     },
 
@@ -555,7 +554,7 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
     execute('initialize', _sessionRequest.appId, _autoJoinPolicy, _defaultActionPolicy, function (err) {
         if (!err) {
             successCallback();
-            chrome.cast._.receiverUnavailable();
+            chrome.cast._.receiverUpdate(false);
         } else {
             handleError(err, errorCallback);
         }
@@ -654,7 +653,6 @@ chrome.cast.Session.prototype.setReceiverMuted = function (muted, successCallbac
         errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
         return;
     }
-
     execute('setReceiverMuted', muted, function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -680,7 +678,6 @@ chrome.cast.Session.prototype.stop = function (successCallback, errorCallback) {
     }
     execute('sessionStop', function (err) {
         if (!err) {
-            this.status = chrome.cast.SessionStatus.STOPPED;
             successCallback && successCallback();
         } else {
             if (err === chrome.cast.ErrorCode.INVALID_PARAMETER) {
@@ -708,7 +705,6 @@ chrome.cast.Session.prototype.leave = function (successCallback, errorCallback) 
     }
     execute('sessionLeave', function (err) {
         if (!err) {
-            this.status = chrome.cast.SessionStatus.DISCONNECTED;
             successCallback && successCallback();
         } else {
             if (err === chrome.cast.ErrorCode.INVALID_PARAMETER) {
@@ -862,6 +858,30 @@ chrome.cast.Session.prototype.removeMediaListener = function (listener) {
     this.removeListener('_mediaListener', listener);
 };
 
+chrome.cast.Session.prototype._update = function (obj) {
+    var isAlive = (obj.status !== chrome.cast.SessionStatus.STOPPED);
+    this.status = obj.status || this.status;
+    this.appId = obj.appId;
+    this.appImages = obj.appImages;
+    this.displayName = obj.displayName;
+
+    if (obj.receiver) {
+        if (!this.receiver) {
+            this.receiver = new chrome.cast.Receiver(null, null, null, null);
+        }
+        this.receiver.friendlyName = obj.receiver.friendlyName;
+        this.receiver.label = obj.receiver.label;
+
+        if (obj.receiver.volume) {
+            this.receiver.volume = new chrome.cast.Volume(obj.receiver.volume.level, obj.receiver.volume.muted);
+        }
+    } else {
+        this.receiver = null;
+    }
+
+    this.emit('_sessionUpdated', isAlive);
+};
+
 /**
  * Represents a media item that has been loaded into the receiver application.
  * @param {string} sessionId      Identifies the session that is hosting the media.
@@ -994,36 +1014,19 @@ chrome.cast.media.Media.prototype.setVolume = function (volumeRequest, successCa
         errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
         return;
     }
-    var argsMuted = [];
-    var argsVolume = [];
 
-    if (volumeRequest.volume.muted !== null) {
-        argsMuted.push('setMediaMuted');
-        argsMuted.push(volumeRequest.volume.muted);
+    if (!volumeRequest.volume || (volumeRequest.volume.level == null && volumeRequest.volume.muted === null)) {
+        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.SESSION_ERROR), 'INVALID_PARAMS', { reason: 'INVALID_PARAMS', type: 'INVALID_REQUEST' });
+        return;
     }
 
-    if (volumeRequest.volume.level) {
-        argsVolume.push('setMediaVolume');
-        argsVolume.push(volumeRequest.volume.level);
-    }
-
-    if (argsMuted.length < 2 && argsVolume.length < 2) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.INVALID_PARAMETER), 'Invalid request.', {});
-    } else {
-        var callback = function (err) {
-            if (!err) {
-                successCallback && successCallback();
-            } else {
-                handleError(err, errorCallback);
-            }
-        };
-
-        argsMuted.push(callback);
-        argsVolume.push(callback);
-
-        execute.apply(null, argsMuted);
-        execute.apply(null, argsVolume);
-    }
+    execute('setMediaVolume', volumeRequest.volume.level, volumeRequest.volume.muted, function (err) {
+        if (!err) {
+            successCallback && successCallback();
+        } else {
+            handleError(err, errorCallback);
+        }
+    });
 };
 
 /**
@@ -1102,12 +1105,14 @@ chrome.cast.media.Media.prototype._update = function (isAlive, obj) {
     this.playerState = obj.playerState || this.playerState;
 
     if (obj.media && obj.media.duration) {
+        this.media = this.media || {};
         this.media.duration = obj.media.duration || this.media.duration;
         this.media.streamType = obj.media.streamType || this.media.streamType;
     }
 
-    this.volume.level = obj.volume.level;
-    this.volume.muted = obj.volume.muted;
+    if (obj.volume && obj.volume.level) {
+        this.volume = new chrome.cast.Volume(obj.volume.level, obj.volume.muted);
+    }
 
     this._lastUpdatedTime = Date.now();
 
@@ -1204,11 +1209,15 @@ chrome.cast._emitConnecting = function () {
 };
 
 chrome.cast._ = {
-    receiverUnavailable: function () {
-        _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
-    },
-    receiverAvailable: function () {
-        _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
+    /**
+     * @param {boolean} available
+     */
+    receiverUpdate: function (available) {
+        if (available) {
+            _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
+        } else {
+            _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
+        }
     },
     /**
      * Function called from cordova when the Session has changed.
@@ -1222,31 +1231,23 @@ chrome.cast._ = {
      * true unless status = chrome.cast.SessionStatus.STOPPED.
      * @param {function} listener The listener to add.
      */
-    sessionUpdated: function (status) {
-        var isAlive = (status !== chrome.cast.SessionStatus.STOPPED);
+    sessionUpdated: function (obj) {
         if (_session) {
-            _session.status = status;
-            // Call all the sessionUpdate listeners
-            _session.emit('_sessionUpdated', isAlive);
-        }
-        if (!isAlive) {
-            updateSession(null);
+            _session._update(obj);
         }
     },
     mediaUpdated: function (isAlive, media) {
-        if (media && media.mediaSessionId !== undefined) {
-            if (_currentMedia) {
-                _currentMedia._update(isAlive, media);
-            } else {
-                _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
-                _currentMedia.currentTime = media.currentTime;
-                _currentMedia.playerState = media.playerState;
-                _currentMedia.media = media.media;
+        if (_currentMedia) {
+            _currentMedia._update(isAlive, media);
+        } else {
+            _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
+            _currentMedia.currentTime = media.currentTime;
+            _currentMedia.playerState = media.playerState;
+            _currentMedia.media = media.media;
 
-                _session.media[0] = _currentMedia;
-                _sessionListener(_session);
-            }
+            _session.media[0] = _currentMedia;
         }
+        _currentMedia.emit('_mediaUpdated', isAlive);
     },
     mediaLoaded: function (isAlive, media) {
         if (_session) {
@@ -1277,7 +1278,7 @@ chrome.cast._ = {
 
         _sessionListener(session);
     },
-    onMessage: function (sessionId, namespace, message) {
+    onMessage: function (namespace, message) {
         if (_session) {
             _session.emit('message:' + namespace, namespace, message);
         }

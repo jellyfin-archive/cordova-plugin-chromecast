@@ -9,7 +9,6 @@ exports.defineAutoTests = function () {
     /* eslint-disable no-undef */
 
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 9000;
-    var USER_INTERACTION_TIMEOUT = 60 * 1000; // 1 min
 
     var appId = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
     var videoUrl = location.origin + '/plugins/cordova-plugin-chromecast-tests/res/test.mp4';
@@ -81,7 +80,7 @@ exports.defineAutoTests = function () {
             expect(chrome.cast.media.Media.prototype.removeUpdateListener).toBeDefined();
         });
 
-        it('SPEC_00300 chrome.cast.cordova functions and leaveSession', function (done) {
+        it('SPEC_00300 chrome.cast.cordova functions, receiver volume and leaveSession', function (done) {
             setupEarlyTerminator(done);
             Promise.resolve()
             .then(apiAvailable)
@@ -91,10 +90,17 @@ exports.defineAutoTests = function () {
             .then(startRouteScan)
             .then(stopRouteScan)
             .then(selectRoute)
+            .then(session_setReceiverVolumeLevel_success)
+            .then(session_setReceiverMuted_success)
             .then(sessionLeaveSuccess)
+            .then(initialize('SPEC_00330', function (session) {
+                test().fail('should not receive a session (we did sessionLeave so we shouldnt be able to auto rejoin rejoin)');
+            }))
             .then(sessionLeaveError_alreadyLeft)
-            .then(done);
-        }, USER_INTERACTION_TIMEOUT);
+            .then(function () {
+                done();
+            });
+        }, 15 * 1000);
 
         /**
          * Pre-requisite: You must have a valid receiver (chromecast) plugged in and available.
@@ -113,7 +119,7 @@ exports.defineAutoTests = function () {
             .then(requestSessionStopCastingUiStopSuccess)
             .then(done);
 
-        }, USER_INTERACTION_TIMEOUT);
+        }, 60 * 1000);
 
         /**
          * When on a new page, initialize should be called again
@@ -137,7 +143,7 @@ exports.defineAutoTests = function () {
                 .then(sessionLeaveError_noSession)
                 .then(done);
             }));
-        }, USER_INTERACTION_TIMEOUT);
+        }, 20 * 1000);
 
         function setupEarlyTerminator (done) {
             // Add this so that thrown errors are not obscured.
@@ -162,39 +168,38 @@ exports.defineAutoTests = function () {
             });
         }
 
-        function initialize (specName, sessionListener) {
-            return function () {
+        function initialize (spec, sessionListener) {
+            return function (arg) {
+                var specName = spec + '_' + initialize.name;
+                var success = 'success';
+                var unavailable = 'unavailable';
+                var available = 'available';
                 return new Promise(function (resolve) {
-                    var step = 1;
-                    var sessionRequest = new chrome.cast.SessionRequest(appId);
-                    var apiConfig = new chrome.cast.ApiConfig(sessionRequest, sessionListener, function receiverListener (available) {
-                        if (step === 1) {
-                            test().fail(specName + ' - Initialize did not hit Step 1 first');
+                    var called = callOrder(specName, [success, unavailable, available], {}, function () {
+                        resolve(arg);
+                    });
+                    var gotUnavailable = false;
+                    var finished = false; // Need this so we stop testing after being finished
+                    var apiConfig = new chrome.cast.ApiConfig(new chrome.cast.SessionRequest(appId), sessionListener, function receiverListener (availability) {
+                        if (finished) {
+                            return;
                         }
-                        if (step === 2) {
-                            // Step 2 - We must get the unavailable notification
-                            if (available !== 'unavailable') {
-                                test().fail(specName + ' - Initialize - Step 2 - Hit receiver listener with non-unavailable status');
-                            } else {
-                                step++;
+                        if (!gotUnavailable) {
+                            // Wait until we get the first unavailable
+                            if (availability === unavailable) {
+                                gotUnavailable = true;
+                                called(unavailable);
                             }
-                        }
-                        if (step === 3) {
-                            // Step 3 - We are allowed to receive multiple unavailable until we receive the first available in this step
-                            if (available !== 'unavailable' && available !== 'available') {
-                                test().fail(specName + ' - Initialize - Step 3 - Hit receiver listener with incorrect status');
-                            }
-                            if (available === 'available') {
-                                resolve();
+                        } else {
+                            // We are allowed to have multiple unavailable before available
+                            if (availability === available) {
+                                finished = true;
+                                called(available);
                             }
                         }
                     });
                     chrome.cast.initialize(apiConfig, function () {
-                        // Step 1
-                        if (step !== 1) {
-                            test().fail(specName + ' - Initialize - Step 1 - Expected to hit this first, but did not');
-                        }
-                        step++;
+                        called(success);
                     }, function (err) {
                         test().fail(err.code + ': ' + err.description);
                     });
@@ -259,9 +264,9 @@ exports.defineAutoTests = function () {
                     .then(pauseSuccess)
                     .then(playSuccess)
                     .then(seekSuccess)
-                    .then(setVolumeSuccess)
-                    .then(muteVolumeSuccess)
-                    .then(unmuteVolumeSuccess)
+                    .then(media_setVolume_level_success)
+                    .then(media_setVolume_muted_success)
+                    .then(media_setVolume_level_and_unmuted_success)
                     .then(stopSuccess)
                     .then(function (media) {
                         resolve(session);
@@ -323,38 +328,159 @@ exports.defineAutoTests = function () {
             });
         }
 
-        function setVolumeSuccess (media) {
+        function media_setVolume_level_success (media) {
+            // Set up the call order
+            var specName = media_setVolume_level_success.name;
+            var success = 'success';
+            var update = 'update';
             return new Promise(function (resolve) {
-                var volume = new chrome.cast.Volume();
-                volume.level = 0.2;
+                var called = callOrder(specName, [success, update], { anyOrder: true }, function () {
+                    resolve(media);
+                });
 
-                var request = new chrome.cast.media.VolumeRequest();
-                request.volume = volume;
+                // Ensure we select a different volume
+                var vol = media.volume.media;
+                if (vol) {
+                    vol = Math.abs(vol - 0.5);
+                } else {
+                    vol = Math.round(Math.random() * 100) / 100;
+                }
+                var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(vol));
+
+                media.addUpdateListener(function listener (isAlive) {
+                    test(isAlive).toEqual(true);
+                    test(media.volume).toBeInstanceOf(chrome.cast.Volume);
+                    if (media.volume.level === vol) {
+                        media.removeUpdateListener(listener);
+                        called(update);
+                    }
+                });
 
                 media.setVolume(request, function () {
-                    resolve(media);
+                    called(success);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
                 });
             });
         }
 
-        function muteVolumeSuccess (media) {
+        function media_setVolume_muted_success (media) {
+            // Set up the call order
+            var specName = media_setVolume_muted_success.name;
+            var success = 'success';
+            var update = 'update';
             return new Promise(function (resolve) {
-                var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, true));
-                media.setVolume(request, function () {
+                var called = callOrder(specName, [success, update], { anyOrder: true }, function () {
                     resolve(media);
+                });
+
+                var muted = true;
+
+                media.addUpdateListener(function listener (isAlive) {
+                    test(isAlive).toEqual(true);
+                    test(media.volume).toBeInstanceOf(chrome.cast.Volume);
+                    if (media.volume.muted === muted) {
+                        media.removeUpdateListener(listener);
+                        called(update);
+                    }
+                });
+
+                media.setVolume(new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, muted)), function () {
+                    called(success);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
                 });
             });
         }
 
-        function unmuteVolumeSuccess (media) {
+        function media_setVolume_level_and_unmuted_success (media) {
+            // Set up the call order
+            var specName = media_setVolume_level_and_unmuted_success.name;
+            var success = 'success';
+            var update = 'update';
             return new Promise(function (resolve) {
-                var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, false));
-                media.setVolume(request, function () {
+                var called = callOrder(specName, [success, update], { anyOrder: true }, function () {
                     resolve(media);
+                });
+
+                var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(0.2, false));
+
+                media.addUpdateListener(function listener (isAlive) {
+                    test(isAlive).toEqual(true);
+                    test(media.volume).toBeInstanceOf(chrome.cast.Volume);
+                    if (media.volume.level === request.volume.level
+                        && media.volume.muted === request.volume.muted) {
+                        media.removeUpdateListener(listener);
+                        called(update);
+                    }
+                });
+
+                media.setVolume(request, function () {
+                    called(success);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function session_setReceiverVolumeLevel_success (session) {
+            // Set up the call order
+            var specName = session_setReceiverVolumeLevel_success.name;
+            var success = 'success';
+            var update = 'update';
+            return new Promise(function (resolve) {
+                var called = callOrder(specName, [success, update], { anyOrder: true }, function () {
+                    resolve(session);
+                });
+
+                // Make sure the request volume is significantly different
+                var requestedVolume = Math.abs(session.receiver.volume.level - 0.5);
+
+                session.addUpdateListener(function listener (isAlive) {
+                    test(isAlive).toEqual(true);
+                    test(session.receiver).toBeDefined();
+                    test(session.receiver.volume).toBeDefined();
+                    // The receiver volume is approximate
+                    if (session.receiver.volume.level > requestedVolume - 0.1 &&
+                        session.receiver.volume.level < requestedVolume + 0.1) {
+                        session.removeUpdateListener(listener);
+                        called(update);
+                    }
+                });
+
+                session.setReceiverVolumeLevel(requestedVolume, function () {
+                    called(success);
+                }, function (err) {
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function session_setReceiverMuted_success (session) {
+            // Set up the call order
+            var specName = session_setReceiverMuted_success.name;
+            var success = 'success';
+            var update = 'update';
+            return new Promise(function (resolve) {
+                var called = callOrder(specName, [success, update], { anyOrder: true }, function () {
+                    resolve(session);
+                });
+
+                // Do the opposite mute state as current
+                var muted = !session.receiver.volume.muted;
+
+                session.addUpdateListener(function listener (isAlive) {
+                    test(isAlive).toEqual(true);
+                    test(session.receiver).toBeDefined();
+                    test(session.receiver.volume).toBeDefined();
+                    if (session.receiver.volume.muted === muted) {
+                        session.removeUpdateListener(listener);
+                        called(update);
+                    }
+                });
+
+                session.setReceiverMuted(muted, function () {
+                    called(success);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
                 });
@@ -385,63 +511,52 @@ exports.defineAutoTests = function () {
         }
 
         function requestSessionStopCastingUiStopSuccess (session) {
+            // Set up the call order
+            var specName = requestSessionStopCastingUiStopSuccess.name;
+            var error = 'error';
+            var update = 'update';
             return new Promise(function (resolve) {
+                var called = callOrder(specName, [error, update], { anyOrder: true }, function () {
+                    resolve(session);
+                });
                 alert('---TEST INSTRUCTION---\nPlease click "Stop casting"');
-                // We need to hit both of there callbacks
-                var hitUpdateListener = false;
-                var hitErrHandler = false;
-                session.addUpdateListener(function (isAlive) {
-                    if (hitUpdateListener) {
-                        test().fail('requestSessionStopCastingUISuccess - we already hit the updateListener once!  What is going on?');
-                    }
-                    hitUpdateListener = true;
-                    test(isAlive).toEqual(false);
-                    test(session.status).toEqual(chrome.cast.SessionStatus.STOPPED);
-                    if (hitErrHandler) {
-                        resolve(session);
+                session.addUpdateListener(function listener (isAlive) {
+                    if (session.status === chrome.cast.SessionStatus.STOPPED) {
+                        test(isAlive).toEqual(false);
+                        session.removeUpdateListener(listener);
+                        called(update);
                     }
                 });
 
                 chrome.cast.requestSession(function () {
                     test().fail('We should not reach here on stop casting');
                 }, function (err) {
-                    if (hitErrHandler) {
-                        test().fail('requestSessionStopCastingUISuccess - we already hit the errorHandler once!  What is going on?');
-                    }
-                    hitErrHandler = true;
                     test(err).toBeInstanceOf(chrome.cast.Error);
                     test(err.code).toEqual(chrome.cast.ErrorCode.CANCEL);
-                    if (hitUpdateListener) {
-                        resolve(session);
-                    }
+                    called(error);
                 });
             });
         }
 
         function sessionLeaveSuccess (session) {
+            // Set up the call order
+            var specName = sessionLeaveSuccess.name;
+            var success = 'success';
+            var update = 'update';
             return new Promise(function (resolve) {
-                // We need to hit both of there callbacks
-                var hitUpdateListener = false;
-                var hitErrHandler = false;
-                session.addUpdateListener(function (isAlive) {
-                    if (hitUpdateListener) {
-                        test().fail('session.leave - we already hit the updateListener once!  What is going on?');
-                    }
-                    hitUpdateListener = true;
+                // We need to hit both of the callbacks
+                var called = callOrder(specName, [success, update], { anyOrder: true }, function () {
+                    resolve(session);
+                });
+                session.addUpdateListener(function listener (isAlive) {
                     test(isAlive).toEqual(true);
-                    test(session.status).toEqual(chrome.cast.SessionStatus.DISCONNECTED);
-                    if (hitErrHandler) {
-                        resolve(session);
+                    if (session.status === chrome.cast.SessionStatus.DISCONNECTED) {
+                        session.removeUpdateListener(listener);
+                        called(update);
                     }
                 });
                 session.leave(function () {
-                    if (hitErrHandler) {
-                        test().fail('session.leave - we already hit the errorHandler once!  What is going on?');
-                    }
-                    hitErrHandler = true;
-                    if (hitUpdateListener) {
-                        resolve(session);
-                    }
+                    called(success);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
                 });
@@ -450,7 +565,7 @@ exports.defineAutoTests = function () {
 
         function sessionLeaveError_alreadyLeft (session) {
             return new Promise(function (resolve) {
-                session.stop(function () {
+                session.leave(function () {
                     test().fail('session.leave - Should not call success');
                 }, function (err) {
                     test(err).toBeInstanceOf(chrome.cast.Error);
@@ -463,7 +578,7 @@ exports.defineAutoTests = function () {
 
         function sessionLeaveError_noSession (session) {
             return new Promise(function (resolve) {
-                session.stop(function () {
+                session.leave(function () {
                     test().fail('session.leave - Should not call success');
                 }, function (err) {
                     test(err).toBeInstanceOf(chrome.cast.Error);
@@ -475,29 +590,23 @@ exports.defineAutoTests = function () {
         }
 
         function sessionStopSuccess (session) {
+            // Set up the call order
+            var specName = sessionStopSuccess.name;
+            var success = 'success';
+            var update = 'update';
             return new Promise(function (resolve) {
-                // We need to hit both of there callbacks
-                var hitUpdateListener = false;
-                var hitErrHandler = false;
-                session.addUpdateListener(function (isAlive) {
-                    if (hitUpdateListener) {
-                        test().fail('session.stop - we already hit the updateListener once!  What is going on?');
-                    }
-                    hitUpdateListener = true;
-                    test(isAlive).toEqual(false);
-                    test(session.status).toEqual(chrome.cast.SessionStatus.STOPPED);
-                    if (hitErrHandler) {
-                        resolve(session);
+                var called = callOrder(specName, [success, update], { anyOrder: true }, function () {
+                    resolve(session);
+                });
+                session.addUpdateListener(function listener (isAlive) {
+                    if (session.status === chrome.cast.SessionStatus.STOPPED) {
+                        test(isAlive).toEqual(false);
+                        session.removeUpdateListener(listener);
+                        called(update);
                     }
                 });
                 session.stop(function () {
-                    if (hitErrHandler) {
-                        test().fail('session.stop - we already hit the errorHandler once!  What is going on?');
-                    }
-                    hitErrHandler = true;
-                    if (hitUpdateListener) {
-                        resolve(session);
-                    }
+                    called(success);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
                 });
@@ -586,5 +695,38 @@ exports.defineAutoTests = function () {
             };
         }
 
+        /**
+         * Set up the callOrder outside of a promise and it will automatically
+         * add the calling function name to outputs.
+         * @param {string} spec - (optional) name of test for outputting on failure
+         * @param {array} order - array of strings that dictate the expected order of calls
+         * @param {object} options -
+         * @property {boolean} anyOrder - if the order calls can happen in any order
+         * @param {function} callback - called when all the calls in order have happened
+         */
+        function callOrder (spec, order, options, callback) {
+            options = options || {};
+            var called = [];
+            spec = spec ? spec + '_' : '';
+
+            return function (callName) {
+                if (options.anyOrder) {
+                    var index = order.indexOf(callName);
+                    if (index > -1) {
+                        called.push(order.splice(index, 1)[0]);
+                    } else if (called.indexOf(callName) === -1) {
+                        test().fail('Did not expect this call: ' + spec + callName);
+                    }
+                } else {
+                    var expected = order.splice(0, 1)[0];
+                    if (callName !== expected) {
+                        test().fail('Expected call, "' + spec + expected + '", got, "' + spec + callName + '"');
+                    }
+                }
+                if (order.length === 0) {
+                    callback();
+                }
+            };
+        }
     });
 };

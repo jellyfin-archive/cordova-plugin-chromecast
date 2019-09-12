@@ -18,8 +18,8 @@ import org.json.JSONObject;
 
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
+import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.framework.CastSession;
-import com.google.android.gms.cast.framework.media.RemoteMediaClient;
 
 public final class Chromecast extends CordovaPlugin {
 
@@ -36,11 +36,24 @@ public final class Chromecast extends CordovaPlugin {
     protected void pluginInitialize() {
         super.pluginInitialize();
 
-        this.media = new ChromecastSession(cordova.getActivity(), remoteMediaClientCallback);
-        this.connection = new ChromecastConnection(cordova.getActivity(), this.media, new ChromecastConnection.Callback() {
+        this.media = new ChromecastSession(cordova.getActivity(), new ChromecastSession.Listener() {
             @Override
-            public void run() {
-                sendSessionUpdate("stopped");
+            public void onSessionUpdate(JSONObject session) {
+                sendJavascript("chrome.cast._.sessionUpdated(" + session + ");");
+            }
+            @Override
+            public void onMediaUpdate(JSONObject mediaObject) {
+                sendJavascript("chrome.cast._.mediaUpdated(true, " + mediaObject + ");");
+            }
+            @Override
+            public void onMessageReceived(CastDevice castDevice, String namespace, String message) {
+                sendJavascript("chrome.cast._.onMessage('" + namespace + "', '" + message.replace("\\", "\\\\") + "')");
+            }
+        });
+        this.connection = new ChromecastConnection(cordova.getActivity(), this.media, new ChromecastConnection.Listener() {
+            @Override
+            void onReceiverAvailableUpdate(boolean available) {
+                sendJavascript("chrome.cast._.receiverUpdate(" + available + ")");
             }
         });
     }
@@ -57,10 +70,12 @@ public final class Chromecast extends CordovaPlugin {
                     if (args.length() + 1 == types.length) {
                         boolean isValid = true;
                         for (int i = 0; i < args.length(); i++) {
+                            // Handle null/undefined arguments
+                            if (JSONObject.NULL.equals(args.get(i))) {
+                                continue;
+                            }
                             Class arg = args.get(i).getClass();
-                            if (types[i] == arg) {
-                                isValid = true;
-                            } else {
+                            if (types[i] != arg) {
                                 isValid = false;
                                 break;
                             }
@@ -77,6 +92,10 @@ public final class Chromecast extends CordovaPlugin {
                 Object[] variableArgs = new Object[types.length];
                 for (int i = 0; i < args.length(); i++) {
                     variableArgs[i] = args.get(i);
+                    // Translate null JSONObject to null
+                    if (JSONObject.NULL.equals(variableArgs[i])) {
+                        variableArgs[i] = null;
+                    }
                 }
                 variableArgs[variableArgs.length - 1] = cbContext;
                 Class<?> r = methodToExecute.getReturnType();
@@ -122,19 +141,7 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean initialize(final String appId, String autoJoinPolicy, String defaultActionPolicy, final CallbackContext callbackContext) {
-        connection.setReceiverListener(new ChromecastConnection.ReceiverListener() {
-            @Override
-            public void onReceiverAvailable() {
-                sendReceiverUpdate(true);
-            }
-
-            @Override
-            public void onReceiverUnavailable() {
-                sendReceiverUpdate(false);
-            }
-        });
-
-        connection.initialize(appId, callbackContext, new ChromecastConnection.Callback() {
+        connection.initialize(appId, callbackContext, new Runnable() {
             @Override
             public void run() {
                 // We found a session!
@@ -163,7 +170,7 @@ public final class Chromecast extends CordovaPlugin {
                     callbackContext.error("cancel");
                 } else {
                     // TODO maybe handle some of the error codes better
-                    callbackContext.error("SESSION_ERROR");
+                    callbackContext.error("session_error");
                 }
             }
         });
@@ -202,7 +209,13 @@ public final class Chromecast extends CordovaPlugin {
         return this.setReceiverVolumeLevel(newLevel.doubleValue(), callbackContext);
     }
 
-    private boolean setReceiverVolumeLevel(Double newLevel, CallbackContext callbackContext) {
+    /**
+     * Set the volume level on the receiver - this is a Chromecast volume, not a Media volume.
+     * @param newLevel the level to set the volume to
+     * @param callbackContext called with .success or .error depending on the result
+     * @return true for cordova
+     */
+    public boolean setReceiverVolumeLevel(Double newLevel, CallbackContext callbackContext) {
         this.media.setVolume(newLevel, callbackContext);
         return true;
     }
@@ -238,7 +251,6 @@ public final class Chromecast extends CordovaPlugin {
      */
     public boolean addMessageListener(String namespace, CallbackContext callbackContext) {
         this.media.addMessageListener(namespace);
-//        sendJavascript("chrome.cast._.onMessage('" + session.getSessionId() + "', '" + namespace + "', '" + message.replace("\\", "\\\\") + "')");
         callbackContext.success();
         return true;
     }
@@ -263,8 +275,8 @@ public final class Chromecast extends CordovaPlugin {
 
     private boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
         this.media.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, currentTime, metadata, textTrackStyle, callbackContext);
+//        sendJavascript("chrome.cast._.mediaLoaded(true, " + media.createMediaObject().toString() + ");");
         return true;
-//        sendJavascript("chrome.cast._.mediaLoaded(true, " + media.toString() + ");");
     }
 
     /**
@@ -301,24 +313,25 @@ public final class Chromecast extends CordovaPlugin {
 
 
     /**
-     * Set the volume on the media.
+     * Set the volume level and mute state on the media.
      * @param level the level to set the volume to
-     * @param callbackContext called with .success or .error depending on the result
-     * @return true for cordova
-     */
-    public boolean setMediaVolume(Double level, CallbackContext callbackContext) {
-        media.mediaSetVolume(level, callbackContext);
-        return true;
-    }
-
-    /**
-     * Set the muted on the media.
      * @param muted if true set the media to muted, else, unmute
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova
      */
-    public boolean setMediaMuted(Boolean muted, CallbackContext callbackContext) {
-        media.mediaSetMuted(muted, callbackContext);
+    public boolean setMediaVolume(Integer level, Boolean muted, CallbackContext callbackContext) {
+        return this.setMediaVolume(level.doubleValue(), muted, callbackContext);
+    }
+
+    /**
+     * Set the volume level and mute state on the media.
+     * @param level the level to set the volume to
+     * @param muted if true set the media to muted, else, unmute
+     * @param callbackContext called with .success or .error depending on the result
+     * @return true for cordova
+     */
+    public boolean setMediaVolume(Double level, Boolean muted, CallbackContext callbackContext) {
+        media.mediaSetVolume(level, muted, callbackContext);
         return true;
     }
 
@@ -360,12 +373,7 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean sessionStop(CallbackContext callbackContext) {
-        connection.endSession(true, callbackContext, new ChromecastConnection.Callback() {
-            @Override
-            public void run() {
-                sendSessionUpdate("stopped");
-            }
-        });
+        connection.endSession(true, callbackContext);
         return true;
     }
 
@@ -375,12 +383,7 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean sessionLeave(CallbackContext callbackContext) {
-        connection.endSession(true, callbackContext, new ChromecastConnection.Callback() {
-            @Override
-            public void run() {
-                sendSessionUpdate("disconnected");
-            }
-        });
+        connection.endSession(false, callbackContext);
         return true;
     }
 
@@ -423,23 +426,6 @@ public final class Chromecast extends CordovaPlugin {
         return true;
     }
 
-    private void sendSessionUpdate(String status) {
-        sendJavascript("chrome.cast._.sessionUpdated('" + status + "');");
-    }
-
-    /**
-     * sends the receiverState.
-     * @param receiverState true if we should send receiverAvailable,
-     *                      false if we should send receiverUnavailable
-     */
-    private void sendReceiverUpdate(boolean receiverState) {
-        if (receiverState) {
-            this.sendJavascript("chrome.cast._.receiverAvailable()");
-        } else {
-            this.sendJavascript("chrome.cast._.receiverUnavailable()");
-        }
-    }
-
     /**
      * Simple helper to convert a route to JSON for passing down to the javascript side.
      * @param routes the routes to convert
@@ -458,40 +444,6 @@ public final class Chromecast extends CordovaPlugin {
         }
         return routesArray;
     }
-
-    /** Handles remoteMediaClient callbacks. */
-    private RemoteMediaClient.Callback remoteMediaClientCallback = new RemoteMediaClient.Callback() {
-        @Override
-        public void onStatusUpdated() {
-            super.onStatusUpdated();
-        }
-
-        @Override
-        public void onMetadataUpdated() {
-            super.onMetadataUpdated();
-//            sendJavascript("chrome.cast._.mediaUpdated(true, " + media.createMediaInfo() + ");");
-        }
-
-        @Override
-        public void onQueueStatusUpdated() {
-            super.onQueueStatusUpdated();
-        }
-
-        @Override
-        public void onPreloadStatusUpdated() {
-            super.onPreloadStatusUpdated();
-        }
-
-        @Override
-        public void onSendingRemoteMediaRequest() {
-            super.onSendingRemoteMediaRequest();
-        }
-
-        @Override
-        public void onAdBreakStatusUpdated() {
-            super.onAdBreakStatusUpdated();
-        }
-    };
 
     //Change all @deprecated this.webView.sendJavascript(String) to this local function sendJavascript(String)
     @TargetApi(Build.VERSION_CODES.KITKAT)

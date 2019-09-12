@@ -37,10 +37,8 @@ public class ChromecastConnection {
     private ChromecastSession media;
     /** Lifetime variable. */
     private SessionListener newConnectionListener;
-    /** Should we pass disconnects to the client's externalDisconnectListener. */
-    private boolean enableClientExtenalDisconnectListener = true;
-    /** The ReceiverListener callback. */
-    private ReceiverListener receiverListener;
+    /** The Listener callback. */
+    private Listener listener;
 
     /** Initialize lifetime variable. */
     private String appId;
@@ -52,27 +50,19 @@ public class ChromecastConnection {
      * Constructor.
      * @param act the current context
      * @param chromecastSession the chromecastSession object that we should load with a new sessions
-     * @param listener the listener that listens for session end event
+     * @param connectionListener client callbacks for specific events
      */
-    public ChromecastConnection(Activity act, ChromecastSession chromecastSession, Callback listener) {
+    public ChromecastConnection(Activity act, ChromecastSession chromecastSession, Listener connectionListener) {
         this.activity = act;
         this.settings = activity.getSharedPreferences("CORDOVA-PLUGIN-CHROMECAST_ChromecastConnection", 0);
         this.media = chromecastSession;
         this.appId = settings.getString("appId", CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID);
+        this.listener = connectionListener;
         // Set the initial appId
         CastOptionsProvider.setAppId(appId);
-        // Set the receiverLister to an empty default (saves us some null check later)
-        this.setReceiverListener(null);
 
         // Add the permanent session end/disconnect, and resume listener, and receiver update listener
         getSessionManager().addSessionManagerListener(new SessionListener() {
-            @Override
-            public void onSessionEnded(CastSession castSession, int error) {
-                setSession(null);
-                if (listener != null && enableClientExtenalDisconnectListener) {
-                    listener.run();
-                }
-            }
             @Override
             public void onSessionResumed(CastSession castSession, boolean wasSuspended) {
                 // This catches any sessions we are able to rejoin
@@ -82,12 +72,8 @@ public class ChromecastConnection {
 
         // This is the first call to getContext which will start up the
         // CastContext and prep it for searching for a session to rejoin
-        getContext().addCastStateListener(new CastStateListener() {
-            @Override
-            public void onCastStateChanged(int i) {
-                receiverListener.sendUpdate(i);
-            }
-        });
+        // Also adds the receiver update callback
+        getContext().addCastStateListener(listener);
     }
 
     /**
@@ -96,7 +82,7 @@ public class ChromecastConnection {
      * @param callback called when initialization is complete
      * @param onSessionFound called when (if) an active session is found
      */
-    public void initialize(String applicationId, CallbackContext callback, Callback onSessionFound) {
+    public void initialize(String applicationId, CallbackContext callback, Runnable onSessionFound) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
 
@@ -108,7 +94,7 @@ public class ChromecastConnection {
                 // Tell the client that initialization was a success
                 callback.success();
 
-                lookForAvailableReceiver(new Callback() {
+                lookForAvailableReceiver(new Runnable() {
                     @Override
                     public void run() {
                         // Update the session
@@ -127,11 +113,11 @@ public class ChromecastConnection {
      * Must be called from the main thread.
      * @param foundReceiver called if a receiver is found
      */
-    private void lookForAvailableReceiver(Callback foundReceiver) {
-        // check current state
-        if (ReceiverListener.isReceiverAvailable(getContext().getCastState())) {
-            // If we already have a receiver, notify and return
-            receiverListener.sendUpdate(getContext().getCastState());
+    private void lookForAvailableReceiver(Runnable foundReceiver) {
+        // check current state, if we already have a receiver
+        if (getContext().getCastState() != CastState.NO_DEVICES_AVAILABLE) {
+            // Notify and return
+            listener.onReceiverAvailableUpdate(true);
             foundReceiver.run();
             return;
         }
@@ -141,7 +127,8 @@ public class ChromecastConnection {
         CastStateListener castStateListener = new CastStateListener() {
             @Override
             public void onCastStateChanged(int state) {
-                if (ReceiverListener.isReceiverAvailable(state)) {
+                // If there is a receiver
+                if (getContext().getCastState() != CastState.NO_DEVICES_AVAILABLE) {
                     // Remove callbacks
                     getContext().removeCastStateListener(this);
                     getMediaRouter().removeCallback(mediaRouterCallback);
@@ -285,7 +272,7 @@ public class ChromecastConnection {
                     builder.setPositiveButton("Stop Casting", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            endSession(true, null, null);
+                            endSession(true, null);
                         }
                     });
                     builder.show();
@@ -359,27 +346,16 @@ public class ChromecastConnection {
      * Exits the current session.
      * @param stopCasting should the receiver application  be stopped as well?
      * @param callback called with .success or .error depending on the initial result
-     * @param disconnected overrides the default disconnect listener if set
-     *                     only called once we actually disconnect
      */
-    public void endSession(boolean stopCasting, CallbackContext callback, Callback disconnected) {
+    public void endSession(boolean stopCasting, CallbackContext callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                if (disconnected != null) {
-                    // Disable the externalDisconnectListener temporarily
-                    enableClientExtenalDisconnectListener = false;
-                }
-
                 getSessionManager().addSessionManagerListener(new SessionListener() {
                     @Override
                     public void onSessionEnded(CastSession castSession, int error) {
                         getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                        // Re-enable the externalDisconnectListener
-                        enableClientExtenalDisconnectListener = true;
                         setSession(null);
-                        if (disconnected != null) {
-                            disconnected.run();
-                        }
+                        media.onSessionEnd(stopCasting ? "stopped" : "disconnected");
                     }
                 }, CastSession.class);
 
@@ -392,77 +368,28 @@ public class ChromecastConnection {
     }
 
     /**
-     * Sets the permanent ReceiverListener.
-     * @param listener called when there are receiver updates
+     * Create this empty class so that we don't have to override every function
+     * each time we need a SessionManagerListener.
      */
-    public void setReceiverListener(ReceiverListener listener) {
-        if (listener != null) {
-            this.receiverListener = listener;
-        } else {
-            // Make sure the receiverLister always has something
-            this.receiverListener = new ReceiverListener() {
-                @Override
-                void onReceiverAvailable() {
-                }
-                @Override
-                void onReceiverUnavailable() {
-                }
-            };
-        }
-    }
-
     private class SessionListener implements SessionManagerListener<CastSession> {
-
         @Override
-        public void onSessionStarting(CastSession castSession) {
-        }
-
+        public void onSessionStarting(CastSession castSession) { }
         @Override
-        public void onSessionStarted(CastSession castSession, String sessionId) {
-        }
-
+        public void onSessionStarted(CastSession castSession, String sessionId) { }
         @Override
-        public void onSessionStartFailed(CastSession castSession, int error) {
-        }
-
+        public void onSessionStartFailed(CastSession castSession, int error) { }
         @Override
-        public void onSessionEnding(CastSession castSession) {
-        }
-
+        public void onSessionEnding(CastSession castSession) { }
         @Override
-        public void onSessionEnded(CastSession castSession, int error) {
-        }
-
+        public void onSessionEnded(CastSession castSession, int error) { }
         @Override
-        public void onSessionResuming(CastSession castSession, String sessionId) {
-        }
-
+        public void onSessionResuming(CastSession castSession, String sessionId) { }
         @Override
-        public void onSessionResumed(CastSession castSession, boolean wasSuspended) {
-        }
-
+        public void onSessionResumed(CastSession castSession, boolean wasSuspended) { }
         @Override
-        public void onSessionResumeFailed(CastSession castSession, int error) {
-        }
-
+        public void onSessionResumeFailed(CastSession castSession, int error) { }
         @Override
-        public void onSessionSuspended(CastSession castSession, int reason) {
-        }
-    }
-
-    public interface Callback {
-        /**
-         * The callback function.
-         */
-        void run();
-    }
-
-    public interface ConnectionListener {
-        /**
-         * Called whenever a connection ends.
-         * @param reason the reason for disconnection
-         */
-        void onDisconnected(int reason);
+        public void onSessionSuspended(CastSession castSession, int reason) { }
     }
 
     public interface JoinCallback {
@@ -546,22 +473,14 @@ public class ChromecastConnection {
         }
     }
 
-    abstract static class ReceiverListener {
-        private static boolean isReceiverAvailable(int state) {
-            return state != CastState.NO_DEVICES_AVAILABLE;
+    abstract static class Listener implements CastStateListener {
+        abstract void onReceiverAvailableUpdate(boolean available);
+
+        /** CastStateListener functions. */
+        @Override
+        public void onCastStateChanged(int state) {
+            onReceiverAvailableUpdate(state != CastState.NO_DEVICES_AVAILABLE);
         }
-        /**
-         * Sends the appropriate update.
-         * @param state CastState
-         */
-        private void sendUpdate(int state) {
-            if (isReceiverAvailable(state)) {
-                this.onReceiverAvailable();
-            } else {
-                this.onReceiverUnavailable();
-            }
-        }
-        abstract void onReceiverAvailable();
-        abstract void onReceiverUnavailable();
     }
+
 }

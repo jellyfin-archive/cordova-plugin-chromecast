@@ -207,7 +207,11 @@ public class Chromecast extends CordovaPlugin implements ChromecastOnMediaUpdate
 			public void run() {
 				mMediaRouter = MediaRouter.getInstance(activity.getApplicationContext());
 				final List<RouteInfo> routeList = mMediaRouter.getRoutes();
-				routeList.sort(Comparator.comparing(RouteInfo::getName));
+				if(Build.VERSION.SDK_INT < 24){
+					Collections.sort(routeList, new RoutListComparer());
+				}else{
+					routeList.sort(Comparator.comparing(RouteInfo::getName));
+				}
 
 				AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 				builder.setTitle("Choose a Chromecast");

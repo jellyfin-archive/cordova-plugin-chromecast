@@ -11,7 +11,7 @@ exports.defineAutoTests = function () {
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 9000;
 
     var appId = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
-    var videoUrl = location.origin + '/plugins/cordova-plugin-chromecast-tests/res/test.mp4';
+    var videoUrl = 'https://archive.org/download/CosmosLaundromatFirstCycle/Cosmos%20Laundromat%20-%20First%20Cycle%20%281080p%29.mp4'
 
     describe('chrome.cast', function () {
 

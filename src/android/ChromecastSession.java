@@ -59,43 +59,56 @@ public class ChromecastSession {
     public void setSession(CastSession castSession) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                session = castSession;
-                if (session == null) {
+                if (castSession == null) {
                     client = null;
                     return;
                 }
+                if (castSession.equals(session)) {
+                    // Don't client and listeners if session did not change
+                    return;
+                }
+                session = castSession;
                 client = session.getRemoteMediaClient();
+                if (client == null) {
+                    return;
+                }
                 client.registerCallback(new RemoteMediaClient.Callback() {
+                    private String currentMedia = "";
                     @Override
                     public void onStatusUpdated() {
                         super.onStatusUpdated();
                         clientListener.onMediaUpdate(createMediaObject());
                     }
-
                     @Override
                     public void onMetadataUpdated() {
                         super.onMetadataUpdated();
+                        MediaInfo info = client.getMediaInfo();
+                        if (info == null) {
+                            currentMedia = "";
+                        } else {
+                            String newMedia = info.getContentId();
+                            if (!currentMedia.equals(newMedia)) {
+                                currentMedia = newMedia;
+                                clientListener.onMediaLoaded(createMediaObject());
+                            }
+                        }
                         clientListener.onMediaUpdate(createMediaObject());
                     }
-
                     @Override
                     public void onQueueStatusUpdated() {
                         super.onQueueStatusUpdated();
                         clientListener.onMediaUpdate(createMediaObject());
                     }
-
                     @Override
                     public void onPreloadStatusUpdated() {
                         super.onPreloadStatusUpdated();
                         clientListener.onMediaUpdate(createMediaObject());
                     }
-
                     @Override
                     public void onSendingRemoteMediaRequest() {
                         super.onSendingRemoteMediaRequest();
                         clientListener.onMediaUpdate(createMediaObject());
                     }
-
                     @Override
                     public void onAdBreakStatusUpdated() {
                         super.onAdBreakStatusUpdated();
@@ -108,31 +121,26 @@ public class ChromecastSession {
                         super.onApplicationStatusChanged();
                         clientListener.onSessionUpdate(createSessionObject());
                     }
-
                     @Override
                     public void onApplicationMetadataChanged(ApplicationMetadata applicationMetadata) {
                         super.onApplicationMetadataChanged(applicationMetadata);
                         clientListener.onSessionUpdate(createSessionObject());
                     }
-
                     @Override
                     public void onApplicationDisconnected(int i) {
                         super.onApplicationDisconnected(i);
                         onSessionEnd("stopped");
                     }
-
                     @Override
                     public void onActiveInputStateChanged(int i) {
                         super.onActiveInputStateChanged(i);
                         clientListener.onSessionUpdate(createSessionObject());
                     }
-
                     @Override
                     public void onStandbyStateChanged(int i) {
                         super.onStandbyStateChanged(i);
                         clientListener.onSessionUpdate(createSessionObject());
                     }
-
                     @Override
                     public void onVolumeChanged() {
                         super.onVolumeChanged();
@@ -746,7 +754,8 @@ public class ChromecastSession {
     }
 
     interface Listener extends Cast.MessageReceivedCallback {
-        void onMediaUpdate(JSONObject session);
-        void onSessionUpdate(JSONObject session);
+        void onMediaLoaded(JSONObject jsonMedia);
+        void onMediaUpdate(JSONObject jsonMedia);
+        void onSessionUpdate(JSONObject jsonSession);
     }
 }

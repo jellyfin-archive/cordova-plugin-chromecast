@@ -256,17 +256,14 @@ exports.defineAutoTests = function () {
         }
 
         function loadMediaVideo (session) {
+            var specName = loadMediaVideo.name;
+            var success = 'success';
+            var loaded = 'loaded';
             return new Promise(function (resolve) {
-                var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                test(mediaInfo).toBeDefined();
-
-                var request = new chrome.cast.media.LoadRequest(mediaInfo);
-                test(request).toBeDefined();
-
-                session.loadMedia(request, function (media) {
-
+                var loadedMedia;
+                var called = callOrder(specName, [success, loaded], { anyOrder: true }, function () {
                     // Run all the media related tests
-                    Promise.resolve({media: media, session: session})
+                    Promise.resolve({media: loadedMedia, session: session})
                     .then(mediaProperties)
                     .then(pauseSuccess)
                     .then(playSuccess)
@@ -278,7 +275,15 @@ exports.defineAutoTests = function () {
                     .then(function (media) {
                         resolve(session);
                     });
-
+                });
+                session.addMediaListener(function (media) {
+                    called(loaded);
+                });
+                session.loadMedia(new chrome.cast.media.LoadRequest(
+                    new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4')
+                ), function (media) {
+                    loadedMedia = media;
+                    called(success);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
                 });

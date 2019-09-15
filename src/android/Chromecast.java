@@ -38,21 +38,23 @@ public final class Chromecast extends CordovaPlugin {
 
         this.media = new ChromecastSession(cordova.getActivity(), new ChromecastSession.Listener() {
             @Override
-            public void onSessionUpdate(JSONObject session) {
-                sendJavascript("chrome.cast._.sessionUpdated(" + session + ");");
+            public void onSessionUpdate(JSONObject jsonSession) {
+                sendJavascript("chrome.cast._.sessionUpdated(" + jsonSession + ");");
             }
             @Override
-            public void onMediaUpdate(JSONObject mediaObject) {
-                sendJavascript("chrome.cast._.mediaUpdated(true, " + mediaObject + ");");
+            public void onMediaLoaded(JSONObject jsonMedia) {
+                sendJavascript("chrome.cast._.mediaLoaded(" + jsonMedia + ");");
             }
             @Override
-            public void onMessageReceived(CastDevice castDevice, String namespace, String message) {
+            public void onMediaUpdate(JSONObject jsonMedia) {
+                sendJavascript("chrome.cast._.mediaUpdated(true, " + jsonMedia + ");");
+            }
+            @Override
+            public void onMessageReceived(CastDevice device, String namespace, String message) {
                 try {
-                    JSONObject json = new JSONObject(message);
-
-                    sendJavascript("chrome.cast._.onMessage('" + namespace + "', '" + json + "')");
-
-
+                    JSONObject jsonMessage = new JSONObject(message);
+                    sendJavascript(
+                            "chrome.cast._.onMessage('" + namespace + "', '" + jsonMessage + "')");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -283,7 +285,6 @@ public final class Chromecast extends CordovaPlugin {
 
     private boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
         this.media.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, currentTime, metadata, textTrackStyle, callbackContext);
-//        sendJavascript("chrome.cast._.mediaLoaded(true, " + media.createMediaObject().toString() + ");");
         return true;
     }
 

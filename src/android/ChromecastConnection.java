@@ -96,8 +96,11 @@ public class ChromecastConnection {
                 lookForAvailableReceiver(new Runnable() {
                     @Override
                     public void run() {
-                        // Update the session
-                        setSession(getSessionManager().getCurrentCastSession());
+                        // Found a receiver
+                        // Since there is an available receiver we may have an active session
+                        CastSession session = getSessionManager().getCurrentCastSession();
+                        // so update the session
+                        setSession(session);
                         if (session != null) {
                             // Let the client know we have found a session
                             onSessionFound.run();

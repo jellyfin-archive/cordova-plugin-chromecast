@@ -38,8 +38,16 @@ public final class Chromecast extends CordovaPlugin {
 
         this.media = new ChromecastSession(cordova.getActivity(), new ChromecastSession.Listener() {
             @Override
+            public void onSessionRejoined(JSONObject jsonSession) {
+                sendJavascript("chrome.cast._.sessionListener(" + jsonSession + ");");
+            }
+            @Override
             public void onSessionUpdate(JSONObject jsonSession) {
                 sendJavascript("chrome.cast._.sessionUpdated(" + jsonSession + ");");
+            }
+            @Override
+            public void onReceiverAvailableUpdate(boolean available) {
+                sendJavascript("chrome.cast._.receiverUpdate(" + available + ")");
             }
             @Override
             public void onMediaLoaded(JSONObject jsonMedia) {
@@ -60,12 +68,7 @@ public final class Chromecast extends CordovaPlugin {
                 }
             }
         });
-        this.connection = new ChromecastConnection(cordova.getActivity(), this.media, new ChromecastConnection.Listener() {
-            @Override
-            void onReceiverAvailableUpdate(boolean available) {
-                sendJavascript("chrome.cast._.receiverUpdate(" + available + ")");
-            }
-        });
+        this.connection = new ChromecastConnection(cordova.getActivity(), this.media);
     }
 
     @Override
@@ -151,13 +154,7 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean initialize(final String appId, String autoJoinPolicy, String defaultActionPolicy, final CallbackContext callbackContext) {
-        connection.initialize(appId, callbackContext, new Runnable() {
-            @Override
-            public void run() {
-                // We found a session!
-                sendJavascript("chrome.cast._.sessionListener(" + media.createSessionObject().toString() + ");");
-            }
-        });
+        connection.initialize(appId, callbackContext);
         return true;
     }
 
@@ -173,7 +170,7 @@ public final class Chromecast extends CordovaPlugin {
         connection.showConnectionDialog(new ChromecastConnection.JoinCallback() {
             @Override
             public void onJoin(CastSession session) {
-                callbackContext.success(media.createSessionObject());
+                callbackContext.success(ChromecastSession.createSessionObject(session));
             }
             public void onError(String errorCode) {
                 if (errorCode.equals("CANCEL")) {
@@ -198,7 +195,7 @@ public final class Chromecast extends CordovaPlugin {
         connection.join(routeId, routeName, new ChromecastConnection.JoinCallback() {
             @Override
             public void onJoin(CastSession castSession) {
-                callbackContext.success(media.createSessionObject());
+                callbackContext.success(ChromecastSession.createSessionObject(castSession));
             }
 
             @Override

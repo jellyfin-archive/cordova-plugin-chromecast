@@ -31,7 +31,7 @@ import androidx.annotation.NonNull;
 /*
  * All of the Chromecast session specific functions should start here.
  */
-public class ChromecastSession {
+public class ChromecastSession extends ChromecastConnection.Listener {
 
     /** The current context. */
     private Activity activity;
@@ -129,7 +129,7 @@ public class ChromecastSession {
                     @Override
                     public void onApplicationDisconnected(int i) {
                         super.onApplicationDisconnected(i);
-                        onSessionEnd("stopped");
+                        onSessionEnd(session, "stopped");
                     }
                     @Override
                     public void onActiveInputStateChanged(int i) {
@@ -151,8 +151,24 @@ public class ChromecastSession {
         });
     }
 
-    final void onSessionEnd(String state) {
-        JSONObject s = createSessionObject();
+    /** ChromecastConnection.Listener implementations. */
+    @Override
+    void onInvalidateSession() {
+        setSession(null);
+    }
+    @Override
+    final void onSessionStarted(CastSession castSession) {
+        setSession(castSession);
+    }
+    @Override
+    final void onSessionRejoined(CastSession castSession) {
+        setSession(castSession);
+        clientListener.onSessionRejoined(createSessionObject());
+    }
+    @Override
+    final void onSessionEnd(CastSession castSession, String state) {
+        onInvalidateSession();
+        JSONObject s = createSessionObject(castSession);
         if (state != null) {
             try {
                 s.put("status", state);
@@ -161,6 +177,10 @@ public class ChromecastSession {
             }
         }
         clientListener.onSessionUpdate(s);
+    }
+    @Override
+    void onReceiverAvailableUpdate(boolean available) {
+        clientListener.onReceiverAvailableUpdate(available);
     }
 
     /**
@@ -552,20 +572,19 @@ public class ChromecastSession {
         };
     }
 
-    /**
-     * Creates a JSON representation of this session.
-     * @return a JSON representation of this session
-     */
-    public JSONObject createSessionObject() {
+    private JSONObject createSessionObject() {
+        return createSessionObject(session);
+    }
+    static JSONObject createSessionObject(CastSession session) {
         JSONObject out = new JSONObject();
 
         try {
             out.put("appId", session.getApplicationMetadata().getApplicationId());
-            out.put("appImages", createAppImagesObject());
+            out.put("appImages", createAppImagesObject(session));
             out.put("displayName", session.getApplicationMetadata().getName());
-            out.put("media", createMediaObject());
-            out.put("receiver", createReceiverObject());
-            out.put("sessionId", this.session.getSessionId());
+            out.put("media", createMediaObject(session));
+            out.put("receiver", createReceiverObject(session));
+            out.put("sessionId", session.getSessionId());
 
         } catch (JSONException e) {
             e.printStackTrace();
@@ -576,10 +595,10 @@ public class ChromecastSession {
         return out;
     }
 
-    private JSONArray createAppImagesObject() {
+    private static JSONArray createAppImagesObject(CastSession session) {
         JSONArray appImages = new JSONArray();
         try {
-            MediaMetadata metadata = client.getMediaInfo().getMetadata();
+            MediaMetadata metadata = session.getRemoteMediaClient().getMediaInfo().getMetadata();
             List<WebImage> images = metadata.getImages();
             if (images != null) {
                 for (WebImage o : images) {
@@ -592,11 +611,11 @@ public class ChromecastSession {
         return appImages;
     }
 
-    private JSONObject createReceiverObject() {
+    private static JSONObject createReceiverObject(CastSession session) {
         JSONObject out = new JSONObject();
         try {
-            out.put("friendlyName", this.session.getCastDevice().getFriendlyName());
-            out.put("label", this.session.getCastDevice().getDeviceId());
+            out.put("friendlyName", session.getCastDevice().getFriendlyName());
+            out.put("label", session.getCastDevice().getDeviceId());
 
             JSONObject volume = new JSONObject();
             try {
@@ -615,16 +634,15 @@ public class ChromecastSession {
         return out;
     }
 
-    /**
-     * Creates a JSON representation of the current playing media.
-     * @return a JSON representation of the current playing media
-     */
-    public JSONObject createMediaObject() {
+    private JSONObject createMediaObject() {
+        return createMediaObject(session);
+    }
+
+    private static JSONObject createMediaObject(CastSession session) {
         JSONObject out = new JSONObject();
 
         try {
-            MediaStatus mediaStatus = client.getMediaStatus();
-
+            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
 
             // TODO: Missing attributes are commented out.
             //  These are returned by the chromecast desktop SDK, we should probbaly return them too
@@ -637,14 +655,14 @@ public class ChromecastSession {
             //out.put("items", mediaStatus.getQueueItems());
             //out.put("liveSeekableRange",);
             out.put("loadingItemId", mediaStatus.getLoadingItemId());
-            out.put("media", this.createMediaInfoObject());
+            out.put("media", createMediaInfoObject(session));
             out.put("mediaSessionId", 1);
             out.put("playbackRate", mediaStatus.getPlaybackRate());
             out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus));
             out.put("preloadedItemId", mediaStatus.getPreloadedItemId());
             //out.put("queueData", );
             //out.put("repeatMode", mediaStatus.getQueueRepeatMode());
-            out.put("sessionId", this.session.getSessionId());
+            out.put("sessionId", session.getSessionId());
             //out.put("supportedMediaCommands", );
             //out.put("videoInfo", );
 
@@ -672,15 +690,11 @@ public class ChromecastSession {
         return out;
     }
 
-    /**
-     * Creates a JSON representation of all Tracks available in the current media.
-     * @return a JSON representation of all Tracks available in the current media
-     */
-    private JSONArray createMediaInfoTracks() {
+    private static JSONArray createMediaInfoTracks(CastSession session) {
         JSONArray out = new JSONArray();
 
         try {
-            MediaStatus mediaStatus = client.getMediaStatus();
+            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
             MediaInfo mediaInfo = mediaStatus.getMediaInfo();
 
             if (mediaInfo.getMediaTracks() == null) {
@@ -714,18 +728,12 @@ public class ChromecastSession {
         return out;
     }
 
-
-    /**
-     * Creates a JSON representation of current MediaInfo of the session.
-     * @return a JSON representation of current MediaInfo of the session
-     */
-    private JSONObject createMediaInfoObject() {
+    private static JSONObject createMediaInfoObject(CastSession session) {
         JSONObject out = new JSONObject();
 
         try {
-            MediaStatus mediaStatus = client.getMediaStatus();
+            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
             MediaInfo mediaInfo = mediaStatus.getMediaInfo();
-
 
             // TODO: Missing attributes are commented out.
             //  These are returned by the chromecast desktop SDK, we should probbaly return them too
@@ -739,7 +747,7 @@ public class ChromecastSession {
             out.put("duration", mediaInfo.getStreamDuration() / 1000.0);
             //out.put("mediaCategory",);
             out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));
-            out.put("tracks", this.createMediaInfoTracks());
+            out.put("tracks", createMediaInfoTracks(session));
             out.put("textTrackStyle", ChromecastUtilities.createTextTrackObject(mediaInfo.getTextTrackStyle()));
 
             // TODO: Check if it's useful
@@ -756,6 +764,8 @@ public class ChromecastSession {
     interface Listener extends Cast.MessageReceivedCallback {
         void onMediaLoaded(JSONObject jsonMedia);
         void onMediaUpdate(JSONObject jsonMedia);
+        void onSessionRejoined(JSONObject jsonSession);
         void onSessionUpdate(JSONObject jsonSession);
+        void onReceiverAvailableUpdate(boolean available);
     }
 }

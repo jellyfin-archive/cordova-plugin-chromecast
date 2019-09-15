@@ -32,8 +32,7 @@ public class ChromecastConnection {
     private Activity activity;
     /** settings object. */
     private SharedPreferences settings;
-    /** Lifetime variable. */
-    private ChromecastSession media;
+
     /** Lifetime variable. */
     private SessionListener newConnectionListener;
     /** The Listener callback. */
@@ -42,32 +41,18 @@ public class ChromecastConnection {
     /** Initialize lifetime variable. */
     private String appId;
 
-    /** Session lifetime variable. */
-    private CastSession session;
-
     /**
      * Constructor.
      * @param act the current context
-     * @param chromecastSession the chromecastSession object that we should load with a new sessions
      * @param connectionListener client callbacks for specific events
      */
-    public ChromecastConnection(Activity act, ChromecastSession chromecastSession, Listener connectionListener) {
+    public ChromecastConnection(Activity act, Listener connectionListener) {
         this.activity = act;
         this.settings = activity.getSharedPreferences("CORDOVA-PLUGIN-CHROMECAST_ChromecastConnection", 0);
-        this.media = chromecastSession;
         this.appId = settings.getString("appId", CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID);
         this.listener = connectionListener;
         // Set the initial appId
         CastOptionsProvider.setAppId(appId);
-
-        // Add the permanent session end/disconnect, and resume listener, and receiver update listener
-        getSessionManager().addSessionManagerListener(new SessionListener() {
-            @Override
-            public void onSessionResumed(CastSession castSession, boolean wasSuspended) {
-                // This catches any sessions we are able to rejoin
-                setSession(castSession);
-            }
-        }, CastSession.class);
 
         // This is the first call to getContext which will start up the
         // CastContext and prep it for searching for a session to rejoin
@@ -79,13 +64,12 @@ public class ChromecastConnection {
      * Must be called each time the appId changes and at least once before any other method is called.
      * @param applicationId the app id to use
      * @param callback called when initialization is complete
-     * @param onSessionFound called when (if) an active session is found
      */
-    public void initialize(String applicationId, CallbackContext callback, Runnable onSessionFound) {
+    public void initialize(String applicationId, CallbackContext callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
 
-                // If the app Id changed, get it again
+                // If the app Id changed, set it again
                 if (!applicationId.equals(appId)) {
                     setAppId(applicationId);
                 }
@@ -93,74 +77,29 @@ public class ChromecastConnection {
                 // Tell the client that initialization was a success
                 callback.success();
 
-                lookForAvailableReceiver(new Runnable() {
+                // Check if there is any available receivers for 5 seconds
+                scanForRoutes(5000L, new ScanCallback() {
                     @Override
-                    public void run() {
-                        // Found a receiver
-                        // Since there is an available receiver we may have an active session
-                        CastSession session = getSessionManager().getCurrentCastSession();
-                        // so update the session
-                        setSession(session);
-                        if (session != null) {
-                            // Let the client know we have found a session
-                            onSessionFound.run();
+                    void onRouteUpdate(List<RouteInfo> routes) {
+                        // if the routes have changed, we may have an available device
+                        // If there is at least one device available
+                        if (getContext().getCastState() != CastState.NO_DEVICES_AVAILABLE) {
+                            // Stop the scan
+                            stopScan(this);
+                            // Let the client know a receiver is available
+                            listener.onReceiverAvailableUpdate(true);
+                            // Since we have a receiver we may also have an active session
+                            CastSession session = getSessionManager().getCurrentCastSession();
+                            // If we do have a session
+                            if (session != null) {
+                                // Let the client know
+                                listener.onSessionRejoined(session);
+                            }
                         }
                     }
-                });
+                }, null);
             }
         });
-    }
-
-    /**
-     * Must be called from the main thread.
-     * @param foundReceiver called if a receiver is found
-     */
-    private void lookForAvailableReceiver(Runnable foundReceiver) {
-        // check current state, if we already have a receiver
-        if (getContext().getCastState() != CastState.NO_DEVICES_AVAILABLE) {
-            // Notify and return
-            listener.onReceiverAvailableUpdate(true);
-            foundReceiver.run();
-            return;
-        }
-
-        // Create callbacks
-        MediaRouter.Callback mediaRouterCallback = new MediaRouter.Callback() { };
-        CastStateListener castStateListener = new CastStateListener() {
-            @Override
-            public void onCastStateChanged(int state) {
-                // If there is a receiver
-                if (getContext().getCastState() != CastState.NO_DEVICES_AVAILABLE) {
-                    // Remove callbacks
-                    getContext().removeCastStateListener(this);
-                    getMediaRouter().removeCallback(mediaRouterCallback);
-                    // And let the client know we found a receiver
-                    foundReceiver.run();
-                }
-            }
-        };
-
-        // Listen for any available receiver
-        getContext().addCastStateListener(castStateListener);
-
-
-        // Start an active scan for available routes
-        getMediaRouter().addCallback(new MediaRouteSelector.Builder()
-                        .addControlCategory(CastMediaControlIntent.categoryForCast(appId))
-                        .build(),
-                mediaRouterCallback,
-                MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
-
-        // If we didn't find any routes by 5 seconds remove the callbacks
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                // And stop the scan for routes
-                getMediaRouter().removeCallback(mediaRouterCallback);
-                // And remove the castStateListener callback
-                getContext().removeCastStateListener(castStateListener);
-            }
-        }, 5000);
     }
 
     private MediaRouter getMediaRouter() {
@@ -175,17 +114,16 @@ public class ChromecastConnection {
         return getContext().getSessionManager();
     }
 
+    private CastSession getSession() {
+        return getSessionManager().getCurrentCastSession();
+    }
+
     private void setAppId(String applicationId) {
         this.appId = applicationId;
         this.settings.edit().putString("appId", appId).apply();
         getContext().setReceiverApplicationId(appId);
         // Invalidate any old session
-        this.setSession(null);
-    }
-
-    private void setSession(CastSession castSession) {
-        this.session = castSession;
-        this.media.setSession(this.session);
+        listener.onInvalidateSession();
     }
 
     /**
@@ -198,9 +136,9 @@ public class ChromecastConnection {
     public void join(final String routeId, final String routeName, JoinCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                if (session != null) {
+                if (getSession() != null) {
                     // We are are already connected to a route
-                    callback.onJoin(session);
+                    callback.onJoin(getSession());
                     return;
                 }
 
@@ -274,6 +212,7 @@ public class ChromecastConnection {
     public void showConnectionDialog(JoinCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
+                CastSession session = getSession();
                 if (session == null) {
                     // show the "choose a connection" dialog
 
@@ -330,13 +269,12 @@ public class ChromecastConnection {
             @Override
             public void onSessionStarted(CastSession castSession, String sessionId) {
                 getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                setSession(castSession);
-                callback.onJoin(session);
+                listener.onSessionStarted(castSession);
+                callback.onJoin(castSession);
             }
             @Override
             public void onSessionStartFailed(CastSession castSession, int errCode) {
                 getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                setSession(null);
                 callback.onError(Integer.toString(errCode));
             }
         };
@@ -358,10 +296,9 @@ public class ChromecastConnection {
             public void run() {
                 callback.setMediaRouter(getMediaRouter());
 
-                // Send out the initial routes
-                callback.onFilteredRouteUpdate();
-
                 if (timeout != null && timeout == 0) {
+                    // Send out the one time routes
+                    callback.onFilteredRouteUpdate();
                     return;
                 }
 
@@ -371,6 +308,12 @@ public class ChromecastConnection {
                         .build(),
                         callback,
                         MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+
+                // Send out the initial routes after the callback has been added.
+                // This is important because if the callback calls stopScan only once, and it
+                // happens during this call of "onFilterRouteUpdate", there must actually be an
+                // added callback to remove to stop the scan.
+                callback.onFilteredRouteUpdate();
 
                 if (timeout != null) {
                     // remove the callback after timeout ms, and notify caller
@@ -415,8 +358,7 @@ public class ChromecastConnection {
                     @Override
                     public void onSessionEnded(CastSession castSession, int error) {
                         getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                        setSession(null);
-                        media.onSessionEnd(stopCasting ? "stopped" : "disconnected");
+                        listener.onSessionEnd(castSession, stopCasting ? "stopped" : "disconnected");
                     }
                 }, CastSession.class);
 
@@ -538,6 +480,10 @@ public class ChromecastConnection {
 
     abstract static class Listener implements CastStateListener {
         abstract void onReceiverAvailableUpdate(boolean available);
+        abstract void onSessionStarted(CastSession castSession);
+        abstract void onSessionRejoined(CastSession castSession);
+        abstract void onSessionEnd(CastSession castSession, String state);
+        abstract void onInvalidateSession();
 
         /** CastStateListener functions. */
         @Override

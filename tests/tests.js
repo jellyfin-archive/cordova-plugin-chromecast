@@ -278,7 +278,11 @@ exports.defineAutoTests = function () {
                     });
                 });
                 session.addMediaListener(function (media) {
-                    called(loaded);
+                    Promise.resolve({media: media, session: session})
+                    .then(mediaProperties)
+                    .then(function () {
+                        called(loaded);
+                    });
                 });
                 session.loadMedia(new chrome.cast.media.LoadRequest(
                     new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4')

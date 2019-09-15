@@ -2,6 +2,9 @@ package acidhax.cordova.chromecast;
 
 import android.graphics.Color;
 
+import androidx.mediarouter.media.MediaRouter;
+
+import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaMetadata;
 import com.google.android.gms.cast.MediaStatus;
@@ -192,6 +195,18 @@ final class ChromecastUtilities {
 
     static String getHexColor(int color) {
         return "#" + Integer.toHexString(color);
+    }
+
+    static JSONObject createSessionObject(CastSession session, String state) {
+        JSONObject s = createSessionObject(session);
+        if (state != null) {
+            try {
+                s.put("status", state);
+            } catch (JSONException e) {
+
+            }
+        }
+        return s;
     }
 
     static JSONObject createSessionObject(CastSession session) {
@@ -396,5 +411,30 @@ final class ChromecastUtilities {
         }
 
         return out;
+    }
+
+    /**
+     * Simple helper to convert a route to JSON for passing down to the javascript side.
+     * @param routes the routes to convert
+     * @return a JSON Array of JSON representations of the routes
+     */
+    static JSONArray createRoutesArray(List<MediaRouter.RouteInfo> routes) {
+        JSONArray routesArray = new JSONArray();
+        for (MediaRouter.RouteInfo route : routes) {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("name", route.getName());
+                obj.put("id", route.getId());
+
+                CastDevice device = CastDevice.getFromBundle(route.getExtras());
+                if (device != null) {
+                    obj.put("isNearbyDevice", !device.isOnLocalNetwork());
+                }
+
+                routesArray.put(obj);
+            } catch (JSONException e) {
+            }
+        }
+        return routesArray;
     }
 }

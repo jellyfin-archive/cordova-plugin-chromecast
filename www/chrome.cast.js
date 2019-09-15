@@ -1164,7 +1164,7 @@ chrome.cast.cordova = {
      * @param {function(chrome.cast.Error)} successCallback
      */
     selectRoute: function (route, successCallback, errorCallback) {
-        execute('selectRoute', route.id, route.name, function (err, session) {
+        execute('selectRoute', route.id, function (err, session) {
             if (!err) {
                 successCallback(updateSession(session));
             } else {

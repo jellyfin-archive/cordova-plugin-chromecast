@@ -22,6 +22,7 @@ import com.google.android.gms.cast.framework.SessionManager;
 import com.google.android.gms.cast.framework.SessionManagerListener;
 
 import org.apache.cordova.CallbackContext;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,8 @@ public class ChromecastConnection {
     private Activity activity;
     /** settings object. */
     private SharedPreferences settings;
+    /** Controls the media. */
+    private ChromecastSession media;
 
     /** Lifetime variable. */
     private SessionListener newConnectionListener;
@@ -46,11 +49,13 @@ public class ChromecastConnection {
      * @param act the current context
      * @param connectionListener client callbacks for specific events
      */
-    public ChromecastConnection(Activity act, Listener connectionListener) {
+    ChromecastConnection(Activity act, Listener connectionListener) {
         this.activity = act;
         this.settings = activity.getSharedPreferences("CORDOVA-PLUGIN-CHROMECAST_ChromecastConnection", 0);
         this.appId = settings.getString("appId", CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID);
         this.listener = connectionListener;
+        this.media = new ChromecastSession(activity, listener);
+
         // Set the initial appId
         CastOptionsProvider.setAppId(appId);
 
@@ -58,6 +63,14 @@ public class ChromecastConnection {
         // CastContext and prep it for searching for a session to rejoin
         // Also adds the receiver update callback
         getContext().addCastStateListener(listener);
+    }
+
+    /**
+     * Get the ChromecastSession object for controlling media and receiver functions.
+     * @return the ChromecastSession object
+     */
+    ChromecastSession getChromecastSession() {
+        return this.media;
     }
 
     /**
@@ -78,14 +91,14 @@ public class ChromecastConnection {
                 callback.success();
 
                 // Check if there is any available receivers for 5 seconds
-                scanForRoutes(5000L, new ScanCallback() {
+                startRouteScan(5000L, new ScanCallback() {
                     @Override
                     void onRouteUpdate(List<RouteInfo> routes) {
                         // if the routes have changed, we may have an available device
                         // If there is at least one device available
                         if (getContext().getCastState() != CastState.NO_DEVICES_AVAILABLE) {
                             // Stop the scan
-                            stopScan(this);
+                            stopRouteScan(this);
                             // Let the client know a receiver is available
                             listener.onReceiverAvailableUpdate(true);
                             // Since we have a receiver we may also have an active session
@@ -93,7 +106,8 @@ public class ChromecastConnection {
                             // If we do have a session
                             if (session != null) {
                                 // Let the client know
-                                listener.onSessionRejoined(session);
+                                media.setSession(session);
+                                listener.onSessionRejoin(ChromecastUtilities.createSessionObject(session));
                             }
                         }
                     }
@@ -122,18 +136,15 @@ public class ChromecastConnection {
         this.appId = applicationId;
         this.settings.edit().putString("appId", appId).apply();
         getContext().setReceiverApplicationId(appId);
-        // Invalidate any old session
-        listener.onInvalidateSession();
     }
 
     /**
-     * This will create a new session or seamlessly join an existing one if we created it.
-     * @param routeId the id of the route to join
-     * @param routeName the name of the route
+     * This will create a new session or seamlessly selectRoute an existing one if we created it.
+     * @param routeId the id of the route to selectRoute
      * @param callback calls callback.onJoin when we have joined a session,
      *                 or callback.onError if an error occurred
      */
-    public void join(final String routeId, final String routeName, JoinCallback callback) {
+    public void selectRoute(final String routeId, JoinCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 if (getSession() != null) {
@@ -168,19 +179,19 @@ public class ChromecastConnection {
                                 // Found the route!
                                 foundRoute[0] = true;
                                 // So stop the scan
-                                stopScan(this);
+                                stopRouteScan(this);
                                 // And select it!
                                 getMediaRouter().selectRoute(route);
                             }
                         }
                     }
                 };
-                scanForRoutes(5000L, scan, new Runnable() {
+                startRouteScan(5000L, scan, new Runnable() {
                     @Override
                     public void run() {
                         // If we were not able to find the route
                         if (!foundRoute[0]) {
-                            stopScan(scan);
+                            stopRouteScan(scan);
                             callback.onError("TIMEOUT Could not find active route with id: "
                                     + routeId + " after 5s.");
                         }
@@ -197,7 +208,7 @@ public class ChromecastConnection {
      * 1)
      * Displays the built in native prompt to the user.
      * It will actively scan for routes and display them to the user.
-     * Upon selection it will immediately attempt to join the route.
+     * Upon selection it will immediately attempt to selectRoute the route.
      * Will call onJoin or onError of callback.
      *
      * Else we have a connection, so:
@@ -209,7 +220,7 @@ public class ChromecastConnection {
      * @param callback calls callback.success when we have joined a session,
      *                 or callback.error if an error occurred or if the dialog was dismissed
      */
-    public void showConnectionDialog(JoinCallback callback) {
+    public void requestSession(JoinCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 CastSession session = getSession();
@@ -269,8 +280,8 @@ public class ChromecastConnection {
             @Override
             public void onSessionStarted(CastSession castSession, String sessionId) {
                 getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                listener.onSessionStarted(castSession);
-                callback.onJoin(castSession);
+                media.setSession(castSession);
+                callback.onJoin(ChromecastUtilities.createSessionObject(castSession));
             }
             @Override
             public void onSessionStartFailed(CastSession castSession, int errCode) {
@@ -283,14 +294,14 @@ public class ChromecastConnection {
 
     /**
      * Starts listening for receiver updates.
-     * Must call stopScan(callback) or the battery will drain with non-stop active scanning.
+     * Must call stopRouteScan(callback) or the battery will drain with non-stop active scanning.
      * @param timeout ms until the scan automatically stops,
      *                if 0 only calls callback.onRouteUpdate once with the currently known routes
-     *                if null, will scan until stopScan is called
+     *                if null, will scan until stopRouteScan is called
      * @param callback the callback to receive route updates on
      * @param onTimeout called when the timeout hits
      */
-    public void scanForRoutes(Long timeout, ScanCallback callback, Runnable onTimeout) {
+    public void startRouteScan(Long timeout, ScanCallback callback, Runnable onTimeout) {
         // Add the callback in active scan mode
         activity.runOnUiThread(new Runnable() {
             public void run() {
@@ -310,7 +321,7 @@ public class ChromecastConnection {
                         MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
 
                 // Send out the initial routes after the callback has been added.
-                // This is important because if the callback calls stopScan only once, and it
+                // This is important because if the callback calls stopRouteScan only once, and it
                 // happens during this call of "onFilterRouteUpdate", there must actually be an
                 // added callback to remove to stop the scan.
                 callback.onFilteredRouteUpdate();
@@ -337,7 +348,7 @@ public class ChromecastConnection {
      * Call to stop the active scan if any exist.
      * @param callback the callback to stop and remove
      */
-    public void stopScan(ScanCallback callback) {
+    public void stopRouteScan(ScanCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 callback.stop();
@@ -351,14 +362,15 @@ public class ChromecastConnection {
      * @param stopCasting should the receiver application  be stopped as well?
      * @param callback called with .success or .error depending on the initial result
      */
-    public void endSession(boolean stopCasting, CallbackContext callback) {
+    void endSession(boolean stopCasting, CallbackContext callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 getSessionManager().addSessionManagerListener(new SessionListener() {
                     @Override
                     public void onSessionEnded(CastSession castSession, int error) {
                         getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                        listener.onSessionEnd(castSession, stopCasting ? "stopped" : "disconnected");
+                        media.setSession(null);
+                        listener.onSessionEnd(ChromecastUtilities.createSessionObject(castSession, stopCasting ? "stopped" : "disconnected"));
                     }
                 }, CastSession.class);
 
@@ -398,9 +410,9 @@ public class ChromecastConnection {
     public interface JoinCallback {
         /**
          * Successfully joined a session on a route.
-         * @param session the session we joined
+         * @param jsonSession the session we joined
          */
-        void onJoin(CastSession session);
+        void onJoin(JSONObject jsonSession);
 
         /**
          * Called if we received an error.
@@ -478,12 +490,9 @@ public class ChromecastConnection {
         }
     }
 
-    abstract static class Listener implements CastStateListener {
+    abstract static class Listener implements CastStateListener, ChromecastSession.Listener {
         abstract void onReceiverAvailableUpdate(boolean available);
-        abstract void onSessionStarted(CastSession castSession);
-        abstract void onSessionRejoined(CastSession castSession);
-        abstract void onSessionEnd(CastSession castSession, String state);
-        abstract void onInvalidateSession();
+        abstract void onSessionRejoin(JSONObject jsonSession);
 
         /** CastStateListener functions. */
         @Override

@@ -28,7 +28,7 @@ import androidx.annotation.NonNull;
 /*
  * All of the Chromecast session specific functions should start here.
  */
-public class ChromecastSession extends ChromecastConnection.Listener {
+public class ChromecastSession {
 
     /** The current context. */
     private Activity activity;
@@ -74,7 +74,7 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                     @Override
                     public void onStatusUpdated() {
                         super.onStatusUpdated();
-                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
+                        clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onMetadataUpdated() {
@@ -86,98 +86,67 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                             String newMedia = info.getContentId();
                             if (!currentMedia.equals(newMedia)) {
                                 currentMedia = newMedia;
-                                clientListener.onMediaLoaded(ChromecastUtilities.createMediaObject(session));
+                                clientListener.onMediaLoaded(createMediaObject());
                             }
                         }
-                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
+                        clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onQueueStatusUpdated() {
                         super.onQueueStatusUpdated();
-                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
+                        clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onPreloadStatusUpdated() {
                         super.onPreloadStatusUpdated();
-                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
+                        clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onSendingRemoteMediaRequest() {
                         super.onSendingRemoteMediaRequest();
-                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
+                        clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onAdBreakStatusUpdated() {
                         super.onAdBreakStatusUpdated();
-                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
+                        clientListener.onMediaUpdate(createMediaObject());
                     }
                 });
                 session.addCastListener(new Cast.Listener() {
                     @Override
                     public void onApplicationStatusChanged() {
                         super.onApplicationStatusChanged();
-                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
+                        clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
-                    public void onApplicationMetadataChanged(ApplicationMetadata applicationMetadata) {
-                        super.onApplicationMetadataChanged(applicationMetadata);
-                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
+                    public void onApplicationMetadataChanged(ApplicationMetadata appMetadata) {
+                        super.onApplicationMetadataChanged(appMetadata);
+                        clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
                     public void onApplicationDisconnected(int i) {
                         super.onApplicationDisconnected(i);
-                        onSessionEnd(session, "stopped");
+                        clientListener.onSessionEnd(
+                                ChromecastUtilities.createSessionObject(session, "stopped"));
                     }
                     @Override
                     public void onActiveInputStateChanged(int i) {
                         super.onActiveInputStateChanged(i);
-                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
+                        clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
                     public void onStandbyStateChanged(int i) {
                         super.onStandbyStateChanged(i);
-                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
+                        clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
                     public void onVolumeChanged() {
                         super.onVolumeChanged();
-                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
+                        clientListener.onSessionUpdate(createSessionObject());
                     }
                 });
             }
         });
-    }
-
-    /** ChromecastConnection.Listener implementations. */
-    @Override
-    void onInvalidateSession() {
-        setSession(null);
-    }
-    @Override
-    final void onSessionStarted(CastSession castSession) {
-        setSession(castSession);
-    }
-    @Override
-    final void onSessionRejoined(CastSession castSession) {
-        setSession(castSession);
-        clientListener.onSessionRejoined(ChromecastUtilities.createSessionObject(session));
-    }
-    @Override
-    final void onSessionEnd(CastSession castSession, String state) {
-        onInvalidateSession();
-        JSONObject s = ChromecastUtilities.createSessionObject(castSession);
-        if (state != null) {
-            try {
-                s.put("status", state);
-            } catch (JSONException e) {
-
-            }
-        }
-        clientListener.onSessionUpdate(s);
-    }
-    @Override
-    final void onReceiverAvailableUpdate(boolean available) {
-        clientListener.onReceiverAvailableUpdate(available);
     }
 
     /**
@@ -258,7 +227,7 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                     @Override
                     public void onResult(@NonNull MediaChannelResult result) {
                         if (result.getStatus().isSuccess()) {
-                            callback.success(ChromecastUtilities.createMediaObject(session));
+                            callback.success(createMediaObject());
                         } else {
                             callback.error("session_error");
                         }
@@ -569,11 +538,18 @@ public class ChromecastSession extends ChromecastConnection.Listener {
         };
     }
 
+    private JSONObject createSessionObject() {
+        return ChromecastUtilities.createSessionObject(session);
+    }
+
+    private JSONObject createMediaObject() {
+        return ChromecastUtilities.createMediaObject(session);
+    }
+
     interface Listener extends Cast.MessageReceivedCallback {
         void onMediaLoaded(JSONObject jsonMedia);
         void onMediaUpdate(JSONObject jsonMedia);
-        void onSessionRejoined(JSONObject jsonSession);
         void onSessionUpdate(JSONObject jsonSession);
-        void onReceiverAvailableUpdate(boolean available);
+        void onSessionEnd(JSONObject jsonSession);
     }
 }

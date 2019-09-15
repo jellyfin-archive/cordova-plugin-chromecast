@@ -19,7 +19,6 @@ import org.json.JSONObject;
 import androidx.mediarouter.media.MediaRouter.RouteInfo;
 
 import com.google.android.gms.cast.CastDevice;
-import com.google.android.gms.cast.framework.CastSession;
 
 public final class Chromecast extends CordovaPlugin {
 
@@ -36,13 +35,17 @@ public final class Chromecast extends CordovaPlugin {
     protected void pluginInitialize() {
         super.pluginInitialize();
 
-        this.media = new ChromecastSession(cordova.getActivity(), new ChromecastSession.Listener() {
+        this.connection = new ChromecastConnection(cordova.getActivity(), new ChromecastConnection.Listener() {
             @Override
-            public void onSessionRejoined(JSONObject jsonSession) {
+            public void onSessionRejoin(JSONObject jsonSession) {
                 sendJavascript("chrome.cast._.sessionListener(" + jsonSession + ");");
             }
             @Override
             public void onSessionUpdate(JSONObject jsonSession) {
+                sendJavascript("chrome.cast._.sessionUpdated(" + jsonSession + ");");
+            }
+            @Override
+            public void onSessionEnd(JSONObject jsonSession) {
                 sendJavascript("chrome.cast._.sessionUpdated(" + jsonSession + ");");
             }
             @Override
@@ -68,7 +71,7 @@ public final class Chromecast extends CordovaPlugin {
                 }
             }
         });
-        this.connection = new ChromecastConnection(cordova.getActivity(), this.media);
+        this.media = connection.getChromecastSession();
     }
 
     @Override
@@ -167,10 +170,10 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean requestSession(final CallbackContext callbackContext) {
-        connection.showConnectionDialog(new ChromecastConnection.JoinCallback() {
+        connection.requestSession(new ChromecastConnection.JoinCallback() {
             @Override
-            public void onJoin(CastSession session) {
-                callbackContext.success(ChromecastUtilities.createSessionObject(session));
+            public void onJoin(JSONObject jsonSession) {
+                callbackContext.success(jsonSession);
             }
             public void onError(String errorCode) {
                 if (errorCode.equals("CANCEL")) {
@@ -187,15 +190,14 @@ public final class Chromecast extends CordovaPlugin {
     /**
      * Selects a route by its id.
      * @param routeId the id of the route to join
-     * @param routeName the name of the route
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova
      */
-    public boolean selectRoute(final String routeId, final String routeName, final CallbackContext callbackContext) {
-        connection.join(routeId, routeName, new ChromecastConnection.JoinCallback() {
+    public boolean selectRoute(final String routeId, final CallbackContext callbackContext) {
+        connection.selectRoute(routeId, new ChromecastConnection.JoinCallback() {
             @Override
-            public void onJoin(CastSession castSession) {
-                callbackContext.success(ChromecastUtilities.createSessionObject(castSession));
+            public void onJoin(JSONObject jsonSession) {
+                callbackContext.success(jsonSession);
             }
 
             @Override
@@ -395,7 +397,7 @@ public final class Chromecast extends CordovaPlugin {
 
     /**
      * Will actively scan for routes and send a json array to the client.
-     * It is super important that client calls "stopScan", otherwise the
+     * It is super important that client calls "stopRouteScan", otherwise the
      * battery could drain quickly.
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova
@@ -403,17 +405,18 @@ public final class Chromecast extends CordovaPlugin {
     public boolean startRouteScan(CallbackContext callbackContext) {
         if (clientScan != null) {
             // Stop any other existing clientScan
-            connection.stopScan(clientScan);
+            connection.stopRouteScan(clientScan);
         }
         clientScan = new ChromecastConnection.ScanCallback() {
             @Override
             void onRouteUpdate(List<RouteInfo> routes) {
-                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, routesToJSON(routes));
+                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK,
+                        ChromecastUtilities.createRoutesArray(routes));
                 pluginResult.setKeepCallback(true);
                 callbackContext.sendPluginResult(pluginResult);
             }
         };
-        connection.scanForRoutes(null, clientScan, null);
+        connection.startRouteScan(null, clientScan, null);
 
         return true;
     }
@@ -426,35 +429,10 @@ public final class Chromecast extends CordovaPlugin {
     public boolean stopRouteScan(CallbackContext callbackContext) {
         if (clientScan != null) {
             // Stop any other existing clientScan
-            connection.stopScan(clientScan);
+            connection.stopRouteScan(clientScan);
         }
         callbackContext.success();
         return true;
-    }
-
-    /**
-     * Simple helper to convert a route to JSON for passing down to the javascript side.
-     * @param routes the routes to convert
-     * @return a JSON Array of JSON representations of the routes
-     */
-    private JSONArray routesToJSON(List<RouteInfo> routes) {
-        JSONArray routesArray = new JSONArray();
-        for (RouteInfo route : routes) {
-            try {
-                JSONObject obj = new JSONObject();
-                obj.put("name", route.getName());
-                obj.put("id", route.getId());
-
-                CastDevice device = CastDevice.getFromBundle(route.getExtras());
-                if (device != null) {
-                    obj.put("isNearbyDevice", !device.isOnLocalNetwork());
-                }
-
-                routesArray.put(obj);
-            } catch (JSONException e) {
-            }
-        }
-        return routesArray;
     }
 
     //Change all @deprecated this.webView.sendJavascript(String) to this local function sendJavascript(String)

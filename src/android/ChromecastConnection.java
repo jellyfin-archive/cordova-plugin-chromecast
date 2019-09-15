@@ -3,7 +3,6 @@ package acidhax.cordova.chromecast;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
@@ -201,15 +200,51 @@ public class ChromecastConnection {
                     callback.onJoin(session);
                     return;
                 }
+
+                // We need this hack so that we can access the foundRoute value
+                // Without having to store it as a global variable.
+                // Just always access first element
+                final boolean[] foundRoute = {false};
+
                 listenForConnection(callback);
 
-                Intent castIntent = new Intent();
-                castIntent.putExtra("CAST_INTENT_TO_CAST_ROUTE_ID_KEY", routeId);
-                // RouteName and toast are just for display
-                castIntent.putExtra("CAST_INTENT_TO_CAST_DEVICE_NAME_KEY", routeName);
-                castIntent.putExtra("CAST_INTENT_TO_CAST_NO_TOAST_KEY", false);
-
-                getSessionManager().startSession(castIntent);
+                // We need to start an active scan because getMediaRouter().getRoutes() may be out
+                // of date.  Also, maintaining a list of known routes doesn't work.  It is possible
+                // to have a route in your "known" routes list, but is not in
+                // getMediaRouter().getRoutes() which will result in "Ignoring attempt to select
+                // removed route: ", even if that route *should* be available.  This state could
+                // happen because routes are periodically "removed" and "added", and if the last
+                // time media router was scanning ended when the route was temporarily removed the
+                // getRoutes() fn will have no record of the route.  We need the active scan to
+                // avoid this situation as well.  PS. Just running the scan non-stop is a poor idea
+                // since it will drain battery power quickly.
+                ScanCallback scan = new ScanCallback() {
+                    @Override
+                    void onRouteUpdate(List<RouteInfo> routes) {
+                        // Look for the matching route
+                        for (RouteInfo route : routes) {
+                            if (!foundRoute[0] && route.getId().equals(routeId)) {
+                                // Found the route!
+                                foundRoute[0] = true;
+                                // So stop the scan
+                                stopScan(this);
+                                // And select it!
+                                getMediaRouter().selectRoute(route);
+                            }
+                        }
+                    }
+                };
+                scanForRoutes(5000L, scan, new Runnable() {
+                    @Override
+                    public void run() {
+                        // If we were not able to find the route
+                        if (!foundRoute[0]) {
+                            stopScan(scan);
+                            callback.onError("TIMEOUT Could not find active route with id: "
+                                    + routeId + " after 5s.");
+                        }
+                    }
+                });
             }
         });
     }
@@ -308,9 +343,13 @@ public class ChromecastConnection {
     /**
      * Starts listening for receiver updates.
      * Must call stopScan(callback) or the battery will drain with non-stop active scanning.
+     * @param timeout ms until the scan automatically stops,
+     *                if 0 only calls callback.onRouteUpdate once with the currently known routes
+     *                if null, will scan until stopScan is called
      * @param callback the callback to receive route updates on
+     * @param onTimeout called when the timeout hits
      */
-    public void scanForRoutes(ScanCallback callback) {
+    public void scanForRoutes(Long timeout, ScanCallback callback, Runnable onTimeout) {
         // Add the callback in active scan mode
         activity.runOnUiThread(new Runnable() {
             public void run() {
@@ -319,12 +358,31 @@ public class ChromecastConnection {
                 // Send out the initial routes
                 callback.onFilteredRouteUpdate();
 
+                if (timeout != null && timeout == 0) {
+                    return;
+                }
+
                 // Add the callback in active scan mode
                 getMediaRouter().addCallback(new MediaRouteSelector.Builder()
                         .addControlCategory(CastMediaControlIntent.categoryForCast(appId))
                         .build(),
                         callback,
                         MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+
+                if (timeout != null) {
+                    // remove the callback after timeout ms, and notify caller
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            // And stop the scan for routes
+                            getMediaRouter().removeCallback(callback);
+                            // Notify
+                            if (onTimeout != null) {
+                                onTimeout.run();
+                            }
+                        }
+                    }, timeout);
+                }
             }
         });
     }
@@ -440,10 +498,9 @@ public class ChromecastConnection {
             if (stopped || mediaRouter == null) {
                 return;
             }
-            List<RouteInfo> routes = mediaRouter.getRoutes();
             List<RouteInfo> outRoutes = new ArrayList<>();
             // Filter the routes
-            for (RouteInfo route : routes) {
+            for (RouteInfo route : mediaRouter.getRoutes()) {
                 // We don't want default routes, or duplicate active routes
                 // or multizone duplicates https://github.com/jellyfin/cordova-plugin-chromecast/issues/32
                 Bundle extras = route.getExtras();
@@ -453,7 +510,10 @@ public class ChromecastConnection {
                         continue;
                     }
                 }
-                if (!route.isDefault() && !route.getDescription().equals("Google Cast Multizone Member")) {
+                if (!route.isDefault()
+                        && !route.getDescription().equals("Google Cast Multizone Member")
+                        && route.getPlaybackType() == RouteInfo.PLAYBACK_TYPE_REMOTE
+                ) {
                     outRoutes.add(route);
                 }
             }

@@ -523,9 +523,6 @@ chrome.cast = {
     }
 };
 
-var _sessionRequest = null;
-var _autoJoinPolicy = null;
-var _defaultActionPolicy = null;
 var _sessionListener = function () {};
 var _receiverListener = function () {};
 
@@ -545,14 +542,12 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
         return;
     }
 
-    _autoJoinPolicy = apiConfig.autoJoinPolicy;
-    _defaultActionPolicy = apiConfig.defaultActionPolicy;
-    _sessionRequest = apiConfig.sessionRequest;
-    _sessionListener = apiConfig.sessionListener;
-    _receiverListener = apiConfig.receiverListener;
-
-    execute('initialize', _sessionRequest.appId, _autoJoinPolicy, _defaultActionPolicy, function (err) {
+    execute('initialize', apiConfig.sessionRequest.appId, apiConfig.autoJoinPolicy, apiConfig.defaultActionPolicy, function (err) {
         if (!err) {
+            // Don't set the listeners config until success
+            _sessionListener = apiConfig.sessionListener;
+            _receiverListener = apiConfig.receiverListener;
+
             successCallback();
             chrome.cast._.receiverUpdate(false);
         } else {
@@ -1139,7 +1134,8 @@ chrome.cast.cordova = {
         execute('startRouteScan', function (err, routes) {
             if (!err) {
                 for (var i = 0; i < routes.length; i++) {
-                    routes[i] = new chrome.cast.cordova.Route(routes[i].id, routes[i].name);
+                    var route = routes[i];
+                    routes[i] = new chrome.cast.cordova.Route(route.id, route.name, route.isNearbyDevice);
                 }
                 successCallback(routes);
             } else {
@@ -1176,9 +1172,10 @@ chrome.cast.cordova = {
             }
         });
     },
-    Route: function (id, name) {
+    Route: function (id, name, isNearbyDevice) {
         this.id = id;
         this.name = name;
+        this.isNearbyDevice = isNearbyDevice;
     }
 };
 

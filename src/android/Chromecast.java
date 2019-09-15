@@ -407,7 +407,7 @@ public final class Chromecast extends CordovaPlugin {
                 callbackContext.sendPluginResult(pluginResult);
             }
         };
-        connection.scanForRoutes(clientScan);
+        connection.scanForRoutes(null, clientScan, null);
 
         return true;
     }
@@ -438,6 +438,12 @@ public final class Chromecast extends CordovaPlugin {
                 JSONObject obj = new JSONObject();
                 obj.put("name", route.getName());
                 obj.put("id", route.getId());
+
+                CastDevice device = CastDevice.getFromBundle(route.getExtras());
+                if (device != null) {
+                    obj.put("isNearbyDevice", !device.isOnLocalNetwork());
+                }
+
                 routesArray.put(obj);
             } catch (JSONException e) {
             }

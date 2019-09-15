@@ -2,7 +2,14 @@
  * The order of the tests is very important!
  * Unfortunately using nested describes and beforeAll does not work correctly.
  * So just be careful with the order of tests!
+ * Edit: TODO We should really switch to mocha.
  */
+
+// We need a promise polyfill for Android < 4.4.3
+// from https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js
+/*eslint-disable */
+!(function (e, n) { typeof exports === 'object' && typeof module !== 'undefined' ? n() : typeof define === 'function' && define.amd ? define(n) : n(); }(0, function () { 'use strict'; function e (e) { var n = this.constructor; return this.then(function (t) { return n.resolve(e()).then(function () { return t; }); }, function (t) { return n.resolve(e()).then(function () { return n.reject(t); }); }); } function n (e) { return !(!e || typeof e.length === 'undefined'); } function t () {} function o (e) { if (!(this instanceof o)) throw new TypeError('Promises must be constructed via new'); if (typeof e !== 'function') throw new TypeError('not a function'); this._state = 0, this._handled = !1, this._value = undefined, this._deferreds = [], c(e, this); } function r (e, n) { for (;e._state === 3;)e = e._value; e._state !== 0 ? (e._handled = !0, o._immediateFn(function () { var t = e._state === 1 ? n.onFulfilled : n.onRejected; if (t !== null) { var o; try { o = t(e._value); } catch (r) { return void f(n.promise, r); }i(n.promise, o); } else (e._state === 1 ? i : f)(n.promise, e._value); })) : e._deferreds.push(n); } function i (e, n) { try { if (n === e) throw new TypeError('A promise cannot be resolved with itself.'); if (n && (typeof n === 'object' || typeof n === 'function')) { var t = n.then; if (n instanceof o) return e._state = 3, e._value = n, void u(e); if (typeof t === 'function') return void c((function (e, n) { return function () { e.apply(n, arguments); }; }(t, n)), e); }e._state = 1, e._value = n, u(e); } catch (r) { f(e, r); } } function f (e, n) { e._state = 2, e._value = n, u(e); } function u (e) { e._state === 2 && e._deferreds.length === 0 && o._immediateFn(function () { e._handled || o._unhandledRejectionFn(e._value); }); for (var n = 0, t = e._deferreds.length; t > n; n++)r(e, e._deferreds[n]); e._deferreds = null; } function c (e, n) { var t = !1; try { e(function (e) { t || (t = !0, i(n, e)); }, function (e) { t || (t = !0, f(n, e)); }); } catch (o) { if (t) return; t = !0, f(n, o); } } var a = setTimeout; o.prototype['catch'] = function (e) { return this.then(null, e); }, o.prototype.then = function (e, n) { var o = new this.constructor(t); return r(this, new function (e, n, t) { this.onFulfilled = typeof e === 'function' ? e : null, this.onRejected = typeof n === 'function' ? n : null, this.promise = t; }(e, n, o)), o; }, o.prototype['finally'] = e, o.all = function (e) { return new o(function (t, o) { function r (e, n) { try { if (n && (typeof n === 'object' || typeof n === 'function')) { var u = n.then; if (typeof u === 'function') return void u.call(n, function (n) { r(e, n); }, o); }i[e] = n, --f == 0 && t(i); } catch (c) { o(c); } } if (!n(e)) return o(new TypeError('Promise.all accepts an array')); var i = Array.prototype.slice.call(e); if (i.length === 0) return t([]); for (var f = i.length, u = 0; i.length > u; u++)r(u, i[u]); }); }, o.resolve = function (e) { return e && typeof e === 'object' && e.constructor === o ? e : new o(function (n) { n(e); }); }, o.reject = function (e) { return new o(function (n, t) { t(e); }); }, o.race = function (e) { return new o(function (t, r) { if (!n(e)) return r(new TypeError('Promise.race accepts an array')); for (var i = 0, f = e.length; f > i; i++)o.resolve(e[i]).then(t, r); }); }, o._immediateFn = typeof setImmediate === 'function' && function (e) { setImmediate(e); } || function (e) { a(e, 0); }, o._unhandledRejectionFn = function (e) { void 0 !== console && console && console.warn('Possible Unhandled Promise Rejection:', e); }; var l = (function () { if (typeof self !== 'undefined') return self; if (typeof window !== 'undefined') return window; if (typeof global !== 'undefined') return global; throw Error('unable to locate global object'); }()); 'Promise' in l ? l.Promise.prototype['finally'] || (l.Promise.prototype['finally'] = e) : l.Promise = o; }));
+/*eslint-enable */
 
 /* eslint-env jasmine */
 exports.defineAutoTests = function () {
@@ -11,7 +18,7 @@ exports.defineAutoTests = function () {
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 9000;
 
     var appId = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
-    var videoUrl = 'https://archive.org/download/CosmosLaundromatFirstCycle/Cosmos%20Laundromat%20-%20First%20Cycle%20%281080p%29.mp4'
+    var videoUrl = 'https://archive.org/download/CosmosLaundromatFirstCycle/Cosmos%20Laundromat%20-%20First%20Cycle%20%281080p%29.mp4';
 
     describe('chrome.cast', function () {
 
@@ -628,46 +635,57 @@ exports.defineAutoTests = function () {
 
         function startRouteScan () {
             return new Promise(function (resolve) {
-                var once = true;
+                var finished = false;
                 chrome.cast.cordova.startRouteScan(function routeUpdate (routes) {
-                    if (once && routes.length > 0) {
-                        once = false;
-
-                        var route = routes[0];
+                    if (finished) {
+                        return;
+                    }
+                    for (var i = 0; i < routes.length; i++) {
+                        var route = routes[i];
                         test(route).toBeInstanceOf(chrome.cast.cordova.Route);
                         test(route.id).toBeDefined();
                         test(route.name).toBeDefined();
-
+                        test(route.isNearbyDevice).toBeDefined();
+                        if (!route.isNearbyDevice) {
+                            finished = true;
+                        }
+                    }
+                    if (finished) {
                         resolve(routes);
                     }
                 }, function (err) {
                     fail(err.code + ': ' + err.description);
-                    resolve();
                 });
             });
         }
 
-        function stopRouteScan (routes) {
+        function stopRouteScan (arg) {
             return new Promise(function (resolve) {
                 // Make sure we can stop the scan
                 chrome.cast.cordova.stopRouteScan(function () {
-                    resolve(routes);
+                    resolve(arg);
                 }, function (err) {
                     test().fail(err.code + ': ' + err.description);
-                    resolve();
                 });
             });
         }
 
         function selectRoute (routes) {
             return new Promise(function (resolve) {
-                chrome.cast.cordova.selectRoute(routes[0], function (session) {
+                // Find a non-nearby device so that the join is automatic
+                var route;
+                for (var i = 0; i < routes.length; i++) {
+                    route = routes[i];
+                    if (!route.isNearbyDevice) {
+                        break;
+                    }
+                }
+                chrome.cast.cordova.selectRoute(route, function (session) {
                     Promise.resolve(session)
                     .then(sessionProperties)
                     .then(resolve);
                 }, function (err) {
                     fail(err.code + ': ' + err.description);
-                    resolve(routes);
                 });
             });
         }

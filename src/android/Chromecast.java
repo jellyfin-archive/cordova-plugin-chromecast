@@ -47,7 +47,15 @@ public final class Chromecast extends CordovaPlugin {
             }
             @Override
             public void onMessageReceived(CastDevice castDevice, String namespace, String message) {
-                sendJavascript("chrome.cast._.onMessage('" + namespace + "', '" + message.replace("\\", "\\\\") + "')");
+                try {
+                    JSONObject json = new JSONObject(message);
+
+                    sendJavascript("chrome.cast._.onMessage('" + namespace + "', '" + json + "')");
+
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         });
         this.connection = new ChromecastConnection(cordova.getActivity(), this.media, new ChromecastConnection.Listener() {

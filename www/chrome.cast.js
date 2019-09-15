@@ -1244,7 +1244,6 @@ chrome.cast._ = {
 
             _session.media[0] = _currentMedia;
         }
-        _currentMedia.emit('_mediaUpdated', isAlive);
     },
     mediaLoaded: function (media) {
         if (_session) {

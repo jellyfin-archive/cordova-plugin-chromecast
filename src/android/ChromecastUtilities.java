@@ -3,12 +3,18 @@ package acidhax.cordova.chromecast;
 import android.graphics.Color;
 
 import com.google.android.gms.cast.MediaInfo;
+import com.google.android.gms.cast.MediaMetadata;
 import com.google.android.gms.cast.MediaStatus;
 import com.google.android.gms.cast.MediaTrack;
 import com.google.android.gms.cast.TextTrackStyle;
+import com.google.android.gms.cast.framework.CastSession;
+import com.google.android.gms.common.images.WebImage;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.List;
 
 final class ChromecastUtilities {
 
@@ -186,6 +192,188 @@ final class ChromecastUtilities {
 
     static String getHexColor(int color) {
         return "#" + Integer.toHexString(color);
+    }
+
+    static JSONObject createSessionObject(CastSession session) {
+        JSONObject out = new JSONObject();
+
+        try {
+            out.put("appId", session.getApplicationMetadata().getApplicationId());
+            out.put("appImages", createAppImagesObject(session));
+            out.put("displayName", session.getApplicationMetadata().getName());
+            out.put("media", createMediaObject(session));
+            out.put("receiver", createReceiverObject(session));
+            out.put("sessionId", session.getSessionId());
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+
+        return out;
+    }
+
+    private static JSONArray createAppImagesObject(CastSession session) {
+        JSONArray appImages = new JSONArray();
+        try {
+            MediaMetadata metadata = session.getRemoteMediaClient().getMediaInfo().getMetadata();
+            List<WebImage> images = metadata.getImages();
+            if (images != null) {
+                for (WebImage o : images) {
+                    appImages.put(o.toString());
+                }
+            }
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+        return appImages;
+    }
+
+    private static JSONObject createReceiverObject(CastSession session) {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("friendlyName", session.getCastDevice().getFriendlyName());
+            out.put("label", session.getCastDevice().getDeviceId());
+
+            JSONObject volume = new JSONObject();
+            try {
+                volume.put("level", session.getVolume());
+                volume.put("muted", session.isMute());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            out.put("volume", volume);
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+        return out;
+    }
+
+    static JSONObject createMediaObject(CastSession session) {
+        JSONObject out = new JSONObject();
+
+        try {
+            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
+
+            // TODO: Missing attributes are commented out.
+            //  These are returned by the chromecast desktop SDK, we should probbaly return them too
+            //out.put("breakStatus",);
+            out.put("currentItemId", mediaStatus.getCurrentItemId());
+            out.put("currentTime", mediaStatus.getStreamPosition() / 1000.0);
+            out.put("customData", mediaStatus.getCustomData());
+            //out.put("extendedStatus",);
+            out.put("idleReason", ChromecastUtilities.getMediaIdleReason(mediaStatus));
+            //out.put("items", mediaStatus.getQueueItems());
+            //out.put("liveSeekableRange",);
+            out.put("loadingItemId", mediaStatus.getLoadingItemId());
+            out.put("media", createMediaInfoObject(session));
+            out.put("mediaSessionId", 1);
+            out.put("playbackRate", mediaStatus.getPlaybackRate());
+            out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus));
+            out.put("preloadedItemId", mediaStatus.getPreloadedItemId());
+            //out.put("queueData", );
+            //out.put("repeatMode", mediaStatus.getQueueRepeatMode());
+            out.put("sessionId", session.getSessionId());
+            //out.put("supportedMediaCommands", );
+            //out.put("videoInfo", );
+
+
+            JSONObject volume = new JSONObject();
+            volume.put("level", mediaStatus.getStreamVolume());
+            volume.put("muted", mediaStatus.isMute());
+            out.put("volume", volume);
+
+            long[] activeTrackIds = mediaStatus.getActiveTrackIds();
+            if (activeTrackIds != null) {
+                JSONArray activeTracks = new JSONArray();
+                for (long activeTrackId : activeTrackIds) {
+                    activeTracks.put(activeTrackId);
+                }
+                out.put("activeTrackIds", activeTracks);
+            }
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+
+        return out;
+    }
+
+    private static JSONArray createMediaInfoTracks(CastSession session) {
+        JSONArray out = new JSONArray();
+
+        try {
+            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
+            MediaInfo mediaInfo = mediaStatus.getMediaInfo();
+
+            if (mediaInfo.getMediaTracks() == null) {
+                return out;
+            }
+
+            for (MediaTrack track : mediaInfo.getMediaTracks()) {
+                JSONObject jsonTrack = new JSONObject();
+
+
+                // TODO: Missing attributes are commented out.
+                //  These are returned by the chromecast desktop SDK, we should probbaly return them too
+
+                jsonTrack.put("trackId", track.getId());
+                jsonTrack.put("customData", track.getCustomData());
+                jsonTrack.put("language", track.getLanguage());
+                jsonTrack.put("name", track.getName());
+                jsonTrack.put("subtype", ChromecastUtilities.getTrackSubtype(track));
+                jsonTrack.put("trackContentId", track.getContentId());
+                jsonTrack.put("trackContentType", track.getContentType());
+                jsonTrack.put("type", ChromecastUtilities.getTrackType(track));
+
+                out.put(jsonTrack);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+
+        return out;
+    }
+
+    private static JSONObject createMediaInfoObject(CastSession session) {
+        JSONObject out = new JSONObject();
+
+        try {
+            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
+            MediaInfo mediaInfo = mediaStatus.getMediaInfo();
+
+            // TODO: Missing attributes are commented out.
+            //  These are returned by the chromecast desktop SDK, we should probbaly return them too
+            //out.put("breakClips",);
+            //out.put("breaks",);
+            out.put("contentId", mediaInfo.getContentId());
+            out.put("contentType", mediaInfo.getContentType());
+            out.put("customData", mediaInfo.getCustomData());
+            //out.put("idleReason",);
+            //out.put("items",);
+            out.put("duration", mediaInfo.getStreamDuration() / 1000.0);
+            //out.put("mediaCategory",);
+            out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));
+            out.put("tracks", createMediaInfoTracks(session));
+            out.put("textTrackStyle", ChromecastUtilities.createTextTrackObject(mediaInfo.getTextTrackStyle()));
+
+            // TODO: Check if it's useful
+            //out.put("metadata", mediaInfo.getMetadata());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+
+        return out;
     }
 
     static JSONObject createTextTrackObject(TextTrackStyle textTrackStyle) {

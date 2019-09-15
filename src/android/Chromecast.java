@@ -170,7 +170,7 @@ public final class Chromecast extends CordovaPlugin {
         connection.showConnectionDialog(new ChromecastConnection.JoinCallback() {
             @Override
             public void onJoin(CastSession session) {
-                callbackContext.success(ChromecastSession.createSessionObject(session));
+                callbackContext.success(ChromecastUtilities.createSessionObject(session));
             }
             public void onError(String errorCode) {
                 if (errorCode.equals("CANCEL")) {
@@ -195,7 +195,7 @@ public final class Chromecast extends CordovaPlugin {
         connection.join(routeId, routeName, new ChromecastConnection.JoinCallback() {
             @Override
             public void onJoin(CastSession castSession) {
-                callbackContext.success(ChromecastSession.createSessionObject(castSession));
+                callbackContext.success(ChromecastUtilities.createSessionObject(castSession));
             }
 
             @Override

@@ -1,7 +1,6 @@
 package acidhax.cordova.chromecast;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.apache.cordova.CallbackContext;
 import org.json.JSONArray;
@@ -14,8 +13,6 @@ import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaLoadRequestData;
 import com.google.android.gms.cast.MediaMetadata;
 import com.google.android.gms.cast.MediaSeekOptions;
-import com.google.android.gms.cast.MediaStatus;
-import com.google.android.gms.cast.MediaTrack;
 import com.google.android.gms.cast.TextTrackStyle;
 import com.google.android.gms.cast.framework.CastSession;
 import com.google.android.gms.cast.framework.media.RemoteMediaClient;
@@ -77,7 +74,7 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                     @Override
                     public void onStatusUpdated() {
                         super.onStatusUpdated();
-                        clientListener.onMediaUpdate(createMediaObject());
+                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
                     }
                     @Override
                     public void onMetadataUpdated() {
@@ -89,42 +86,42 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                             String newMedia = info.getContentId();
                             if (!currentMedia.equals(newMedia)) {
                                 currentMedia = newMedia;
-                                clientListener.onMediaLoaded(createMediaObject());
+                                clientListener.onMediaLoaded(ChromecastUtilities.createMediaObject(session));
                             }
                         }
-                        clientListener.onMediaUpdate(createMediaObject());
+                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
                     }
                     @Override
                     public void onQueueStatusUpdated() {
                         super.onQueueStatusUpdated();
-                        clientListener.onMediaUpdate(createMediaObject());
+                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
                     }
                     @Override
                     public void onPreloadStatusUpdated() {
                         super.onPreloadStatusUpdated();
-                        clientListener.onMediaUpdate(createMediaObject());
+                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
                     }
                     @Override
                     public void onSendingRemoteMediaRequest() {
                         super.onSendingRemoteMediaRequest();
-                        clientListener.onMediaUpdate(createMediaObject());
+                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
                     }
                     @Override
                     public void onAdBreakStatusUpdated() {
                         super.onAdBreakStatusUpdated();
-                        clientListener.onMediaUpdate(createMediaObject());
+                        clientListener.onMediaUpdate(ChromecastUtilities.createMediaObject(session));
                     }
                 });
                 session.addCastListener(new Cast.Listener() {
                     @Override
                     public void onApplicationStatusChanged() {
                         super.onApplicationStatusChanged();
-                        clientListener.onSessionUpdate(createSessionObject());
+                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
                     }
                     @Override
                     public void onApplicationMetadataChanged(ApplicationMetadata applicationMetadata) {
                         super.onApplicationMetadataChanged(applicationMetadata);
-                        clientListener.onSessionUpdate(createSessionObject());
+                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
                     }
                     @Override
                     public void onApplicationDisconnected(int i) {
@@ -134,17 +131,17 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                     @Override
                     public void onActiveInputStateChanged(int i) {
                         super.onActiveInputStateChanged(i);
-                        clientListener.onSessionUpdate(createSessionObject());
+                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
                     }
                     @Override
                     public void onStandbyStateChanged(int i) {
                         super.onStandbyStateChanged(i);
-                        clientListener.onSessionUpdate(createSessionObject());
+                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
                     }
                     @Override
                     public void onVolumeChanged() {
                         super.onVolumeChanged();
-                        clientListener.onSessionUpdate(createSessionObject());
+                        clientListener.onSessionUpdate(ChromecastUtilities.createSessionObject(session));
                     }
                 });
             }
@@ -163,12 +160,12 @@ public class ChromecastSession extends ChromecastConnection.Listener {
     @Override
     final void onSessionRejoined(CastSession castSession) {
         setSession(castSession);
-        clientListener.onSessionRejoined(createSessionObject());
+        clientListener.onSessionRejoined(ChromecastUtilities.createSessionObject(session));
     }
     @Override
     final void onSessionEnd(CastSession castSession, String state) {
         onInvalidateSession();
-        JSONObject s = createSessionObject(castSession);
+        JSONObject s = ChromecastUtilities.createSessionObject(castSession);
         if (state != null) {
             try {
                 s.put("status", state);
@@ -179,7 +176,7 @@ public class ChromecastSession extends ChromecastConnection.Listener {
         clientListener.onSessionUpdate(s);
     }
     @Override
-    void onReceiverAvailableUpdate(boolean available) {
+    final void onReceiverAvailableUpdate(boolean available) {
         clientListener.onReceiverAvailableUpdate(available);
     }
 
@@ -261,7 +258,7 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                     @Override
                     public void onResult(@NonNull MediaChannelResult result) {
                         if (result.getStatus().isSuccess()) {
-                            callback.success(createMediaObject());
+                            callback.success(ChromecastUtilities.createMediaObject(session));
                         } else {
                             callback.error("session_error");
                         }
@@ -570,195 +567,6 @@ public class ChromecastSession extends ChromecastConnection.Listener {
                 }
             }
         };
-    }
-
-    private JSONObject createSessionObject() {
-        return createSessionObject(session);
-    }
-    static JSONObject createSessionObject(CastSession session) {
-        JSONObject out = new JSONObject();
-
-        try {
-            out.put("appId", session.getApplicationMetadata().getApplicationId());
-            out.put("appImages", createAppImagesObject(session));
-            out.put("displayName", session.getApplicationMetadata().getName());
-            out.put("media", createMediaObject(session));
-            out.put("receiver", createReceiverObject(session));
-            out.put("sessionId", session.getSessionId());
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-
-        return out;
-    }
-
-    private static JSONArray createAppImagesObject(CastSession session) {
-        JSONArray appImages = new JSONArray();
-        try {
-            MediaMetadata metadata = session.getRemoteMediaClient().getMediaInfo().getMetadata();
-            List<WebImage> images = metadata.getImages();
-            if (images != null) {
-                for (WebImage o : images) {
-                    appImages.put(o.toString());
-                }
-            }
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-        return appImages;
-    }
-
-    private static JSONObject createReceiverObject(CastSession session) {
-        JSONObject out = new JSONObject();
-        try {
-            out.put("friendlyName", session.getCastDevice().getFriendlyName());
-            out.put("label", session.getCastDevice().getDeviceId());
-
-            JSONObject volume = new JSONObject();
-            try {
-                volume.put("level", session.getVolume());
-                volume.put("muted", session.isMute());
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-            out.put("volume", volume);
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-        return out;
-    }
-
-    private JSONObject createMediaObject() {
-        return createMediaObject(session);
-    }
-
-    private static JSONObject createMediaObject(CastSession session) {
-        JSONObject out = new JSONObject();
-
-        try {
-            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
-
-            // TODO: Missing attributes are commented out.
-            //  These are returned by the chromecast desktop SDK, we should probbaly return them too
-            //out.put("breakStatus",);
-            out.put("currentItemId", mediaStatus.getCurrentItemId());
-            out.put("currentTime", mediaStatus.getStreamPosition() / 1000.0);
-            out.put("customData", mediaStatus.getCustomData());
-            //out.put("extendedStatus",);
-            out.put("idleReason", ChromecastUtilities.getMediaIdleReason(mediaStatus));
-            //out.put("items", mediaStatus.getQueueItems());
-            //out.put("liveSeekableRange",);
-            out.put("loadingItemId", mediaStatus.getLoadingItemId());
-            out.put("media", createMediaInfoObject(session));
-            out.put("mediaSessionId", 1);
-            out.put("playbackRate", mediaStatus.getPlaybackRate());
-            out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus));
-            out.put("preloadedItemId", mediaStatus.getPreloadedItemId());
-            //out.put("queueData", );
-            //out.put("repeatMode", mediaStatus.getQueueRepeatMode());
-            out.put("sessionId", session.getSessionId());
-            //out.put("supportedMediaCommands", );
-            //out.put("videoInfo", );
-
-
-            JSONObject volume = new JSONObject();
-            volume.put("level", mediaStatus.getStreamVolume());
-            volume.put("muted", mediaStatus.isMute());
-            out.put("volume", volume);
-
-            long[] activeTrackIds = mediaStatus.getActiveTrackIds();
-            if (activeTrackIds != null) {
-                JSONArray activeTracks = new JSONArray();
-                for (long activeTrackId : activeTrackIds) {
-                    activeTracks.put(activeTrackId);
-                }
-                out.put("activeTrackIds", activeTracks);
-            }
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-
-        return out;
-    }
-
-    private static JSONArray createMediaInfoTracks(CastSession session) {
-        JSONArray out = new JSONArray();
-
-        try {
-            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
-            MediaInfo mediaInfo = mediaStatus.getMediaInfo();
-
-            if (mediaInfo.getMediaTracks() == null) {
-                return out;
-            }
-
-            for (MediaTrack track : mediaInfo.getMediaTracks()) {
-                JSONObject jsonTrack = new JSONObject();
-
-
-                // TODO: Missing attributes are commented out.
-                //  These are returned by the chromecast desktop SDK, we should probbaly return them too
-
-                jsonTrack.put("trackId", track.getId());
-                jsonTrack.put("customData", track.getCustomData());
-                jsonTrack.put("language", track.getLanguage());
-                jsonTrack.put("name", track.getName());
-                jsonTrack.put("subtype", ChromecastUtilities.getTrackSubtype(track));
-                jsonTrack.put("trackContentId", track.getContentId());
-                jsonTrack.put("trackContentType", track.getContentType());
-                jsonTrack.put("type", ChromecastUtilities.getTrackType(track));
-
-                out.put(jsonTrack);
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-
-        return out;
-    }
-
-    private static JSONObject createMediaInfoObject(CastSession session) {
-        JSONObject out = new JSONObject();
-
-        try {
-            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
-            MediaInfo mediaInfo = mediaStatus.getMediaInfo();
-
-            // TODO: Missing attributes are commented out.
-            //  These are returned by the chromecast desktop SDK, we should probbaly return them too
-            //out.put("breakClips",);
-            //out.put("breaks",);
-            out.put("contentId", mediaInfo.getContentId());
-            out.put("contentType", mediaInfo.getContentType());
-            out.put("customData", mediaInfo.getCustomData());
-            //out.put("idleReason",);
-            //out.put("items",);
-            out.put("duration", mediaInfo.getStreamDuration() / 1000.0);
-            //out.put("mediaCategory",);
-            out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));
-            out.put("tracks", createMediaInfoTracks(session));
-            out.put("textTrackStyle", ChromecastUtilities.createTextTrackObject(mediaInfo.getTextTrackStyle()));
-
-            // TODO: Check if it's useful
-            //out.put("metadata", mediaInfo.getMetadata());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-
-        return out;
     }
 
     interface Listener extends Cast.MessageReceivedCallback {

@@ -148,9 +148,7 @@ public class ChromecastConnection {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 if (getSession() != null) {
-                    // We are are already connected to a route
-                    callback.onJoin(getSession());
-                    return;
+                    callback.onError("cordova_already_joined");
                 }
 
                 // We need this hack so that we can access the foundRoute value

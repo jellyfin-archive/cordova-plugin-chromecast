@@ -95,7 +95,8 @@ chrome.cast = {
         SESSION_ERROR: 'session_error',
         TIMEOUT: 'timeout',
         UNKNOWN: 'unknown',
-        NOT_IMPLEMENTED: 'not_implemented'
+        NOT_IMPLEMENTED: 'not_implemented',
+        CORDOVA_ALREADY_JOINED: 'cordova_already_joined'
     },
 
     SessionStatus: { CONNECTED: 'connected', DISCONNECTED: 'disconnected', STOPPED: 'stopped' },
@@ -1134,8 +1135,7 @@ chrome.cast.cordova = {
         execute('startRouteScan', function (err, routes) {
             if (!err) {
                 for (var i = 0; i < routes.length; i++) {
-                    var route = routes[i];
-                    routes[i] = new chrome.cast.cordova.Route(route.id, route.name, route.isNearbyDevice);
+                    routes[i] = new chrome.cast.cordova.Route(routes[i]);
                 }
                 successCallback(routes);
             } else {
@@ -1159,12 +1159,12 @@ chrome.cast.cordova = {
     },
     /**
      * Attempts to join the requested route
-     * @param {chrome.cast.cordova.Route} route
+     * @param {string} routeId
      * @param {function(routes)} successCallback
      * @param {function(chrome.cast.Error)} successCallback
      */
-    selectRoute: function (route, successCallback, errorCallback) {
-        execute('selectRoute', route.id, function (err, session) {
+    selectRoute: function (routeId, successCallback, errorCallback) {
+        execute('selectRoute', routeId, function (err, session) {
             if (!err) {
                 successCallback(updateSession(session));
             } else {
@@ -1172,10 +1172,11 @@ chrome.cast.cordova = {
             }
         });
     },
-    Route: function (id, name, isNearbyDevice) {
-        this.id = id;
-        this.name = name;
-        this.isNearbyDevice = isNearbyDevice;
+    Route: function (jsonRoute) {
+        this.id = jsonRoute.id;
+        this.name = jsonRoute.name;
+        this.isNearbyDevice = jsonRoute.isNearbyDevice;
+        this.isCastGroup = jsonRoute.isCastGroup;
     }
 };
 
@@ -1356,6 +1357,8 @@ function handleError (err, callback) {
         errorDescription = 'A channel to the receiver is not available.';
     } else if (err === chrome.cast.ErrorCode.SESSION_ERROR) {
         errorDescription = 'A session could not be created, or a session was invalid.';
+    } else if (err === chrome.cast.ErrorCode.CORDOVA_ALREADY_JOINED) {
+        errorDescription = 'Leave or stop current session before attempting to join new session.';
     } else {
         errorDescription = err;
         err = chrome.cast.ErrorCode.UNKNOWN;

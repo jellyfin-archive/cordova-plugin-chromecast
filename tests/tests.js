@@ -97,6 +97,7 @@ exports.defineAutoTests = function () {
             .then(startRouteScan)
             .then(stopRouteScan)
             .then(selectRoute)
+            .then(selectRoute_fail_alreadyJoined)
             .then(session_setReceiverVolumeLevel_success)
             .then(session_setReceiverMuted_success)
             .then(sessionLeaveSuccess)
@@ -107,7 +108,7 @@ exports.defineAutoTests = function () {
             .then(function () {
                 done();
             });
-        }, 15 * 1000);
+        }, 25 * 1000);
 
         /**
          * Pre-requisite: You must have a valid receiver (chromecast) plugged in and available.
@@ -640,9 +641,9 @@ exports.defineAutoTests = function () {
 
         function startRouteScan () {
             return new Promise(function (resolve) {
-                var finished = false;
+                var foundRoute;
                 chrome.cast.cordova.startRouteScan(function routeUpdate (routes) {
-                    if (finished) {
+                    if (foundRoute) {
                         return;
                     }
                     for (var i = 0; i < routes.length; i++) {
@@ -651,15 +652,17 @@ exports.defineAutoTests = function () {
                         test(route.id).toBeDefined();
                         test(route.name).toBeDefined();
                         test(route.isNearbyDevice).toBeDefined();
+                        test(route.isCastGroup).toBeDefined();
+                        // Find a non-nearby device so that the join is automatic
                         if (!route.isNearbyDevice) {
-                            finished = true;
+                            foundRoute = route;
                         }
                     }
-                    if (finished) {
-                        resolve(routes);
+                    if (foundRoute) {
+                        resolve(foundRoute);
                     }
                 }, function (err) {
-                    fail(err.code + ': ' + err.description);
+                    test().fail(err.code + ': ' + err.description);
                 });
             });
         }
@@ -675,22 +678,26 @@ exports.defineAutoTests = function () {
             });
         }
 
-        function selectRoute (routes) {
+        function selectRoute (route) {
             return new Promise(function (resolve) {
-                // Find a non-nearby device so that the join is automatic
-                var route;
-                for (var i = 0; i < routes.length; i++) {
-                    route = routes[i];
-                    if (!route.isNearbyDevice) {
-                        break;
-                    }
-                }
-                chrome.cast.cordova.selectRoute(route, function (session) {
+                chrome.cast.cordova.selectRoute(route.id, function (session) {
                     Promise.resolve(session)
                     .then(sessionProperties)
                     .then(resolve);
                 }, function (err) {
-                    fail(err.code + ': ' + err.description);
+                    test().fail(err.code + ': ' + err.description);
+                });
+            });
+        }
+
+        function selectRoute_fail_alreadyJoined (arg) {
+            return new Promise(function (resolve) {
+                chrome.cast.cordova.selectRoute('', function (session) {
+                    test().fail('Should not be allowed to selectRoute when already in session');
+                }, function (err) {
+                    test(err).toBeInstanceOf(chrome.cast.Error);
+                    test(err.code).toEqual(chrome.cast.ErrorCode.CORDOVA_ALREADY_JOINED);
+                    resolve(arg);
                 });
             });
         }

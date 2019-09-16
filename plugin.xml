@@ -2,7 +2,7 @@
 <plugin xmlns="http://phonegap.com/ns/plugins/1.0"
         xmlns:android="http://schemas.android.com/apk/res/android"
         id="cordova-plugin-chromecast"
-        version="0.0.1">
+        version="0.1.1">
   <engines>
     <engine name="cordova" version=">=3.4.0" />
   </engines>
@@ -48,6 +48,7 @@
     <source-file src="src/android/ChromecastOnSessionUpdatedListener.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/ChromecastException.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/ChromecastUtilities.java" target-dir="src/acidhax/cordova/chromecast" />
+    <source-file src="src/android/RouteListComparer.java" target-dir="src/acidhax/cordova/chromecast" />
   </platform>
 
   <platform name="ios">

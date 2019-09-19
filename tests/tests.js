@@ -87,7 +87,7 @@ exports.defineAutoTests = function () {
             expect(chrome.cast.media.Media.prototype.removeUpdateListener).toBeDefined();
         });
 
-        it('SPEC_00300 chrome.cast.cordova functions, receiver volume and leaveSession', function (done) {
+        it('SPEC_00300 chrome.cast.cordova functions, receiver volume, videoEnd, and leaveSession', function (done) {
             setupEarlyTerminator(done);
             Promise.resolve()
             .then(apiAvailable)
@@ -100,13 +100,19 @@ exports.defineAutoTests = function () {
             .then(selectRoute_fail_alreadyJoined)
             .then(session_setReceiverVolumeLevel_success)
             .then(session_setReceiverMuted_success)
-            .then(sessionLeaveSuccess)
-            .then(initialize('SPEC_00330', function (session) {
-                test().fail('should not receive a session (we did sessionLeave so we shouldnt be able to auto rejoin rejoin)');
-            }))
-            .then(sessionLeaveError_alreadyLeft)
-            .then(function () {
-                done();
+            .then(function (session) {
+                Promise.resolve(session)
+                .then(loadMediaVideo)
+                .then(videoEnd)
+                .then(function (media) {
+                    Promise.resolve(session)
+                    .then(sessionLeaveSuccess)
+                    .then(initialize('SPEC_00330', function (session) {
+                        test().fail('should not receive a session (we did sessionLeave so we shouldnt be able to auto rejoin rejoin)');
+                    }))
+                    .then(sessionLeaveError_alreadyLeft)
+                    .then(done);
+                });
             });
         }, 25 * 1000);
 
@@ -122,10 +128,23 @@ exports.defineAutoTests = function () {
             }))
             .then(requestSessionCancel)
             .then(requestSessionSuccess)
-            .then(loadMediaVideo)
-            .then(requestSessionStopCastingUiCancel)
-            .then(requestSessionStopCastingUiStopSuccess)
-            .then(done);
+            .then(function (session) {
+                Promise.resolve(session)
+                .then(loadMediaVideo)
+                .then(pauseSuccess)
+                .then(playSuccess)
+                .then(seekSuccess)
+                .then(media_setVolume_level_success)
+                .then(media_setVolume_muted_success)
+                .then(media_setVolume_level_and_unmuted_success)
+                .then(stopSuccess)
+                .then(function (media) {
+                    Promise.resolve(session)
+                    .then(requestSessionStopCastingUiCancel)
+                    .then(requestSessionStopCastingUiStopSuccess)
+                    .then(done);
+                });
+            });
 
         }, 60 * 1000);
 
@@ -266,16 +285,7 @@ exports.defineAutoTests = function () {
                     // Run all the media related tests
                     Promise.resolve({media: loadedMedia, session: session})
                     .then(mediaProperties)
-                    .then(pauseSuccess)
-                    .then(playSuccess)
-                    .then(seekSuccess)
-                    .then(media_setVolume_level_success)
-                    .then(media_setVolume_muted_success)
-                    .then(media_setVolume_level_and_unmuted_success)
-                    .then(stopSuccess)
-                    .then(function (media) {
-                        resolve(session);
-                    });
+                    .then(resolve);
                 });
                 session.addMediaListener(function (media) {
                     Promise.resolve({media: media, session: session})
@@ -338,6 +348,35 @@ exports.defineAutoTests = function () {
                     request.currentTime = 3;
                     media.seek(request, function () {
                         resolve(media);
+                    }, function (err) {
+                        test().fail(err.code + ': ' + err.description);
+                    });
+                }, 500);
+            });
+        }
+
+        function videoEnd (media) {
+            var specName = videoEnd.name;
+            var success = 'success';
+            var videoFinished = 'videoFinished';
+            return new Promise(function (resolve) {
+                var finished = false;
+                var called = callOrder(specName, [success, videoFinished], { anyOrder: true }, function () {
+                    resolve(media);
+                });
+                media.addUpdateListener(function (isAlive) {
+                    test(media.playerState).toBeDefined();
+                    if (!finished && media.playerState === 'IDLE'
+                        && media.idleReason === 'FINISHED') {
+                        finished = true;
+                        called(videoFinished);
+                    }
+                });
+                setTimeout(function () {
+                    var request = new chrome.cast.media.SeekRequest();
+                    request.currentTime = media.media.duration;
+                    media.seek(request, function () {
+                        called(success);
                     }, function (err) {
                         test().fail(err.code + ': ' + err.description);
                     });

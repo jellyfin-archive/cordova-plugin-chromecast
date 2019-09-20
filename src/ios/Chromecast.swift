@@ -96,7 +96,17 @@ import GoogleCast
     }
 
     alert.addAction(
-        UIAlertAction(title: "Cancel", style: UIAlertAction.Style.cancel, handler: nil)
+        UIAlertAction(title: "Cancel", style: UIAlertAction.Style.cancel, handler: {(_) in
+          let pluginResult = CDVPluginResult(
+              status: CDVCommandStatus_ERROR,
+              messageAs: "cancel"
+          )
+
+          self.commandDelegate!.send(
+              pluginResult,
+              callbackId: command.callbackId
+          )
+        })
     )
 
     self.viewController?.present(alert, animated: true, completion: nil)

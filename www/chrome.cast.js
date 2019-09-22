@@ -548,9 +548,8 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
             // Don't set the listeners config until success
             _sessionListener = apiConfig.sessionListener;
             _receiverListener = apiConfig.receiverListener;
-
             successCallback();
-            chrome.cast._.receiverUpdate(false);
+            _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
         } else {
             handleError(err, errorCallback);
         }
@@ -1092,7 +1091,7 @@ chrome.cast.media.Media.prototype.removeUpdateListener = function (listener) {
     this.removeListener('_mediaUpdated', listener);
 };
 
-chrome.cast.media.Media.prototype._update = function (isAlive, obj) {
+chrome.cast.media.Media.prototype._update = function (obj) {
     this.currentTime = obj.currentTime || this.currentTime;
     this.idleReason = obj.idleReason || this.idleReason;
     this.sessionId = obj.sessionId || this.sessionId;
@@ -1112,7 +1111,7 @@ chrome.cast.media.Media.prototype._update = function (isAlive, obj) {
 
     this._lastUpdatedTime = Date.now();
 
-    this.emit('_mediaUpdated', isAlive);
+    this.emit('_mediaUpdated', this.playerState !== 'IDLE');
 };
 
 /**
@@ -1180,104 +1179,77 @@ chrome.cast.cordova = {
     }
 };
 
-var _connectingListeners = [];
-
-chrome.cast.addConnectingListener = function (cb) {
-    _connectingListeners.push(cb);
-};
-
-chrome.cast.removeConnectingListener = function (cb) {
-    if (_connectingListeners.indexOf(cb) > -1) {
-        _connectingListeners.splice(_connectingListeners.indexOf(cb), 1);
+execute('setup', function (err, args) {
+    if (err) {
+        throw new Error('cordova-plugin-chromecast: Unable to setup chrome.cast API' + err);
     }
-};
-
-/** ************* Cordova Events ********************/
-// TODO
-/**
- * These are events that are triggered from the plugin using "sendJavascript"
- * It is recommended by cordova that we avoid sendJavascript usage
- * so we should try to remove all of these functions eventually.
- */
-
-chrome.cast._emitConnecting = function () {
-    for (var n = 0; n < _connectingListeners.length; n++) {
-        _connectingListeners[n]();
+    if (args === 'OK') {
+        return;
     }
-};
 
-chrome.cast._ = {
-    /**
-     * @param {boolean} available
-     */
-    receiverUpdate: function (available) {
-        if (available) {
-            _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
-        } else {
-            _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
-        }
-    },
-    /**
-     * Function called from cordova when the Session has changed.
-     * Changes to the following properties will trigger the listener:
-     *     statusText, namespaces, status, and the volume of the receiver.
-     *
-     * Listeners should check the status property of the Session to
-     * determine its connection status. The boolean parameter isAlive is
-     * deprecated in favor of the status Session property. The isAlive
-     * parameter is still passed in for backwards compatibility, and is
-     * true unless status = chrome.cast.SessionStatus.STOPPED.
-     * @param {function} listener The listener to add.
-     */
-    sessionUpdated: function (obj) {
-        if (_session) {
-            _session._update(obj);
-        }
-    },
-    mediaUpdated: function (isAlive, media) {
-        if (_currentMedia) {
-            _currentMedia._update(isAlive, media);
-        } else {
-            _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
-            _currentMedia.currentTime = media.currentTime;
-            _currentMedia.playerState = media.playerState;
-            _currentMedia.media = media.media;
-
-            _session.media[0] = _currentMedia;
-        }
-    },
-    mediaLoaded: function (media) {
-        if (_session) {
+    var eventName = args[0];
+    args = args[1];
+    var events = {
+        SETUP: function () {
+            chrome.cast.isAvailable = true;
+        },
+        RECEIVER_LISTENER: function (available) {
+            if (available) {
+                _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
+            } else {
+                _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
+            }
+        },
+        /**
+         * Function called from cordova when the Session has changed.
+         * Changes to the following properties will trigger the listener:
+         *     statusText, namespaces, status, and the volume of the receiver.
+         *
+         * Listeners should check the status property of the Session to
+         * determine its connection status. The boolean parameter isAlive is
+         * deprecated in favor of the status Session property. The isAlive
+         * parameter is still passed in for backwards compatibility, and is
+         * true unless status = chrome.cast.SessionStatus.STOPPED.
+         * @param {function} listener The listener to add.
+         */
+        SESSION_UPDATE: function (obj) {
+            if (_session) {
+                _session._update(obj);
+            }
+        },
+        MEDIA_UPDATE: function (media) {
             if (!_currentMedia) {
                 _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
             }
-            _currentMedia._update(true, media);
-            _session.emit('_mediaListener', _currentMedia);
+            _currentMedia._update(media);
+            _session.media[0] = _currentMedia;
+        },
+        MEDIA_LOAD: function (media) {
+            if (_session) {
+                if (!_currentMedia) {
+                    _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
+                }
+                _currentMedia._update(media);
+                _session.emit('_mediaListener', _currentMedia);
+            }
+        },
+        SESSION_LISTENER: function (javaSession) {
+            var session = updateSession(javaSession);
+            _sessionListener(session);
+        },
+        RECEIVER_MESSAGE: function (namespace, message) {
+            if (_session) {
+                _session.emit('message:' + namespace, namespace, message);
+            }
         }
-    },
-    sessionListener: function (javaSession) {
-        var session = updateSession(javaSession);
-        _sessionListener(session);
-    },
-    sessionJoined: function (obj) {
-        var session = updateSession(obj);
+    };
 
-        if (obj.media && obj.media.sessionId) {
-            _currentMedia = new chrome.cast.media.Media(session.sessionId, obj.media.mediaSessionId);
-            _currentMedia.currentTime = obj.media.currentTime;
-            _currentMedia.playerState = obj.media.playerState;
-            _currentMedia.media = obj.media.media;
-            session.media[0] = _currentMedia;
-        }
-
-        _sessionListener(session);
-    },
-    onMessage: function (namespace, message) {
-        if (_session) {
-            _session.emit('message:' + namespace, namespace, message);
-        }
+    var event = events[eventName];
+    if (!event) {
+        throw new Error('cordova-plugin-chromecast: No event called "' + eventName + '".');
     }
-};
+    event.apply(null, args);
+});
 
 module.exports = chrome.cast;
 
@@ -1298,7 +1270,7 @@ function updateSession (javaSession) {
         javaSession.displayName,
         javaSession.appImages || [],
         createReceiver(javaSession.receiver)
-        );
+    );
     _session.status = chrome.cast.SessionStatus.CONNECTED;
     _session.media[0] = createMedia(javaSession.media, javaSession.sessionId);
 
@@ -1369,11 +1341,3 @@ function handleError (err, callback) {
         callback(error);
     }
 }
-
-execute('setup', function (err) {
-    if (!err) {
-        chrome.cast.isAvailable = true;
-    } else {
-        throw new Error('Unable to setup chrome.cast API' + err);
-    }
-});

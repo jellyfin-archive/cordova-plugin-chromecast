@@ -1,8 +1,5 @@
 package acidhax.cordova.chromecast;
 
-import android.annotation.TargetApi;
-import android.os.Build;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -30,6 +27,8 @@ public final class Chromecast extends CordovaPlugin {
     private ChromecastSession media;
     /** Holds the reference to the current client initiated scan. */
     private ChromecastConnection.ScanCallback clientScan;
+    /** Client's event listener callback. */
+    private CallbackContext eventCallback;
 
     @Override
     protected void pluginInitialize() {
@@ -38,37 +37,31 @@ public final class Chromecast extends CordovaPlugin {
         this.connection = new ChromecastConnection(cordova.getActivity(), new ChromecastConnection.Listener() {
             @Override
             public void onSessionRejoin(JSONObject jsonSession) {
-                sendJavascript("chrome.cast._.sessionListener(" + jsonSession + ");");
+                sendEvent("SESSION_LISTENER", new JSONArray().put(jsonSession));
             }
             @Override
             public void onSessionUpdate(JSONObject jsonSession) {
-                sendJavascript("chrome.cast._.sessionUpdated(" + jsonSession + ");");
+                sendEvent("SESSION_UPDATE", new JSONArray().put(jsonSession));
             }
             @Override
             public void onSessionEnd(JSONObject jsonSession) {
-                sendJavascript("chrome.cast._.sessionUpdated(" + jsonSession + ");");
+                onSessionUpdate(jsonSession);
             }
             @Override
             public void onReceiverAvailableUpdate(boolean available) {
-                sendJavascript("chrome.cast._.receiverUpdate(" + available + ")");
+                sendEvent("RECEIVER_LISTENER", new JSONArray().put(available));
             }
             @Override
             public void onMediaLoaded(JSONObject jsonMedia) {
-                sendJavascript("chrome.cast._.mediaLoaded(" + jsonMedia + ");");
+                sendEvent("MEDIA_LOAD", new JSONArray().put(jsonMedia));
             }
             @Override
             public void onMediaUpdate(JSONObject jsonMedia) {
-                sendJavascript("chrome.cast._.mediaUpdated(true, " + jsonMedia + ");");
+                sendEvent("MEDIA_UPDATE", new JSONArray().put(jsonMedia));
             }
             @Override
             public void onMessageReceived(CastDevice device, String namespace, String message) {
-                try {
-                    JSONObject jsonMessage = new JSONObject(message);
-                    sendJavascript(
-                            "chrome.cast._.onMessage('" + namespace + "', '" + jsonMessage + "')");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                sendEvent("RECEIVER_MESSAGE", new JSONArray().put(namespace).put(message));
             }
         });
         this.media = connection.getChromecastSession();
@@ -143,7 +136,8 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean setup(CallbackContext callbackContext) {
-        callbackContext.success();
+        this.eventCallback = callbackContext;
+        sendEvent("SETUP", new JSONArray());
         return true;
     }
 
@@ -435,18 +429,17 @@ public final class Chromecast extends CordovaPlugin {
         return true;
     }
 
-    //Change all @deprecated this.webView.sendJavascript(String) to this local function sendJavascript(String)
-    @TargetApi(Build.VERSION_CODES.KITKAT)
-    private void sendJavascript(final String javascript) {
-        webView.getView().post(new Runnable() {
-            public void run() {
-                // See: https://github.com/GoogleChrome/chromium-webview-samples/blob/master/jsinterface-example/app/src/main/java/jsinterfacesample/android/chrome/google/com/jsinterface_example/MainFragment.java
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    webView.sendJavascript(javascript);
-                } else {
-                    webView.loadUrl("javascript:" + javascript);
-                }
-            }
-        });
+    /**
+     * This triggers an event on the JS-side.
+     * @param eventName - The name of the JS event to trigger
+     * @param args - The arguments to pass the JS event
+     */
+    private void sendEvent(String eventName, JSONArray args) {
+        if (eventCallback == null) {
+            return;
+        }
+        PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, new JSONArray().put(eventName).put(args));
+        pluginResult.setKeepCallback(true);
+        eventCallback.sendPluginResult(pluginResult);
     }
 }

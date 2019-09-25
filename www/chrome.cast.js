@@ -524,6 +524,7 @@ chrome.cast = {
     }
 };
 
+var _initialized = false;
 var _sessionListener = function () {};
 var _receiverListener = function () {};
 
@@ -541,6 +542,7 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
     execute('initialize', apiConfig.sessionRequest.appId, apiConfig.autoJoinPolicy, apiConfig.defaultActionPolicy, function (err) {
         if (!err) {
             // Don't set the listeners config until success
+            _initialized = true;
             _sessionListener = apiConfig.sessionListener;
             _receiverListener = apiConfig.receiverListener;
             successCallback();
@@ -1248,6 +1250,10 @@ function execute (action) {
     if (action !== 'setup' && !chrome.cast.isAvailable) {
         return callback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
     }
+    if (action !== 'setup' && action !== 'initialize' && !_initialized) {
+        throw new Error('Not initialized. Must call chrome.cast.initialize first.');
+    }
+
     window.cordova.exec(function (result) { callback && callback(null, result); }, function (err) { callback && callback(err); }, 'Chromecast', action, args);
 }
 

@@ -538,11 +538,6 @@ var _currentMedia = null;
  * @param  {function} errorCallback
  */
 chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
-    if (!chrome.cast.isAvailable) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     execute('initialize', apiConfig.sessionRequest.appId, apiConfig.autoJoinPolicy, apiConfig.defaultActionPolicy, function (err) {
         if (!err) {
             // Don't set the listeners config until success
@@ -565,11 +560,6 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
  * @param  {chrome.cast.SessionRequest} opt_sessionRequest
  */
 chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessionRequest) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     execute('requestSession', function (err, obj) {
         if (!err) {
             successCallback(updateSession(obj));
@@ -623,11 +613,6 @@ chrome.cast.Session.prototype = Object.create(EventEmitter.prototype);
  * @param {function}     errorCallback   The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.setReceiverVolumeLevel = function (newLevel, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     execute('setReceiverVolumeLevel', newLevel, function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -644,10 +629,6 @@ chrome.cast.Session.prototype.setReceiverVolumeLevel = function (newLevel, succe
  * @param {function} errorCallback       The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.setReceiverMuted = function (muted, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
     execute('setReceiverMuted', muted, function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -663,10 +644,6 @@ chrome.cast.Session.prototype.setReceiverMuted = function (muted, successCallbac
  * @param {function} errorCallback   The possible errors are TIMEOUT, API_NOT_INITIALIZED, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.stop = function (successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
     if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
         errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
         return;
@@ -690,10 +667,6 @@ chrome.cast.Session.prototype.stop = function (successCallback, errorCallback) {
  * @param {function} errorCallback   The possible errors are TIMEOUT, API_NOT_INITIALIZED, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.leave = function (successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
     if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
         errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
         return;
@@ -721,11 +694,6 @@ chrome.cast.Session.prototype.leave = function (successCallback, errorCallback) 
  * @param  {[type]}             errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING
  */
 chrome.cast.Session.prototype.sendMessage = function (namespace, message, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     if (typeof message === 'object') {
         message = JSON.stringify(message);
     }
@@ -745,11 +713,6 @@ chrome.cast.Session.prototype.sendMessage = function (namespace, message, succes
  * @param  {function} errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     var self = this;
 
     var mediaInfo = loadRequest.media;
@@ -918,11 +881,6 @@ chrome.cast.media.Media.prototype = Object.create(EventEmitter.prototype);
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.play = function (playRequest, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     execute('mediaPlay', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -939,11 +897,6 @@ chrome.cast.media.Media.prototype.play = function (playRequest, successCallback,
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.pause = function (pauseRequest, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     execute('mediaPause', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -960,11 +913,6 @@ chrome.cast.media.Media.prototype.pause = function (pauseRequest, successCallbac
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.seek = function (seekRequest, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     const currentTime = Math.round(seekRequest.currentTime);
     const resumeState = seekRequest.resumeState || '';
 
@@ -984,11 +932,6 @@ chrome.cast.media.Media.prototype.seek = function (seekRequest, successCallback,
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.stop = function (stopRequest, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     execute('mediaStop', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -1005,11 +948,6 @@ chrome.cast.media.Media.prototype.stop = function (stopRequest, successCallback,
  * @param {function} errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.setVolume = function (volumeRequest, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     if (!volumeRequest.volume || (volumeRequest.volume.level == null && volumeRequest.volume.muted === null)) {
         errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.SESSION_ERROR), 'INVALID_PARAMS', { reason: 'INVALID_PARAMS', type: 'INVALID_REQUEST' });
         return;
@@ -1056,11 +994,6 @@ chrome.cast.media.Media.prototype.getEstimatedTime = function () {
  * @param {function(not-null chrome.cast.Error)}            errorCallback Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  **/
 chrome.cast.media.Media.prototype.editTracksInfo = function (editTracksInfoRequest, successCallback, errorCallback) {
-    if (chrome.cast.isAvailable === false) {
-        errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
-        return;
-    }
-
     var activeTracks = editTracksInfoRequest.activeTrackIds;
     var textTrackSytle = editTracksInfoRequest.textTrackSytle;
 
@@ -1309,6 +1242,11 @@ function execute (action) {
     var callback;
     if (args[args.length - 1] instanceof Function) {
         callback = args.pop();
+    }
+
+    // Reasons to not execute
+    if (action !== 'setup' && !chrome.cast.isAvailable) {
+        return callback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
     }
     window.cordova.exec(function (result) { callback && callback(null, result); }, function (err) { callback && callback(err); }, 'Chromecast', action, args);
 }

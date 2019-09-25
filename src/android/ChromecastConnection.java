@@ -147,7 +147,7 @@ public class ChromecastConnection {
     public void selectRoute(final String routeId, JoinCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                if (getSession() != null) {
+                if (getSession() != null && getSession().isConnected()) {
                     callback.onError("cordova_already_joined");
                 }
 
@@ -281,10 +281,38 @@ public class ChromecastConnection {
                 media.setSession(castSession);
                 callback.onJoin(ChromecastUtilities.createSessionObject(castSession));
             }
+            /**
+             * Possible error codes for onSessionStartFailed and onSessionEnded
+             * https://developers.google.com/android/reference/com/google/android/gms/cast/CastStatusCodes.html
+             * https://developers.google.com/android/reference/com/google/android/gms/common/api/CommonStatusCodes.html
+             */
             @Override
             public void onSessionStartFailed(CastSession castSession, int errCode) {
                 getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                callback.onError(Integer.toString(errCode));
+                callback.onError("Failed to start session with error code: " + errCode);
+            }
+            @Override
+            public void onSessionEnded(CastSession castSession, int errCode) {
+                // Can hit here on occasion.
+                // This seems to happen mostly on Android 4.4.
+                // Reasons from Media router include:
+                // - "Ignoring attempt to select removed route: "
+                // - "Unselecting the current route because it is no longer selectable: "
+                // Both reasons result in onRouteUnselected being triggered with
+                // reason = 0, (MediaRouter.UNSELECT_REASON_UNKNOWN)
+
+                // If you retry selecting the route long enough it seems like eventually you will
+                // succeed.  But sometimes it can take up to 9 tries (~4.5 seconds per try) to
+                // successfully join.  That is way too long, so just return an error.
+
+                // More details: In these cases the event order will be:
+                // onSessionStarting,
+                // onRouteUnselected, (at this point, before as well, getSession() will return
+                //                     non-null, but session.isConnected() == false)
+                // onSessionEnding,
+                // onSessionEnded (errCode == 0 (success))
+                getSessionManager().removeSessionManagerListener(this, CastSession.class);
+                callback.onError("Failed to finish starting session. Session ended with error code: " + errCode);
             }
         };
         getSessionManager().addSessionManagerListener(newConnectionListener, CastSession.class);

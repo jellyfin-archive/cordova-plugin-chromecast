@@ -164,18 +164,19 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean requestSession(final CallbackContext callbackContext) {
-        connection.requestSession(new ChromecastConnection.JoinCallback() {
+        connection.requestSession(new ChromecastConnection.RequestSessionCallback() {
             @Override
             public void onJoin(JSONObject jsonSession) {
                 callbackContext.success(jsonSession);
             }
-            public void onError(String errorCode) {
-                if (errorCode.equals("CANCEL")) {
-                    callbackContext.error("cancel");
-                } else {
-                    // TODO maybe handle some of the error codes better
-                    callbackContext.error("session_error");
-                }
+            @Override
+            public void onError(int errorCode) {
+                // TODO maybe handle some of the error codes better
+                callbackContext.error("session_error");
+            }
+            @Override
+            public void onCancel() {
+                callbackContext.error("cancel");
             }
         });
         return true;
@@ -188,15 +189,14 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean selectRoute(final String routeId, final CallbackContext callbackContext) {
-        connection.selectRoute(routeId, new ChromecastConnection.JoinCallback() {
+        connection.selectRoute(routeId, new ChromecastConnection.SelectRouteCallback() {
             @Override
             public void onJoin(JSONObject jsonSession) {
                 callbackContext.success(jsonSession);
             }
-
             @Override
-            public void onError(String errorCode) {
-                callbackContext.error(errorCode);
+            public void onError(String message) {
+                callbackContext.error(message);
             }
         });
         return true;

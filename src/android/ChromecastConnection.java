@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 
+import androidx.arch.core.util.Function;
 import androidx.mediarouter.app.MediaRouteChooserDialog;
 import androidx.mediarouter.media.MediaRouteSelector;
 import androidx.mediarouter.media.MediaRouter;
@@ -144,19 +145,18 @@ public class ChromecastConnection {
      * @param callback calls callback.onJoin when we have joined a session,
      *                 or callback.onError if an error occurred
      */
-    public void selectRoute(final String routeId, JoinCallback callback) {
+    public void selectRoute(final String routeId, SelectRouteCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 if (getSession() != null && getSession().isConnected()) {
                     callback.onError("cordova_already_joined");
                 }
 
-                // We need this hack so that we can access the foundRoute value
-                // Without having to store it as a global variable.
-                // Just always access first element
+                // We need this hack so that we can access these values in callbacks without having
+                // to store it as a global variable, just always access first element
                 final boolean[] foundRoute = {false};
-
-                listenForConnection(callback);
+                final boolean[] sentResult = {false};
+                final int[] retries = {0};
 
                 // We need to start an active scan because getMediaRouter().getRoutes() may be out
                 // of date.  Also, maintaining a list of known routes doesn't work.  It is possible
@@ -176,23 +176,79 @@ public class ChromecastConnection {
                             if (!foundRoute[0] && route.getId().equals(routeId)) {
                                 // Found the route!
                                 foundRoute[0] = true;
-                                // So stop the scan
-                                stopRouteScan(this);
-                                // And select it!
-                                getMediaRouter().selectRoute(route);
+                                // try-catch for issue:
+                                // https://github.com/jellyfin/cordova-plugin-chromecast/issues/48
+                                try {
+                                    // Try selecting the route!
+                                    getMediaRouter().selectRoute(route);
+                                } catch (NullPointerException e) {
+                                    // Let it try to find the route again
+                                    foundRoute[0] = false;
+                                }
                             }
                         }
                     }
                 };
-                startRouteScan(5000L, scan, new Runnable() {
+
+                Runnable retry = new Runnable() {
                     @Override
                     public void run() {
-                        // If we were not able to find the route
-                        if (!foundRoute[0]) {
+                        // Reset foundRoute
+                        foundRoute[0] = false;
+                        // Feed current routes into scan so that it can retry.
+                        // If route is there, it will try to join,
+                        // if not, it should wait for the scan to find the route
+                        scan.onRouteUpdate(getMediaRouter().getRoutes());
+                    }
+                };
+
+                Function<String, Void> sendErrorResult = new Function<String, Void>() {
+                    @Override
+                    public Void apply(String message) {
+                        if (!sentResult[0]) {
+                            sentResult[0] = true;
                             stopRouteScan(scan);
-                            callback.onError("TIMEOUT Could not find active route with id: "
-                                    + routeId + " after 5s.");
+                            callback.onError(message);
                         }
+                        return null;
+                    }
+                };
+
+                listenForConnection(new ConnectionCallback() {
+                    @Override
+                    public void onJoin(JSONObject jsonSession) {
+                        sentResult[0] = true;
+                        stopRouteScan(scan);
+                        callback.onJoin(jsonSession);
+                    }
+                    @Override
+                    public boolean onSessionStartFailed(int errorCode) {
+                        if (errorCode == 7 || errorCode == 15) {
+                            // It network or timeout error retry
+                            retry.run();
+                            return false;
+                        } else {
+                            sendErrorResult.apply("Failed to start session with error code: " + errorCode);
+                            return true;
+                        }
+                    }
+                    @Override
+                    public boolean onSessionEndedBeforeStart(int errorCode) {
+                        if (retries[0] < 10) {
+                            retries[0]++;
+                            retry.run();
+                            return false;
+                        } else {
+                            sendErrorResult.apply("Failed to to join existing route (" + routeId + ") " + retries[0] + 1 + " times before giving up.");
+                            return true;
+                        }
+                    }
+                });
+
+                startRouteScan(15000L, scan, new Runnable() {
+                    @Override
+                    public void run() {
+                        sendErrorResult.apply("TIMEOUT Failed to to join existing route (" + routeId + ") after 15s and " + retries[0] + 1 + " trys.");
                     }
                 });
             }
@@ -207,18 +263,18 @@ public class ChromecastConnection {
      * Displays the built in native prompt to the user.
      * It will actively scan for routes and display them to the user.
      * Upon selection it will immediately attempt to selectRoute the route.
-     * Will call onJoin or onError of callback.
+     * Will call onJoin, onError or onCancel, of callback.
      *
      * Else we have a connection, so:
      * 2)
      * Displays the active connection dialog which includes the option
      * to disconnect.
-     * Will only call onError of callback if the user cancels the dialog.
+     * Will only call onCancel of callback if the user cancels the dialog.
      *
      * @param callback calls callback.success when we have joined a session,
      *                 or callback.error if an error occurred or if the dialog was dismissed
      */
-    public void requestSession(JoinCallback callback) {
+    public void requestSession(RequestSessionCallback callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 CastSession session = getSession();
@@ -239,7 +295,7 @@ public class ChromecastConnection {
                         @Override
                         public void onCancel(DialogInterface dialog) {
                             getSessionManager().removeSessionManagerListener(newConnectionListener, CastSession.class);
-                            callback.onError("CANCEL");
+                            callback.onCancel();
                         }
                     });
                     builder.show();
@@ -252,7 +308,7 @@ public class ChromecastConnection {
                     builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
                         @Override
                         public void onDismiss(DialogInterface dialog) {
-                            callback.onError("CANCEL");
+                            callback.onCancel();
                         }
                     });
                     builder.setPositiveButton("Stop Casting", new DialogInterface.OnClickListener() {
@@ -271,7 +327,7 @@ public class ChromecastConnection {
      * Must be called from the main thread.
      * @param callback calls callback.success when we have joined, or callback.error if an error occurred
      */
-    private void listenForConnection(JoinCallback callback) {
+    private void listenForConnection(ConnectionCallback callback) {
         // We should only ever have one of these listeners active at a time, so remove previous
         getSessionManager().removeSessionManagerListener(newConnectionListener, CastSession.class);
         newConnectionListener = new SessionListener() {
@@ -281,38 +337,17 @@ public class ChromecastConnection {
                 media.setSession(castSession);
                 callback.onJoin(ChromecastUtilities.createSessionObject(castSession));
             }
-            /**
-             * Possible error codes for onSessionStartFailed and onSessionEnded
-             * https://developers.google.com/android/reference/com/google/android/gms/cast/CastStatusCodes.html
-             * https://developers.google.com/android/reference/com/google/android/gms/common/api/CommonStatusCodes.html
-             */
             @Override
             public void onSessionStartFailed(CastSession castSession, int errCode) {
-                getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                callback.onError("Failed to start session with error code: " + errCode);
+                if (callback.onSessionStartFailed(errCode)) {
+                    getSessionManager().removeSessionManagerListener(this, CastSession.class);
+                }
             }
             @Override
             public void onSessionEnded(CastSession castSession, int errCode) {
-                // Can hit here on occasion.
-                // This seems to happen mostly on Android 4.4.
-                // Reasons from Media router include:
-                // - "Ignoring attempt to select removed route: "
-                // - "Unselecting the current route because it is no longer selectable: "
-                // Both reasons result in onRouteUnselected being triggered with
-                // reason = 0, (MediaRouter.UNSELECT_REASON_UNKNOWN)
-
-                // If you retry selecting the route long enough it seems like eventually you will
-                // succeed.  But sometimes it can take up to 9 tries (~4.5 seconds per try) to
-                // successfully join.  That is way too long, so just return an error.
-
-                // More details: In these cases the event order will be:
-                // onSessionStarting,
-                // onRouteUnselected, (at this point, before as well, getSession() will return
-                //                     non-null, but session.isConnected() == false)
-                // onSessionEnding,
-                // onSessionEnded (errCode == 0 (success))
-                getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                callback.onError("Failed to finish starting session. Session ended with error code: " + errCode);
+                if (callback.onSessionEndedBeforeStart(errCode)) {
+                    getSessionManager().removeSessionManagerListener(this, CastSession.class);
+                }
             }
         };
         getSessionManager().addSessionManagerListener(newConnectionListener, CastSession.class);
@@ -433,7 +468,27 @@ public class ChromecastConnection {
         public void onSessionSuspended(CastSession castSession, int reason) { }
     }
 
-    public interface JoinCallback {
+    interface SelectRouteCallback {
+        void onJoin(JSONObject jsonSession);
+        void onError(String message);
+    }
+
+    abstract static class RequestSessionCallback implements ConnectionCallback {
+        abstract void onError(int errorCode);
+        abstract void onCancel();
+        @Override
+        public final boolean onSessionEndedBeforeStart(int errorCode) {
+            onSessionStartFailed(errorCode);
+            return true;
+        }
+        @Override
+        public final boolean onSessionStartFailed(int errorCode) {
+            onError(errorCode);
+            return true;
+        }
+    }
+
+    interface ConnectionCallback {
         /**
          * Successfully joined a session on a route.
          * @param jsonSession the session we joined
@@ -442,11 +497,21 @@ public class ChromecastConnection {
 
         /**
          * Called if we received an error.
-         * @param errorCode "CANCEL" means the user cancelled
-         *                  If the errorCode is an integer, you can find the meaning here:
+         * @param errorCode You can find the error meaning here:
          *                 https://developers.google.com/android/reference/com/google/android/gms/cast/CastStatusCodes
+         * @return true if we are done listening for join, false, if we to keep listening
          */
-        void onError(String errorCode);
+        boolean onSessionStartFailed(int errorCode);
+
+        /**
+         * Called when we detect a session ended event before session started.
+         * See issues:
+         *     https://github.com/jellyfin/cordova-plugin-chromecast/issues/49
+         *     https://github.com/jellyfin/cordova-plugin-chromecast/issues/48
+         * @param errorCode error to output
+         * @return true if we are done listening for join, false, if we to keep listening
+         */
+        boolean onSessionEndedBeforeStart(int errorCode);
     }
 
     public abstract static class ScanCallback extends MediaRouter.Callback {

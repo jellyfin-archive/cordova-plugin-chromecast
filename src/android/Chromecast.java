@@ -195,7 +195,7 @@ public final class Chromecast extends CordovaPlugin {
                 callbackContext.success(jsonSession);
             }
             @Override
-            public void onError(String message) {
+            public void onError(JSONObject message) {
                 callbackContext.error(message);
             }
         });

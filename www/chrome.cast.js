@@ -95,8 +95,7 @@ chrome.cast = {
         SESSION_ERROR: 'session_error',
         TIMEOUT: 'timeout',
         UNKNOWN: 'unknown',
-        NOT_IMPLEMENTED: 'not_implemented',
-        CORDOVA_ALREADY_JOINED: 'cordova_already_joined'
+        NOT_IMPLEMENTED: 'not_implemented'
     },
 
     SessionStatus: { CONNECTED: 'connected', DISCONNECTED: 'disconnected', STOPPED: 'stopped' },
@@ -1260,29 +1259,27 @@ function execute (action) {
 }
 
 function handleError (err, callback) {
-    var errorDescription = err;
+    var desc = err && err.description;
+    err = (err.code || err).toLowerCase();
 
-    err = err.toLowerCase() || '';
     if (err === chrome.cast.ErrorCode.TIMEOUT) {
-        errorDescription = 'The operation timed out.';
+        desc = desc || 'The operation timed out.';
     } else if (err === chrome.cast.ErrorCode.INVALID_PARAMETER) {
-        errorDescription = 'The parameters to the operation were not valid.';
+        desc = desc || 'The parameters to the operation were not valid.';
     } else if (err === chrome.cast.ErrorCode.RECEIVER_UNAVAILABLE) {
-        errorDescription = 'No receiver was compatible with the session request.';
+        desc = desc || 'No receiver was compatible with the session request.';
     } else if (err === chrome.cast.ErrorCode.CANCEL) {
-        errorDescription = 'The operation was canceled by the user.';
+        desc = desc || 'The operation was canceled by the user.';
     } else if (err === chrome.cast.ErrorCode.CHANNEL_ERROR) {
-        errorDescription = 'A channel to the receiver is not available.';
+        desc = desc || 'A channel to the receiver is not available.';
     } else if (err === chrome.cast.ErrorCode.SESSION_ERROR) {
-        errorDescription = 'A session could not be created, or a session was invalid.';
-    } else if (err === chrome.cast.ErrorCode.CORDOVA_ALREADY_JOINED) {
-        errorDescription = 'Leave or stop current session before attempting to join new session.';
+        desc = desc || 'A session could not be created, or a session was invalid.';
     } else {
-        errorDescription = err;
+        desc = err + ' ' + desc;
         err = chrome.cast.ErrorCode.UNKNOWN;
     }
 
-    var error = new chrome.cast.Error(err, errorDescription, {});
+    var error = new chrome.cast.Error(err, desc, {});
     if (callback) {
         callback(error);
     }

@@ -149,7 +149,8 @@ public class ChromecastConnection {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 if (getSession() != null && getSession().isConnected()) {
-                    callback.onError("cordova_already_joined");
+                    callback.onError(ChromecastUtilities.createError("session_error",
+                            "Leave or stop current session before attempting to join new session."));
                 }
 
                 // We need this hack so that we can access these values in callbacks without having
@@ -202,9 +203,9 @@ public class ChromecastConnection {
                     }
                 };
 
-                Function<String, Void> sendErrorResult = new Function<String, Void>() {
+                Function<JSONObject, Void> sendErrorResult = new Function<JSONObject, Void>() {
                     @Override
-                    public Void apply(String message) {
+                    public Void apply(JSONObject message) {
                         if (!sentResult[0]) {
                             sentResult[0] = true;
                             stopRouteScan(scan);
@@ -228,7 +229,8 @@ public class ChromecastConnection {
                             retry.run();
                             return false;
                         } else {
-                            sendErrorResult.apply("Failed to start session with error code: " + errorCode);
+                            sendErrorResult.apply(ChromecastUtilities.createError("session_error",
+                                    "Failed to start session with error code: " + errorCode));
                             return true;
                         }
                     }
@@ -239,7 +241,8 @@ public class ChromecastConnection {
                             retry.run();
                             return false;
                         } else {
-                            sendErrorResult.apply("Failed to to join existing route (" + routeId + ") " + retries[0] + 1 + " times before giving up.");
+                            sendErrorResult.apply(ChromecastUtilities.createError("session_error",
+                                    "Failed to to join existing route (" + routeId + ") " + retries[0] + 1 + " times before giving up."));
                             return true;
                         }
                     }
@@ -248,7 +251,8 @@ public class ChromecastConnection {
                 startRouteScan(15000L, scan, new Runnable() {
                     @Override
                     public void run() {
-                        sendErrorResult.apply("TIMEOUT Failed to to join existing route (" + routeId + ") after 15s and " + retries[0] + 1 + " trys.");
+                        sendErrorResult.apply(ChromecastUtilities.createError("timeout",
+                                "Failed to to join route (" + routeId + ") after 15s and " + retries[0] + 1 + " trys."));
                     }
                 });
             }
@@ -470,7 +474,7 @@ public class ChromecastConnection {
 
     interface SelectRouteCallback {
         void onJoin(JSONObject jsonSession);
-        void onError(String message);
+        void onError(JSONObject message);
     }
 
     abstract static class RequestSessionCallback implements ConnectionCallback {

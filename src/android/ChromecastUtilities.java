@@ -438,4 +438,15 @@ final class ChromecastUtilities {
         }
         return routesArray;
     }
+
+    static JSONObject createError(String code, String message) {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("code", code);
+            out.put("description", message);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return out;
+    }
 }

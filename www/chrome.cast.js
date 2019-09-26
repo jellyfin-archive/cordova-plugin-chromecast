@@ -1157,7 +1157,9 @@ execute('setup', function (err, args) {
                 _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
             }
             _currentMedia._update(media);
-            _session.media[0] = _currentMedia;
+            if (_session) {
+                _session.media[0] = _currentMedia;
+            }
         },
         MEDIA_LOAD: function (media) {
             if (_session) {

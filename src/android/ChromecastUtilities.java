@@ -223,7 +223,7 @@ final class ChromecastUtilities {
         } catch (JSONException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
-            e.printStackTrace();
+
         }
 
         return out;
@@ -240,7 +240,7 @@ final class ChromecastUtilities {
                 }
             }
         } catch (NullPointerException e) {
-            e.printStackTrace();
+
         }
         return appImages;
     }
@@ -256,14 +256,14 @@ final class ChromecastUtilities {
                 volume.put("level", session.getVolume());
                 volume.put("muted", session.isMute());
             } catch (JSONException e) {
-                e.printStackTrace();
+
             }
             out.put("volume", volume);
 
         } catch (JSONException e) {
-            e.printStackTrace();
+
         } catch (NullPointerException e) {
-            e.printStackTrace();
+
         }
         return out;
     }
@@ -312,9 +312,9 @@ final class ChromecastUtilities {
             }
 
         } catch (JSONException e) {
-            e.printStackTrace();
+
         } catch (NullPointerException e) {
-            e.printStackTrace();
+
         }
 
         return out;
@@ -350,9 +350,9 @@ final class ChromecastUtilities {
                 out.put(jsonTrack);
             }
         } catch (JSONException e) {
-            e.printStackTrace();
+
         } catch (NullPointerException e) {
-            e.printStackTrace();
+
         }
 
         return out;
@@ -383,9 +383,9 @@ final class ChromecastUtilities {
             // TODO: Check if it's useful
             //out.put("metadata", mediaInfo.getMetadata());
         } catch (JSONException e) {
-            e.printStackTrace();
+
         } catch (NullPointerException e) {
-            e.printStackTrace();
+
         }
 
         return out;
@@ -407,7 +407,7 @@ final class ChromecastUtilities {
             out.put("windowRoundedCornerRadius", textTrackStyle.getWindowCornerRadius());
             out.put("windowType", getWindowType(textTrackStyle));
         } catch (JSONException e) {
-            e.printStackTrace();
+
         }
 
         return out;
@@ -445,7 +445,7 @@ final class ChromecastUtilities {
             out.put("code", code);
             out.put("description", message);
         } catch (JSONException e) {
-            e.printStackTrace();
+
         }
         return out;
     }

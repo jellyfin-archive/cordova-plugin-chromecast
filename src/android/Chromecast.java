@@ -27,6 +27,8 @@ public final class Chromecast extends CordovaPlugin {
     private ChromecastSession media;
     /** Holds the reference to the current client initiated scan. */
     private ChromecastConnection.ScanCallback clientScan;
+    /** Holds the reference to the current client initiated scan callback. */
+    private CallbackContext scanCallback;
     /** Client's event listener callback. */
     private CallbackContext eventCallback;
 
@@ -397,21 +399,36 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean startRouteScan(CallbackContext callbackContext) {
-        if (clientScan != null) {
-            // Stop any other existing clientScan
-            connection.stopRouteScan(clientScan);
+        if (scanCallback != null) {
+            scanCallback.error(ChromecastUtilities.createError("cancel", "Started a new route scan before stopping previous one."));
         }
-        clientScan = new ChromecastConnection.ScanCallback() {
+        scanCallback = callbackContext;
+        Runnable startScan = new Runnable() {
             @Override
-            void onRouteUpdate(List<RouteInfo> routes) {
-                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK,
-                        ChromecastUtilities.createRoutesArray(routes));
-                pluginResult.setKeepCallback(true);
-                callbackContext.sendPluginResult(pluginResult);
+            public void run() {
+                clientScan = new ChromecastConnection.ScanCallback() {
+                    @Override
+                    void onRouteUpdate(List<RouteInfo> routes) {
+                        if (scanCallback != null) {
+                            PluginResult pluginResult = new PluginResult(PluginResult.Status.OK,
+                                    ChromecastUtilities.createRoutesArray(routes));
+                            pluginResult.setKeepCallback(true);
+                            scanCallback.sendPluginResult(pluginResult);
+                        } else {
+                            // Try to get the scan to stop because we already ended the scanCallback
+                            connection.stopRouteScan(clientScan, null);
+                        }
+                    }
+                };
+                connection.startRouteScan(null, clientScan, null);
             }
         };
-        connection.startRouteScan(null, clientScan, null);
-
+        if (clientScan != null) {
+            // Stop any other existing clientScan
+            connection.stopRouteScan(clientScan, startScan);
+        } else {
+            startScan.run();
+        }
         return true;
     }
 
@@ -421,11 +438,17 @@ public final class Chromecast extends CordovaPlugin {
      * @return true for cordova
      */
     public boolean stopRouteScan(CallbackContext callbackContext) {
-        if (clientScan != null) {
-            // Stop any other existing clientScan
-            connection.stopRouteScan(clientScan);
-        }
-        callbackContext.success();
+        // Stop any other existing clientScan
+        connection.stopRouteScan(clientScan, new Runnable() {
+            @Override
+            public void run() {
+                if (scanCallback != null) {
+                    scanCallback.error(ChromecastUtilities.createError("cancel", "Scan stopped."));
+                    scanCallback = null;
+                }
+                callbackContext.success();
+            }
+        });
         return true;
     }
 

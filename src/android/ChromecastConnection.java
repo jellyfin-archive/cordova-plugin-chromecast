@@ -99,7 +99,7 @@ public class ChromecastConnection {
                         // If there is at least one device available
                         if (getContext().getCastState() != CastState.NO_DEVICES_AVAILABLE) {
                             // Stop the scan
-                            stopRouteScan(this);
+                            stopRouteScan(this, null);
                             // Let the client know a receiver is available
                             listener.onReceiverAvailableUpdate(true);
                             // Since we have a receiver we may also have an active session
@@ -151,6 +151,7 @@ public class ChromecastConnection {
                 if (getSession() != null && getSession().isConnected()) {
                     callback.onError(ChromecastUtilities.createError("session_error",
                             "Leave or stop current session before attempting to join new session."));
+                    return;
                 }
 
                 // We need this hack so that we can access these values in callbacks without having
@@ -208,7 +209,7 @@ public class ChromecastConnection {
                     public Void apply(JSONObject message) {
                         if (!sentResult[0]) {
                             sentResult[0] = true;
-                            stopRouteScan(scan);
+                            stopRouteScan(scan, null);
                             callback.onError(message);
                         }
                         return null;
@@ -219,7 +220,7 @@ public class ChromecastConnection {
                     @Override
                     public void onJoin(JSONObject jsonSession) {
                         sentResult[0] = true;
-                        stopRouteScan(scan);
+                        stopRouteScan(scan, null);
                         callback.onJoin(jsonSession);
                     }
                     @Override
@@ -252,7 +253,7 @@ public class ChromecastConnection {
                     @Override
                     public void run() {
                         sendErrorResult.apply(ChromecastUtilities.createError("timeout",
-                                "Failed to to join route (" + routeId + ") after 15s and " + retries[0] + 1 + " trys."));
+                                "Failed to join route (" + routeId + ") after 15s and " + (retries[0] + 1) + " tries."));
                     }
                 });
             }
@@ -412,12 +413,20 @@ public class ChromecastConnection {
     /**
      * Call to stop the active scan if any exist.
      * @param callback the callback to stop and remove
+     * @param completionCallback called on completion
      */
-    public void stopRouteScan(ScanCallback callback) {
+    public void stopRouteScan(ScanCallback callback, Runnable completionCallback) {
+        if (callback == null) {
+            completionCallback.run();
+            return;
+        }
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 callback.stop();
                 getMediaRouter().removeCallback(callback);
+                if (completionCallback != null) {
+                    completionCallback.run();
+                }
             }
         });
     }

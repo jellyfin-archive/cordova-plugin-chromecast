@@ -524,8 +524,8 @@ chrome.cast = {
 };
 
 var _initialized = false;
-var _sessionListener = function () {};
-var _receiverListener = function () {};
+var _sessionListener;
+var _receiverListener;
 
 var _session;
 var _currentMedia = null;
@@ -545,7 +545,7 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
             _sessionListener = apiConfig.sessionListener;
             _receiverListener = apiConfig.receiverListener;
             successCallback();
-            _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
+            _receiverListener && _receiverListener(chrome.cast.ReceiverAvailability.UNAVAILABLE);
         } else {
             handleError(err, errorCallback);
         }
@@ -1061,6 +1061,7 @@ chrome.cast.cordova = {
      * active routes whenever a route change is detected.
      * It is super important that client calls "stopScan", otherwise the
      * battery could drain quickly.
+     * https://github.com/jellyfin/cordova-plugin-chromecast/issues/22#issuecomment-530773677
      * @param {function(routes)} successCallback
      * @param {function(chrome.cast.Error)} successCallback
      */
@@ -1128,6 +1129,9 @@ execute('setup', function (err, args) {
             chrome.cast.isAvailable = true;
         },
         RECEIVER_LISTENER: function (available) {
+            if (!_receiverListener) {
+                return;
+            }
             if (available) {
                 _receiverListener(chrome.cast.ReceiverAvailability.AVAILABLE);
             } else {
@@ -1171,7 +1175,7 @@ execute('setup', function (err, args) {
         },
         SESSION_LISTENER: function (javaSession) {
             var session = updateSession(javaSession);
-            _sessionListener(session);
+            _sessionListener && _sessionListener(session);
         },
         RECEIVER_MESSAGE: function (namespace, message) {
             if (_session) {
@@ -1196,8 +1200,8 @@ function updateSession (javaSession) {
     // Should we reset the sesion?
     if (!javaSession) {
         _session = undefined;
-        _sessionListener = function () {};
-        _receiverListener = function () {};
+        _sessionListener = undefined;
+        _receiverListener = undefined;
         return;
     }
     _session = new chrome.cast.Session(

@@ -444,14 +444,14 @@ public class ChromecastConnection {
                     public void onSessionEnded(CastSession castSession, int error) {
                         getSessionManager().removeSessionManagerListener(this, CastSession.class);
                         media.setSession(null);
+                        if (callback != null) {
+                            callback.success();
+                        }
                         listener.onSessionEnd(ChromecastUtilities.createSessionObject(castSession, stopCasting ? "stopped" : "disconnected"));
                     }
                 }, CastSession.class);
 
                 getSessionManager().endCurrentSession(stopCasting);
-                if (callback != null) {
-                    callback.success();
-                }
             }
         });
     }

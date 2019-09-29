@@ -139,7 +139,17 @@ public final class Chromecast extends CordovaPlugin {
      */
     public boolean setup(CallbackContext callbackContext) {
         this.eventCallback = callbackContext;
-        sendEvent("SETUP", new JSONArray());
+        // Ensure any existing scan is stopped
+        connection.stopRouteScan(clientScan, new Runnable() {
+            @Override
+            public void run() {
+                if (scanCallback != null) {
+                    scanCallback.error(ChromecastUtilities.createError("cancel", "Scan stopped because setup triggered."));
+                    scanCallback = null;
+                }
+                sendEvent("SETUP", new JSONArray());
+            }
+        });
         return true;
     }
 
@@ -451,7 +461,6 @@ public final class Chromecast extends CordovaPlugin {
         });
         return true;
     }
-
     /**
      * This triggers an event on the JS-side.
      * @param eventName - The name of the JS event to trigger

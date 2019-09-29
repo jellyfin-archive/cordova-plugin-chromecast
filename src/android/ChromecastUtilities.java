@@ -44,6 +44,7 @@ final class ChromecastUtilities {
 
     static String getMediaPlayerState(MediaStatus mediaStatus) {
         switch (mediaStatus.getPlayerState()) {
+            case MediaStatus.PLAYER_STATE_LOADING:
             case MediaStatus.PLAYER_STATE_BUFFERING:
                 return "BUFFERING";
             case MediaStatus.PLAYER_STATE_IDLE:
@@ -187,7 +188,6 @@ final class ChromecastUtilities {
                 out.setForegroundColor(Color.parseColor(textTrackSytle.getString("foregroundColor")));
             }
         } catch (JSONException e) {
-            e.printStackTrace();
         }
 
         return out;
@@ -203,7 +203,6 @@ final class ChromecastUtilities {
             try {
                 s.put("status", state);
             } catch (JSONException e) {
-
             }
         }
         return s;
@@ -221,9 +220,8 @@ final class ChromecastUtilities {
             out.put("sessionId", session.getSessionId());
 
         } catch (JSONException e) {
-            e.printStackTrace();
         } catch (NullPointerException e) {
-
+        } catch (IllegalStateException e) {
         }
 
         return out;
@@ -240,7 +238,6 @@ final class ChromecastUtilities {
                 }
             }
         } catch (NullPointerException e) {
-
         }
         return appImages;
     }
@@ -256,14 +253,11 @@ final class ChromecastUtilities {
                 volume.put("level", session.getVolume());
                 volume.put("muted", session.isMute());
             } catch (JSONException e) {
-
             }
             out.put("volume", volume);
 
         } catch (JSONException e) {
-
         } catch (NullPointerException e) {
-
         }
         return out;
     }
@@ -312,9 +306,7 @@ final class ChromecastUtilities {
             }
 
         } catch (JSONException e) {
-
         } catch (NullPointerException e) {
-
         }
 
         return out;
@@ -350,9 +342,7 @@ final class ChromecastUtilities {
                 out.put(jsonTrack);
             }
         } catch (JSONException e) {
-
         } catch (NullPointerException e) {
-
         }
 
         return out;
@@ -383,9 +373,7 @@ final class ChromecastUtilities {
             // TODO: Check if it's useful
             //out.put("metadata", mediaInfo.getMetadata());
         } catch (JSONException e) {
-
         } catch (NullPointerException e) {
-
         }
 
         return out;
@@ -407,7 +395,6 @@ final class ChromecastUtilities {
             out.put("windowRoundedCornerRadius", textTrackStyle.getWindowCornerRadius());
             out.put("windowType", getWindowType(textTrackStyle));
         } catch (JSONException e) {
-
         }
 
         return out;
@@ -445,7 +432,6 @@ final class ChromecastUtilities {
             out.put("code", code);
             out.put("description", message);
         } catch (JSONException e) {
-
         }
         return out;
     }

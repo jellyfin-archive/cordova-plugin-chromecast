@@ -13,6 +13,7 @@ import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaLoadRequestData;
 import com.google.android.gms.cast.MediaMetadata;
 import com.google.android.gms.cast.MediaSeekOptions;
+import com.google.android.gms.cast.MediaStatus;
 import com.google.android.gms.cast.TextTrackStyle;
 import com.google.android.gms.cast.framework.CastSession;
 import com.google.android.gms.cast.framework.media.RemoteMediaClient;
@@ -70,78 +71,74 @@ public class ChromecastSession {
                     return;
                 }
                 client.registerCallback(new RemoteMediaClient.Callback() {
-                    private String currentMedia = "";
+                    private String currentState = "idle";
                     @Override
                     public void onStatusUpdated() {
-                        super.onStatusUpdated();
-                        clientListener.onMediaUpdate(createMediaObject());
-                    }
-                    @Override
-                    public void onMetadataUpdated() {
-                        super.onMetadataUpdated();
-                        MediaInfo info = client.getMediaInfo();
-                        if (info == null) {
-                            currentMedia = "";
-                        } else {
-                            String newMedia = info.getContentId();
-                            if (!currentMedia.equals(newMedia)) {
-                                currentMedia = newMedia;
-                                clientListener.onMediaLoaded(createMediaObject());
+                        MediaStatus status = client.getMediaStatus();
+                        if (status != null) {
+                            switch (status.getPlayerState()) {
+                                case MediaStatus.PLAYER_STATE_LOADING:
+                                case MediaStatus.PLAYER_STATE_IDLE:
+                                    if (!currentState.equals("requesting")) {
+                                        currentState = "loading";
+                                    }
+                                    break;
+                                default:
+                                    if (currentState.equals("loading")) {
+                                        clientListener.onMediaLoaded(createMediaObject());
+                                    }
+                                    currentState = "loaded";
+                                    break;
                             }
                         }
                         clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
+                    public void onMetadataUpdated() {
+                        clientListener.onMediaUpdate(createMediaObject());
+                    }
+                    @Override
                     public void onQueueStatusUpdated() {
-                        super.onQueueStatusUpdated();
                         clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onPreloadStatusUpdated() {
-                        super.onPreloadStatusUpdated();
                         clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onSendingRemoteMediaRequest() {
-                        super.onSendingRemoteMediaRequest();
+                        currentState = "requesting";
                         clientListener.onMediaUpdate(createMediaObject());
                     }
                     @Override
                     public void onAdBreakStatusUpdated() {
-                        super.onAdBreakStatusUpdated();
                         clientListener.onMediaUpdate(createMediaObject());
                     }
                 });
                 session.addCastListener(new Cast.Listener() {
                     @Override
                     public void onApplicationStatusChanged() {
-                        super.onApplicationStatusChanged();
                         clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
                     public void onApplicationMetadataChanged(ApplicationMetadata appMetadata) {
-                        super.onApplicationMetadataChanged(appMetadata);
                         clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
                     public void onApplicationDisconnected(int i) {
-                        super.onApplicationDisconnected(i);
                         clientListener.onSessionEnd(
                                 ChromecastUtilities.createSessionObject(session, "stopped"));
                     }
                     @Override
                     public void onActiveInputStateChanged(int i) {
-                        super.onActiveInputStateChanged(i);
                         clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
                     public void onStandbyStateChanged(int i) {
-                        super.onStandbyStateChanged(i);
                         clientListener.onSessionUpdate(createSessionObject());
                     }
                     @Override
                     public void onVolumeChanged() {
-                        super.onVolumeChanged();
                         clientListener.onSessionUpdate(createSessionObject());
                     }
                 });

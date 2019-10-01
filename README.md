@@ -96,7 +96,7 @@ Run `npm test` to ensure your code fits the styling.  It will also find some err
 
   * If errors are found, you can try running `npm run style`, this will attempt to automatically fix the errors.
 
-### Tests
+### Tests Mobile
 
 How to run the tests:
 * With **admin permission** run `cordova plugin add --link <relative path to the plugin's root dir>/tests`
@@ -106,9 +106,19 @@ How to run the tests:
 
 [Why we chose a non-standard test framework](https://github.com/jellyfin/cordova-plugin-chromecast/issues/50)
 
+### Tests Chrome
+
+The auto tests also run in desktop chrome.  
+They use the google provided cast_sender.js.  
+These are particularily useful for ensuring we are following the [official Google Cast API for Chrome](https://developers.google.com/cast/docs/reference/chrome#chrome.cast) correctly.  
+To run the tests:
+* run: `npm run host-chrome-tests [<port default=8432>]`
+* Navigate to: `http://localhost:<port>/chrome/tests_chrome.html`
 
 ## Contributing
 
-* Make sure all tests pass ([Code Format](#code-format) and [Tests](#tests))
 * Write a test for your contribution if applicable (for a bug fix, new feature, etc)
+  * You should test on [Chrome](#tests-chrome) first to ensure you are following [Google Cast API](https://developers.google.com/cast/docs/reference/chrome#chrome.cast) behavior correctly
+  * If the test does not pass on [Chrome](#tests-chrome) we should not be implementing it either (unless it is a `chrome.cast.cordova` function)
+* Make sure all tests pass ([Code Format](#code-format), [Tests Mobile](#tests-mobile), and [Tests Chrome](#tests-chrome))
 * Update documentation as necessary

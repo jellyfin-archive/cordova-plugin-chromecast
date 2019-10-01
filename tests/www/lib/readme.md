@@ -7,3 +7,5 @@ mocha.js and mocha.css
     Importantly, it includes Pull Request #3952  
     https://github.com/mochajs/mocha/pull/3952
     
+chai.js
+    is also included because it is just easier for hosting the chrome tests

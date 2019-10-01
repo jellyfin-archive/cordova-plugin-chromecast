@@ -30,4 +30,4 @@ Thanks!
 - [ ] If this Pull Request resolves an issue, I linked to the issue in the text above (and used the correct [keyword to close issues using keywords](https://help.github.com/articles/closing-issues-using-keywords/))
 - [ ] I've run `npm test` and no errors were found (run `npm style` to auto-fix errors it can)
 - [ ] I've run the tests (See Readme)
-- [ ] I added automated test coverage as appropriate for this change
+- [ ] I added automated test coverage as appropriate for this change (See Readme Contributing section)

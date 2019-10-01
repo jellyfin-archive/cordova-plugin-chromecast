@@ -11,6 +11,5 @@
     ]
   },
   "dependencies": {
-    "chai": "4.2.0"
   }
 }

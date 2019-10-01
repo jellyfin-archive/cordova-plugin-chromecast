@@ -28,7 +28,7 @@ final class ChromecastUtilities {
     static String getMediaIdleReason(MediaStatus mediaStatus) {
         switch (mediaStatus.getIdleReason()) {
             case MediaStatus.IDLE_REASON_CANCELED:
-                return "CANCELED";
+                return "CANCELLED";
             case MediaStatus.IDLE_REASON_ERROR:
                 return "ERROR";
             case MediaStatus.IDLE_REASON_FINISHED:
@@ -215,7 +215,7 @@ final class ChromecastUtilities {
             out.put("appId", session.getApplicationMetadata().getApplicationId());
             out.put("appImages", createAppImagesObject(session));
             out.put("displayName", session.getApplicationMetadata().getName());
-            out.put("media", createMediaObject(session));
+            out.put("media", createMediaArray(session));
             out.put("receiver", createReceiverObject(session));
             out.put("sessionId", session.getSessionId());
 
@@ -262,6 +262,15 @@ final class ChromecastUtilities {
         return out;
     }
 
+    static JSONArray createMediaArray(CastSession session) {
+        JSONArray out = new JSONArray();
+        JSONObject mediaInfoObj = createMediaObject(session);
+        if (mediaInfoObj != null) {
+            out.put(mediaInfoObj);
+        }
+        return out;
+    }
+
     static JSONObject createMediaObject(CastSession session) {
         JSONObject out = new JSONObject();
 
@@ -304,9 +313,9 @@ final class ChromecastUtilities {
                 }
                 out.put("activeTrackIds", activeTracks);
             }
-
         } catch (JSONException e) {
         } catch (NullPointerException e) {
+            return null;
         }
 
         return out;

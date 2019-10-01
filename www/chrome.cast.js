@@ -135,22 +135,6 @@ chrome.cast = {
     },
 
     /**
-     * Describes the receiver running an application. Normally, these objects should not be created by the client.
-     * @param {string}                         label        An identifier for the receiver that is unique to the browser profile and the origin of the API client.
-     * @param {string}                         friendlyName The user given name for the receiver.
-     * @param {chrome.cast.Capability[]}     capabilities The capabilities of the receiver, for example audio and video.
-     * @param {chrome.cast.Volume}             volume       The current volume of the receiver.
-     */
-    Receiver: function (label, friendlyName, capabilities, volume) {
-        this.label = label;
-        this.friendlyName = friendlyName;
-        this.capabilities = capabilities || [];
-        this.volume = volume || null;
-        this.receiverType = chrome.cast.ReceiverType.CAST;
-        this.isActiveInput = null;
-    },
-
-    /**
      * TODO: Update when the official API docs are finished
      * https://developers.google.com/cast/docs/reference/chrome/chrome.cast.DialRequest
      * @param {[type]} appName         [description]
@@ -207,18 +191,6 @@ chrome.cast = {
         this.packageId = this.url = null;
     },
 
-    /**
-     * The volume of a device or media stream.
-     * @param {number}     level     The current volume level as a value between 0.0 and 1.0.
-     * @param {boolean} muted     Whether the receiver is muted, independent of the volume level.
-     */
-    Volume: function (level, muted) {
-        this.level = level;
-        if (muted || muted === false) {
-            this.muted = !!muted;
-        }
-    },
-
     // media package
     media: {
         /**
@@ -235,6 +207,24 @@ chrome.cast = {
          * @type {Object}
          */
         PlayerState: { IDLE: 'IDLE', PLAYING: 'PLAYING', PAUSED: 'PAUSED', BUFFERING: 'BUFFERING' },
+
+        /**
+         * Possible reason why a media is idle.
+         * CANCELLED: A sender requested to stop playback using the STOP command.
+         * INTERRUPTED: A sender requested playing a different media using the LOAD command.
+         * FINISHED: The media playback completed.
+         * ERROR: The media was interrupted due to an error, this could be for example if the player could not download media due to networking errors.
+         */
+        IdleReason: { CANCELLED: 'CANCELLED', INTERRUPTED: 'INTERRUPTED', FINISHED: 'FINISHED', ERROR: 'ERROR' },
+
+        /**
+         * Possible states of queue repeat mode.
+         * OFF: Items are played in order, and when the queue is completed (the last item has ended) the media session is terminated.
+         * ALL: The items in the queue will be played indefinitely. When the last item has ended, the first item will be played again.
+         * SINGLE: The current item will be repeated indefinitely.
+         * ALL_AND_SHUFFLE: The items in the queue will be played indefinitely. When the last item has ended, the list of items will be randomly shuffled by the receiver, and the queue will continue to play starting from the first item of the shuffled items.
+         */
+        RepeatMode: { OFF: 'REPEAT_OFF', ALL: 'REPEAT_ALL', SINGLE: 'REPEAT_SINGLE', ALL_AND_SHUFFLE: 'REPEAT_ALL_AND_SHUFFLE' },
 
         /**
          * States of the media player after resuming.
@@ -431,22 +421,6 @@ chrome.cast = {
         },
 
         /**
-         * Describes a media item.
-         * @param {string}                             contentId   Identifies the content.
-         * @param {string}                             contentType MIME content type of the media.
-         * @property {Object}                         customData     Custom data set by the receiver application.
-         * @property {number}                         duration     Duration of the content, in seconds.
-         * @property {any type}                     metadata     Describes the media content.
-         * @property {chrome.cast.media.StreamType} streamType     The type of media stream.
-         */
-        MediaInfo: function MediaInfo (contentId, contentType) {
-            this.contentId = contentId;
-            this.streamType = chrome.cast.media.StreamType.BUFFERED;
-            this.contentType = contentType;
-            this.customData = this.duration = this.metadata = null;
-        },
-
-        /**
          * Possible media track types.
          */
         TrackType: {TEXT: 'TEXT', AUDIO: 'AUDIO', VIDEO: 'VIDEO'},
@@ -455,17 +429,6 @@ chrome.cast = {
          * Possible text track types.
          */
         TextTrackType: {SUBTITLES: 'SUBTITLES', CAPTIONS: 'CAPTIONS', DESCRIPTIONS: 'DESCRIPTIONS', CHAPTERS: 'CHAPTERS', METADATA: 'METADATA'},
-
-        /**
-         * Describes track metadata information
-         * @param {number}                                            trackId Unique identifier of the track within the context of a chrome.cast.media.MediaInfo objects
-         * @param {chrome.cast.media.TrackType}    trackType The type of track. Value must not be null.
-         */
-        Track: function Track (trackId, trackType) {
-            this.trackId = trackId;
-            this.type = trackType;
-            this.customData = this.language = this.name = this.subtype = this.trackContentId = this.trackContentType = null;
-        },
 
          /**
           * Possible text track edge types.
@@ -563,7 +526,7 @@ chrome.cast.initialize = function (apiConfig, successCallback, errorCallback) {
 chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessionRequest) {
     execute('requestSession', function (err, obj) {
         if (!err) {
-            successCallback(updateSession(obj));
+            successCallback(createNewSession(obj));
         } else {
             handleError(err, errorCallback);
         }
@@ -607,6 +570,28 @@ chrome.cast.Session = function Session (sessionId, appId, displayName, appImages
 
 chrome.cast.Session.prototype = Object.create(EventEmitter.prototype);
 
+function sessionPreCheck (sessionId) {
+    // if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
+    if (!_session || _session.status !== chrome.cast.SessionStatus.CONNECTED) {
+        return new chrome.cast.Error(
+            chrome.cast.ErrorCode.INVALID_PARAMETER, 'No active session');
+    }
+    if (sessionId !== _session.sessionId) {
+        return new chrome.cast.Error(
+            chrome.cast.ErrorCode.INVALID_PARAMETER, 'Unknown session ID');
+    }
+    return false;
+}
+
+chrome.cast.Session.prototype._preCheck = function (errorCallback) {
+    var err = sessionPreCheck(this.sessionId);
+    if (err) {
+        errorCallback && errorCallback(err);
+        return true;
+    }
+    return err;
+};
+
 /**
  * Sets the receiver volume.
  * @param {number}         newLevel        The new volume level between 0.0 and 1.0.
@@ -614,6 +599,7 @@ chrome.cast.Session.prototype = Object.create(EventEmitter.prototype);
  * @param {function}     errorCallback   The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.setReceiverVolumeLevel = function (newLevel, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     execute('setReceiverVolumeLevel', newLevel, function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -630,6 +616,7 @@ chrome.cast.Session.prototype.setReceiverVolumeLevel = function (newLevel, succe
  * @param {function} errorCallback       The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.setReceiverMuted = function (muted, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     execute('setReceiverMuted', muted, function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -645,10 +632,7 @@ chrome.cast.Session.prototype.setReceiverMuted = function (muted, successCallbac
  * @param {function} errorCallback   The possible errors are TIMEOUT, API_NOT_INITIALIZED, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.stop = function (successCallback, errorCallback) {
-    if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
-        errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
-        return;
-    }
+    if (this._preCheck(errorCallback)) { return; }
     execute('sessionStop', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -668,10 +652,7 @@ chrome.cast.Session.prototype.stop = function (successCallback, errorCallback) {
  * @param {function} errorCallback   The possible errors are TIMEOUT, API_NOT_INITIALIZED, CHANNEL_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.leave = function (successCallback, errorCallback) {
-    if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
-        errorCallback(new chrome.cast.Error(chrome.cast.Error.INVALID_PARAMETER, 'No active session', null));
-        return;
-    }
+    if (this._preCheck(errorCallback)) { return; }
     execute('sessionLeave', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -695,6 +676,7 @@ chrome.cast.Session.prototype.leave = function (successCallback, errorCallback) 
  * @param  {[type]}             errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING
  */
 chrome.cast.Session.prototype.sendMessage = function (namespace, message, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     if (typeof message === 'object') {
         message = JSON.stringify(message);
     }
@@ -714,43 +696,15 @@ chrome.cast.Session.prototype.sendMessage = function (namespace, message, succes
  * @param  {function} errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     var self = this;
 
     var mediaInfo = loadRequest.media;
     execute('loadMedia', mediaInfo.contentId, mediaInfo.customData || {}, mediaInfo.contentType, mediaInfo.duration || 0.0, mediaInfo.streamType, loadRequest.autoplay || false, loadRequest.currentTime || 0, mediaInfo.metadata || {}, mediaInfo.textTrackSytle || {}, function (err, obj) {
         if (!err) {
             _currentMedia = new chrome.cast.media.Media(self.sessionId, obj.mediaSessionId);
-            _currentMedia.activeTrackIds = obj.activeTrackIds;
-            _currentMedia.currentItemId = obj.currentItemId;
-            _currentMedia.idleReason = obj.idleReason;
-            _currentMedia.loadingItemId = obj.loadingItemId;
-            _currentMedia.media = mediaInfo;
-            _currentMedia.media.duration = obj.media.duration;
-            _currentMedia.media.tracks = obj.media.tracks;
-            _currentMedia.media.customData = obj.media.customData || null;
-            _currentMedia.currentTime = obj.currentTime;
-            _currentMedia.playbackRate = obj.playbackRate;
-            _currentMedia.preloadedItemId = obj.preloadedItemId;
-            _currentMedia.volume = new chrome.cast.Volume(obj.volume.level, obj.volume.muted);
-
-            _currentMedia.media.tracks = [];
-
-            var track;
-            for (var i = 0; i < obj.media.tracks.length; i++) {
-                track = obj.media.tracks[i];
-                var newTrack = new chrome.cast.media.Track(track.trackId, track.type);
-                newTrack.customData = track.customData || null;
-                newTrack.language = track.language || null;
-                newTrack.name = track.name || null;
-                newTrack.subtype = track.subtype || null;
-                newTrack.trackContentId = track.trackContentId || null;
-                newTrack.trackContentType = track.trackContentType || null;
-
-                _currentMedia.media.tracks.push(newTrack);
-            }
-
+            _currentMedia._update(obj);
             successCallback(_currentMedia);
-
         } else {
             handleError(err, errorCallback);
         }
@@ -818,27 +772,137 @@ chrome.cast.Session.prototype.removeMediaListener = function (listener) {
 };
 
 chrome.cast.Session.prototype._update = function (obj) {
-    var isAlive = (obj.status !== chrome.cast.SessionStatus.STOPPED);
-    this.status = obj.status || this.status;
-    this.appId = obj.appId;
-    this.appImages = obj.appImages;
-    this.displayName = obj.displayName;
+    for (var attr in obj) {
+        if (['receiver', 'media'].indexOf(attr) === -1) {
+            this[attr] = obj[attr];
+        }
+    }
 
     if (obj.receiver) {
         if (!this.receiver) {
-            this.receiver = new chrome.cast.Receiver(null, null, null, null);
+            this.receiver = new chrome.cast.Receiver();
         }
-        this.receiver.friendlyName = obj.receiver.friendlyName;
-        this.receiver.label = obj.receiver.label;
-
-        if (obj.receiver.volume) {
-            this.receiver.volume = new chrome.cast.Volume(obj.receiver.volume.level, obj.receiver.volume.muted);
-        }
+        this.receiver._update(obj.receiver);
     } else {
         this.receiver = null;
     }
 
-    this.emit('_sessionUpdated', isAlive);
+    // Empty media
+    this.media.splice(0, this.media.length);
+    if (obj.media && obj.media.length > 0) {
+        // refill media
+        var m;
+        for (var i = 0; i < obj.media.length; i++) {
+            m = new chrome.cast.media.Media();
+            m._update(obj.media[i]);
+            this.media.push(m);
+        }
+        if (_currentMedia) {
+            _currentMedia._update(obj.media[0]);
+        }
+    } else {
+        _currentMedia = null;
+    }
+};
+
+/**
+ * The volume of a device or media stream.
+ * @param {number}     level     The current volume level as a value between 0.0 and 1.0.
+ * @param {boolean} muted     Whether the receiver is muted, independent of the volume level.
+ */
+chrome.cast.Volume = function (level, muted) {
+    this.level = level;
+    if (muted || muted === false) {
+        this.muted = !!muted;
+    }
+};
+
+chrome.cast.Volume.prototype._update = function (jsonObj) {
+    for (var attr in jsonObj) {
+        this[attr] = jsonObj[attr];
+    }
+};
+
+/**
+ * Describes the receiver running an application. Normally, these objects should not be created by the client.
+ * @param {string}                         label        An identifier for the receiver that is unique to the browser profile and the origin of the API client.
+ * @param {string}                         friendlyName The user given name for the receiver.
+ * @param {chrome.cast.Capability[]}     capabilities The capabilities of the receiver, for example audio and video.
+ * @param {chrome.cast.Volume}             volume       The current volume of the receiver.
+ */
+chrome.cast.Receiver = function (label, friendlyName, capabilities, volume) {
+    this.label = label;
+    this.friendlyName = friendlyName;
+    this.capabilities = capabilities || [];
+    this.volume = volume || null;
+    this.receiverType = chrome.cast.ReceiverType.CAST;
+    this.isActiveInput = null;
+};
+
+chrome.cast.Receiver.prototype._update = function (jsonObj) {
+    for (var attr in jsonObj) {
+        if (['volume'].indexOf(attr) === -1) {
+            this[attr] = jsonObj[attr];
+        }
+    }
+    if (jsonObj.volume) {
+        if (!this.volume) {
+            this.volume = new chrome.cast.Volume();
+        }
+        this.volume._update(jsonObj.volume);
+    }
+};
+
+/**
+ * Describes track metadata information
+ * @param {number}                                            trackId Unique identifier of the track within the context of a chrome.cast.media.MediaInfo objects
+ * @param {chrome.cast.media.TrackType}    trackType The type of track. Value must not be null.
+ */
+chrome.cast.media.Track = function Track (trackId, trackType) {
+    this.trackId = trackId;
+    this.type = trackType;
+    this.customData = this.language = this.name = this.subtype = this.trackContentId = this.trackContentType = null;
+};
+
+chrome.cast.media.Track.prototype._update = function (jsonObj) {
+    for (var attr in jsonObj) {
+        this[attr] = jsonObj[attr];
+    }
+};
+
+/**
+ * Describes a media item.
+ * @param {string}                             contentId   Identifies the content.
+ * @param {string}                             contentType MIME content type of the media.
+ * @property {Object}                         customData     Custom data set by the receiver application.
+ * @property {number}                         duration     Duration of the content, in seconds.
+ * @property {any type}                     metadata     Describes the media content.
+ * @property {chrome.cast.media.StreamType} streamType     The type of media stream.
+ */
+chrome.cast.media.MediaInfo = function MediaInfo (contentId, contentType) {
+    this.contentId = contentId;
+    this.streamType = chrome.cast.media.StreamType.BUFFERED;
+    this.contentType = contentType;
+    this.customData = this.duration = this.metadata = null;
+};
+
+chrome.cast.media.MediaInfo.prototype._update = function (jsonObj) {
+    for (var attr in jsonObj) {
+        this[attr] = jsonObj[attr];
+    }
+
+    if (jsonObj.tracks) {
+        this.tracks = [];
+        var track, t;
+        for (var i = 0; i < jsonObj.tracks.length; i++) {
+            track = jsonObj.tracks[i];
+            t = new chrome.cast.media.Track();
+            t._update(track);
+            this.tracks.push(t);
+        }
+    } else {
+        this.tracks = null;
+    }
 };
 
 /**
@@ -861,7 +925,8 @@ chrome.cast.media.Media = function Media (sessionId, mediaSessionId) {
     this.mediaSessionId = mediaSessionId;
     this.currentTime = 0;
     this.playbackRate = 1;
-    this.playerState = chrome.cast.media.PlayerState.BUFFERING;
+    this.playerState = chrome.cast.media.PlayerState.IDLE;
+    this.idleReason = null;
     this.supportedMediaCommands = [
         chrome.cast.media.MediaCommand.PAUSE,
         chrome.cast.media.MediaCommand.SEEK,
@@ -870,10 +935,34 @@ chrome.cast.media.Media = function Media (sessionId, mediaSessionId) {
     ];
     this.volume = new chrome.cast.Volume(1, false);
     this._lastUpdatedTime = Date.now();
-    this.media = {};
+    this.media = null;
 };
 
 chrome.cast.media.Media.prototype = Object.create(EventEmitter.prototype);
+
+function mediaPreCheck (media) {
+    var err = sessionPreCheck(media.sessionId);
+    if (err) {
+        return err;
+    }
+    if (!_currentMedia ||
+        media.sessionId !== _currentMedia.sessionId ||
+        media.playerState === chrome.cast.media.PlayerState.IDLE) {
+        return new chrome.cast.Error(
+            chrome.cast.ErrorCode.SESSION_ERROR, 'INVALID_MEDIA_SESSION_ID',
+            { reason: 'INVALID_MEDIA_SESSION_ID', type: 'INVALID_REQUEST' });
+    }
+    return false;
+}
+
+chrome.cast.media.Media.prototype._preCheck = function (errorCallback) {
+    var err = mediaPreCheck(this);
+    if (err) {
+        errorCallback && errorCallback(err);
+        return true;
+    }
+    return err;
+};
 
 /**
  * Plays the media item.
@@ -882,6 +971,7 @@ chrome.cast.media.Media.prototype = Object.create(EventEmitter.prototype);
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.play = function (playRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     execute('mediaPlay', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -898,6 +988,7 @@ chrome.cast.media.Media.prototype.play = function (playRequest, successCallback,
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.pause = function (pauseRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     execute('mediaPause', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -914,6 +1005,7 @@ chrome.cast.media.Media.prototype.pause = function (pauseRequest, successCallbac
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.seek = function (seekRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     const currentTime = Math.round(seekRequest.currentTime);
     const resumeState = seekRequest.resumeState || '';
 
@@ -933,6 +1025,7 @@ chrome.cast.media.Media.prototype.seek = function (seekRequest, successCallback,
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.stop = function (stopRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     execute('mediaStop', function (err) {
         if (!err) {
             successCallback && successCallback();
@@ -949,6 +1042,7 @@ chrome.cast.media.Media.prototype.stop = function (stopRequest, successCallback,
  * @param {function} errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.setVolume = function (volumeRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     if (!volumeRequest.volume || (volumeRequest.volume.level == null && volumeRequest.volume.muted === null)) {
         errorCallback(new chrome.cast.Error(chrome.cast.ErrorCode.SESSION_ERROR), 'INVALID_PARAMS', { reason: 'INVALID_PARAMS', type: 'INVALID_REQUEST' });
         return;
@@ -995,6 +1089,7 @@ chrome.cast.media.Media.prototype.getEstimatedTime = function () {
  * @param {function(not-null chrome.cast.Error)}            errorCallback Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  **/
 chrome.cast.media.Media.prototype.editTracksInfo = function (editTracksInfoRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
     var activeTracks = editTracksInfoRequest.activeTrackIds;
     var textTrackSytle = editTracksInfoRequest.textTrackSytle;
 
@@ -1026,26 +1121,27 @@ chrome.cast.media.Media.prototype.removeUpdateListener = function (listener) {
 };
 
 chrome.cast.media.Media.prototype._update = function (obj) {
-    this.currentTime = obj.currentTime || this.currentTime;
-    this.idleReason = obj.idleReason || this.idleReason;
-    this.sessionId = obj.sessionId || this.sessionId;
-    this.mediaSessionId = obj.mediaSessionId || this.mediaSessionId;
-    this.playbackRate = obj.playbackRate || this.playbackRate;
-    this.playerState = obj.playerState || this.playerState;
-
-    if (obj.media && obj.media.duration) {
-        this.media = this.media || {};
-        this.media.duration = obj.media.duration || this.media.duration;
-        this.media.streamType = obj.media.streamType || this.media.streamType;
+    for (var attr in obj) {
+        if (['media', 'volume'].indexOf(attr) === -1) {
+            this[attr] = obj[attr];
+        }
     }
 
-    if (obj.volume && obj.volume.level) {
-        this.volume = new chrome.cast.Volume(obj.volume.level, obj.volume.muted);
+    if (obj.media) {
+        if (!this.media) {
+            this.media = new chrome.cast.media.MediaInfo();
+        }
+        this.media._update(obj.media);
+    }
+
+    if (obj.volume) {
+        if (!this.volume) {
+            this.volume = new chrome.cast.Volume();
+        }
+        this.volume._update(obj.volume);
     }
 
     this._lastUpdatedTime = Date.now();
-
-    this.emit('_mediaUpdated', this.playerState !== 'IDLE');
 };
 
 /**
@@ -1100,7 +1196,7 @@ chrome.cast.cordova = {
     selectRoute: function (routeId, successCallback, errorCallback) {
         execute('selectRoute', routeId, function (err, session) {
             if (!err) {
-                successCallback(updateSession(session));
+                successCallback(createNewSession(session));
             } else {
                 handleError(err, errorCallback);
             }
@@ -1151,18 +1247,33 @@ execute('setup', function (err, args) {
          * @param {function} listener The listener to add.
          */
         SESSION_UPDATE: function (obj) {
+            // Should we reset the session?
+            if (!obj) {
+                _session = undefined;
+                _sessionListener = undefined;
+                _receiverListener = undefined;
+                return;
+            }
             if (_session) {
                 _session._update(obj);
+                _session.emit('_sessionUpdated', _session.status !== chrome.cast.SessionStatus.STOPPED);
             }
         },
         MEDIA_UPDATE: function (media) {
+            if (!media) {
+                _currentMedia = null;
+                _session.media = [];
+                return;
+            }
             if (!_currentMedia) {
                 _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
+            } else {
+                _currentMedia._update(media);
             }
-            _currentMedia._update(media);
             if (_session) {
                 _session.media[0] = _currentMedia;
             }
+            _currentMedia.emit('_mediaUpdated', _currentMedia.playerState !== 'IDLE');
         },
         MEDIA_LOAD: function (media) {
             if (_session) {
@@ -1174,8 +1285,8 @@ execute('setup', function (err, args) {
             }
         },
         SESSION_LISTENER: function (javaSession) {
-            var session = updateSession(javaSession);
-            _sessionListener && _sessionListener(session);
+            _session = createNewSession(javaSession);
+            _sessionListener && _sessionListener(_session);
         },
         RECEIVER_MESSAGE: function (namespace, message) {
             if (_session) {
@@ -1196,51 +1307,10 @@ module.exports = chrome.cast;
 /**
  * Updates the current session with the incoming javaSession
  */
-function updateSession (javaSession) {
-    // Should we reset the sesion?
-    if (!javaSession) {
-        _session = undefined;
-        _sessionListener = undefined;
-        _receiverListener = undefined;
-        return;
-    }
-    _session = new chrome.cast.Session(
-        javaSession.sessionId,
-        javaSession.appId,
-        javaSession.displayName,
-        javaSession.appImages || [],
-        createReceiver(javaSession.receiver)
-    );
-    _session.status = chrome.cast.SessionStatus.CONNECTED;
-    _session.media[0] = createMedia(javaSession.media, javaSession.sessionId);
-
+function createNewSession (javaSession) {
+    _session = new chrome.cast.Session();
+    _session._update(javaSession);
     return _session;
-}
-
-function createMedia (media, sessionId) {
-    if (media && media.sessionId) {
-        _currentMedia = new chrome.cast.media.Media(sessionId, media.mediaSessionId);
-        _currentMedia.currentTime = media.currentTime;
-        _currentMedia.playerState = media.playerState;
-        _currentMedia.media = media.media;
-    }
-    return _currentMedia;
-}
-
-function createReceiver (receiver) {
-    if (!receiver) {
-        return new chrome.cast.Receiver(null, null, null, null);
-    }
-    var outReceiver = new chrome.cast.Receiver(
-        receiver.label,
-        receiver.friendlyName,
-        receiver.capabilities || [],
-        null
-    );
-    if (receiver.volume) {
-        outReceiver.volume = new chrome.cast.Volume(receiver.volume.level, receiver.volume.muted);
-    }
-    return outReceiver;
 }
 
 function execute (action) {
@@ -1253,7 +1323,7 @@ function execute (action) {
 
     // Reasons to not execute
     if (action !== 'setup' && !chrome.cast.isAvailable) {
-        return callback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
+        return callback && callback(new chrome.cast.Error(chrome.cast.ErrorCode.API_NOT_INITIALIZED), 'The API is not initialized.', {});
     }
     if (action !== 'setup' && action !== 'initialize' && !_initialized) {
         throw new Error('Not initialized. Must call chrome.cast.initialize first.');

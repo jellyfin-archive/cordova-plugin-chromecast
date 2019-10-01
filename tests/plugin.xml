@@ -24,8 +24,7 @@
     <name>Cordova Chromecast Plugin Tests</name>
     <license>Apache 2.0</license>
 
-    <js-module src="tests.js" name="tests">
-    </js-module>
-
-    <asset src="res" target="plugins/cordova-plugin-chromecast-tests/res" />
+    <asset src="www" target="plugins/cordova-plugin-chromecast-tests/www" />
+    <asset src="lib" target="plugins/cordova-plugin-chromecast-tests/lib/" />
+    <asset src="node_modules/chai/chai.js" target="plugins/cordova-plugin-chromecast-tests/lib/" />
 </plugin>

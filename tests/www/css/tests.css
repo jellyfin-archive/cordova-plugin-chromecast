@@ -1,0 +1,12 @@
+button {
+    height: 3em;
+    width: 10em;
+    margin-top: 1em;
+    margin-bottom: 0em;
+}
+.center-horizontal {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }

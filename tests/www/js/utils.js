@@ -131,6 +131,7 @@
     utils.testSessionProperties = function (session) {
         assert.instanceOf(session, chrome.cast.Session);
         assert.isString(session.appId);
+        utils.testImages(session.appImages);
         assert.isString(session.displayName);
         assert.isArray(session.media);
         for (var i = 0; i < session.media.length; i++) {
@@ -161,7 +162,7 @@
         assert.isNumber(media.currentItemId);
         assert.isNumber(media.currentTime);
         if (media.idleReason) {
-            assert.oneOf(utils.getObjectValues(chrome.cast.media.IdleReason), media.idleReason);
+            assert.oneOf(media.idleReason, utils.getObjectValues(chrome.cast.media.IdleReason));
         }
         utils.testMediaInfoProperties(media.media);
         assert.isNumber(media.mediaSessionId);
@@ -171,6 +172,8 @@
         assert.isString(media.sessionId);
         assert.isArray(media.supportedMediaCommands);
         assert.instanceOf(media.volume, chrome.cast.Volume);
+        assert.isFunction(media.addUpdateListener);
+        assert.isFunction(media.removeUpdateListener);
     };
 
     utils.testMediaInfoProperties = function (mediaInfo) {
@@ -178,8 +181,40 @@
         assert.isString(mediaInfo.contentId);
         assert.isString(mediaInfo.contentType);
         assert.isNumber(mediaInfo.duration);
+        utils.testMediaMetadata(mediaInfo.metadata);
         assert.isString(mediaInfo.streamType);
         assert.isArray(mediaInfo.tracks);
+    };
+
+    utils.testMediaMetadata = function (metadata) {
+        if (!metadata) {
+            return;
+        }
+        if (metadata.metadataType) {
+            assert.oneOf(metadata.metadataType, utils.getObjectValues(chrome.cast.media.MetadataType));
+        }
+        if (metadata.subtitle) {
+            assert.isString(metadata.subtitle);
+        }
+        if (metadata.title) {
+            assert.isString(metadata.title);
+        }
+        utils.testImages(metadata.images);
+        if (metadata.type) {
+            assert.oneOf(metadata.type, utils.getObjectValues(chrome.cast.media.MetadataType));
+        }
+    };
+
+    utils.testImages = function (images) {
+        if (!images) {
+            return;
+        }
+        assert.isArray(images);
+        var image;
+        for (var i = 0; i < images.length; i++) {
+            image = images[i];
+            assert.isString(image.url);
+        }
     };
 
     window['cordova-plugin-chromecast-tests'] = window['cordova-plugin-chromecast-tests'] || {};

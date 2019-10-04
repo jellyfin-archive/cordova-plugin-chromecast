@@ -249,7 +249,7 @@ chrome.cast = {
          * TV_SHOW: An episode of a TV series. Used by chrome.cast.media.TvShowMediaMetadata.
          * @type {Object}
          */
-        MetadataType: { GENERIC: 0, TV_SHOW: 1, MOVIE: 2, MUSIC_TRACK: 3, PHOTO: 4 },
+        MetadataType: { GENERIC: 0, MOVIE: 1, TV_SHOW: 2, MUSIC_TRACK: 3, PHOTO: 4, AUDIOBOOK_CHAPTER: 5 },
 
         /**
          * Possible media stream types.
@@ -344,7 +344,7 @@ chrome.cast = {
          */
         GenericMediaMetadata: function GenericMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.GENERIC;
-            this.releaseDate = this.releaseYear = this.images = this.subtitle = this.title = null;
+            this.releaseDate = this.releaseYear = this.images = this.subtitle = this.title = undefined;
         },
 
         /**
@@ -359,7 +359,7 @@ chrome.cast = {
          */
         MovieMediaMetadata: function MovieMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.MOVIE;
-            this.releaseDate = this.releaseYear = this.images = this.subtitle = this.studio = this.title = null;
+            this.releaseDate = this.releaseYear = this.images = this.subtitle = this.studio = this.title = undefined;
         },
 
         /**
@@ -380,7 +380,7 @@ chrome.cast = {
          */
         MusicTrackMediaMetadata: function MusicTrackMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.MUSIC_TRACK;
-            this.releaseDate = this.releaseYear = this.images = this.discNumber = this.trackNumber = this.artistName = this.songName = this.composer = this.artist = this.albumArtist = this.title = this.albumName = null;
+            this.releaseDate = this.releaseYear = this.images = this.discNumber = this.trackNumber = this.artistName = this.songName = this.composer = this.artist = this.albumArtist = this.title = this.albumName = undefined;
         },
 
         /**
@@ -398,7 +398,7 @@ chrome.cast = {
          */
         PhotoMediaMetadata: function PhotoMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.PHOTO;
-            this.creationDateTime = this.height = this.width = this.longitude = this.latitude = this.images = this.location = this.artist = this.title = null;
+            this.creationDateTime = this.height = this.width = this.longitude = this.latitude = this.images = this.location = this.artist = this.title = undefined;
         },
 
         /**
@@ -417,7 +417,7 @@ chrome.cast = {
          */
         TvShowMediaMetadata: function TvShowMediaMetadata () {
             this.metadataType = this.type = chrome.cast.media.MetadataType.TV_SHOW;
-            this.originalAirdate = this.releaseYear = this.images = this.episode = this.episodeNumber = this.season = this.seasonNumber = this.episodeTitle = this.title = this.seriesTitle = null;
+            this.originalAirdate = this.releaseYear = this.images = this.episode = this.episodeNumber = this.season = this.seasonNumber = this.episodeTitle = this.title = this.seriesTitle = undefined;
         },
 
         /**
@@ -772,8 +772,9 @@ chrome.cast.Session.prototype.removeMediaListener = function (listener) {
 };
 
 chrome.cast.Session.prototype._update = function (obj) {
+    var i;
     for (var attr in obj) {
-        if (['receiver', 'media'].indexOf(attr) === -1) {
+        if (['receiver', 'media', 'appImages'].indexOf(attr) === -1) {
             this[attr] = obj[attr];
         }
     }
@@ -792,7 +793,7 @@ chrome.cast.Session.prototype._update = function (obj) {
     if (obj.media && obj.media.length > 0) {
         // refill media
         var m;
-        for (var i = 0; i < obj.media.length; i++) {
+        for (i = 0; i < obj.media.length; i++) {
             m = new chrome.cast.media.Media();
             m._update(obj.media[i]);
             this.media.push(m);
@@ -802,6 +803,16 @@ chrome.cast.Session.prototype._update = function (obj) {
         }
     } else {
         _currentMedia = null;
+    }
+
+    // Empty appImages
+    this.appImages = this.appImages || [];
+    this.appImages.splice(0, this.appImages.length);
+    if (obj.appImages && obj.appImages.length > 0) {
+        // refill appImages
+        for (i = 0; i < obj.appImages.length; i++) {
+            this.appImages.push(new chrome.cast.Image(obj.appImages[i].url));
+        }
     }
 };
 
@@ -887,14 +898,17 @@ chrome.cast.media.MediaInfo = function MediaInfo (contentId, contentType) {
 };
 
 chrome.cast.media.MediaInfo.prototype._update = function (jsonObj) {
+    var i;
     for (var attr in jsonObj) {
-        this[attr] = jsonObj[attr];
+        if (['tracks', 'images'].indexOf(attr) === -1) {
+            this[attr] = jsonObj[attr];
+        }
     }
 
     if (jsonObj.tracks) {
         this.tracks = [];
         var track, t;
-        for (var i = 0; i < jsonObj.tracks.length; i++) {
+        for (i = 0; i < jsonObj.tracks.length; i++) {
             track = jsonObj.tracks[i];
             t = new chrome.cast.media.Track();
             t._update(track);
@@ -902,6 +916,16 @@ chrome.cast.media.MediaInfo.prototype._update = function (jsonObj) {
         }
     } else {
         this.tracks = null;
+    }
+
+    // Empty images
+    this.images = this.images || [];
+    this.images.splice(0, this.images.length);
+    if (jsonObj.images && jsonObj.images.length > 0) {
+        // refill appImages
+        for (i = 0; i < jsonObj.images.length; i++) {
+            this.images.push(new chrome.cast.Image(jsonObj.images[i].url));
+        }
     }
 };
 

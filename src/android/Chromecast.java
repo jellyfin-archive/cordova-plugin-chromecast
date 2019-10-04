@@ -59,7 +59,11 @@ public final class Chromecast extends CordovaPlugin {
             }
             @Override
             public void onMediaUpdate(JSONObject jsonMedia) {
-                sendEvent("MEDIA_UPDATE", new JSONArray().put(jsonMedia));
+                JSONArray out = new JSONArray();
+                if (jsonMedia != null) {
+                    out.put(jsonMedia);
+                }
+                sendEvent("MEDIA_UPDATE", out);
             }
             @Override
             public void onMessageReceived(CastDevice device, String namespace, String message) {

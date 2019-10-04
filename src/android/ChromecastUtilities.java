@@ -4,6 +4,7 @@ import android.graphics.Color;
 
 import androidx.mediarouter.media.MediaRouter;
 
+import com.google.android.gms.cast.ApplicationMetadata;
 import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaMetadata;
@@ -18,6 +19,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.List;
+import java.util.Set;
 
 final class ChromecastUtilities {
 
@@ -36,7 +38,6 @@ final class ChromecastUtilities {
             case MediaStatus.IDLE_REASON_INTERRUPTED:
                 return "INTERRUPTED";
             case MediaStatus.IDLE_REASON_NONE:
-                return "NONE";
             default:
                 return null;
         }
@@ -168,6 +169,147 @@ final class ChromecastUtilities {
         }
     }
 
+    static String getRepeatMode(MediaStatus mediaStatus) {
+        switch (mediaStatus.getQueueRepeatMode()) {
+            case MediaStatus.REPEAT_MODE_REPEAT_OFF:
+                return "REPEAT_OFF";
+            case MediaStatus.REPEAT_MODE_REPEAT_ALL:
+                return "REPEAT_ALL";
+            case MediaStatus.REPEAT_MODE_REPEAT_SINGLE:
+                return "REPEAT_SINGLE";
+            case MediaStatus.REPEAT_MODE_REPEAT_ALL_AND_SHUFFLE:
+                return "REPEAT_ALL_AND_SHUFFLE";
+            default:
+                return null;
+        }
+    }
+
+    static String getAndroidMetadataName(String clientName) {
+        switch (clientName) {
+            case "albumArtist":
+                return MediaMetadata.KEY_ALBUM_ARTIST;
+            case "albumTitle":
+                return MediaMetadata.KEY_ALBUM_TITLE;
+            case "artist":
+                return MediaMetadata.KEY_ARTIST;
+            case "bookTitle":
+                return MediaMetadata.KEY_BOOK_TITLE;
+            case "broadcastDate":
+                return MediaMetadata.KEY_BROADCAST_DATE;
+            case "chapterNumber":
+                return MediaMetadata.KEY_CHAPTER_NUMBER;
+            case "chapterTitle":
+                return MediaMetadata.KEY_CHAPTER_TITLE;
+            case "composer":
+                return MediaMetadata.KEY_COMPOSER;
+            case "creationDate":
+                return MediaMetadata.KEY_CREATION_DATE;
+            case "discNumber":
+                return MediaMetadata.KEY_DISC_NUMBER;
+            case "episodeNumber":
+                return MediaMetadata.KEY_EPISODE_NUMBER;
+            case "height":
+                return MediaMetadata.KEY_HEIGHT;
+            case "locationLatitude":
+                return MediaMetadata.KEY_LOCATION_LATITUDE;
+            case "locationLongitude":
+                return MediaMetadata.KEY_LOCATION_LONGITUDE;
+            case "locationName":
+                return MediaMetadata.KEY_LOCATION_NAME;
+            case "queueItemId":
+                return MediaMetadata.KEY_QUEUE_ITEM_ID;
+            case "releaseDate":
+                return MediaMetadata.KEY_RELEASE_DATE;
+            case "seasonNumber":
+                return MediaMetadata.KEY_SEASON_NUMBER;
+            case "sectionDuration":
+                return MediaMetadata.KEY_SECTION_DURATION;
+            case "sectionStartAbsoluteTime":
+                return MediaMetadata.KEY_SECTION_START_ABSOLUTE_TIME;
+            case "sectionStartTimeInContainer":
+                return MediaMetadata.KEY_SECTION_START_TIME_IN_CONTAINER;
+            case "sectionStartTimeInMedia":
+                return MediaMetadata.KEY_SECTION_START_TIME_IN_MEDIA;
+            case "seriesTitle":
+                return MediaMetadata.KEY_SERIES_TITLE;
+            case "studio":
+                return MediaMetadata.KEY_STUDIO;
+            case "subtitle":
+                return MediaMetadata.KEY_SUBTITLE;
+            case "title":
+                return MediaMetadata.KEY_TITLE;
+            case "trackNumber":
+                return MediaMetadata.KEY_TRACK_NUMBER;
+            case "width":
+                return MediaMetadata.KEY_WIDTH;
+            default:
+                return clientName;
+        }
+    }
+
+    static String getClientMetadataName(String androidName) {
+        switch (androidName) {
+            case MediaMetadata.KEY_ALBUM_ARTIST:
+                return "albumArtist";
+            case MediaMetadata.KEY_ALBUM_TITLE:
+                return "albumTitle";
+            case MediaMetadata.KEY_ARTIST:
+                return "artist";
+            case MediaMetadata.KEY_BOOK_TITLE:
+                return "bookTitle";
+            case MediaMetadata.KEY_BROADCAST_DATE:
+                return "broadcastDate";
+            case MediaMetadata.KEY_CHAPTER_NUMBER:
+                return "chapterNumber";
+            case MediaMetadata.KEY_CHAPTER_TITLE:
+                return "chapterTitle";
+            case MediaMetadata.KEY_COMPOSER:
+                return "composer";
+            case MediaMetadata.KEY_CREATION_DATE:
+                return "creationDate";
+            case MediaMetadata.KEY_DISC_NUMBER:
+                return "discNumber";
+            case MediaMetadata.KEY_EPISODE_NUMBER:
+                return "episodeNumber";
+            case MediaMetadata.KEY_HEIGHT:
+                return "height";
+            case MediaMetadata.KEY_LOCATION_LATITUDE:
+                return "locationLatitude";
+            case MediaMetadata.KEY_LOCATION_LONGITUDE:
+                return "locationLongitude";
+            case MediaMetadata.KEY_LOCATION_NAME:
+                return "locationName";
+            case MediaMetadata.KEY_QUEUE_ITEM_ID:
+                return "queueItemId";
+            case MediaMetadata.KEY_RELEASE_DATE:
+                return "releaseDate";
+            case MediaMetadata.KEY_SEASON_NUMBER:
+                return "seasonNumber";
+            case MediaMetadata.KEY_SECTION_DURATION:
+                return "sectionDuration";
+            case MediaMetadata.KEY_SECTION_START_ABSOLUTE_TIME:
+                return "sectionStartAbsoluteTime";
+            case MediaMetadata.KEY_SECTION_START_TIME_IN_CONTAINER:
+                return "sectionStartTimeInContainer";
+            case MediaMetadata.KEY_SECTION_START_TIME_IN_MEDIA:
+                return "sectionStartTimeInMedia";
+            case MediaMetadata.KEY_SERIES_TITLE:
+                return "seriesTitle";
+            case MediaMetadata.KEY_STUDIO:
+                return "studio";
+            case MediaMetadata.KEY_SUBTITLE:
+                return "subtitle";
+            case MediaMetadata.KEY_TITLE:
+                return "title";
+            case MediaMetadata.KEY_TRACK_NUMBER:
+                return "trackNumber";
+            case MediaMetadata.KEY_WIDTH:
+                return "width";
+            default:
+                return androidName;
+        }
+    }
+
     static TextTrackStyle parseTextTrackStyle(JSONObject textTrackSytle) {
         TextTrackStyle out = new TextTrackStyle();
 
@@ -212,9 +354,13 @@ final class ChromecastUtilities {
         JSONObject out = new JSONObject();
 
         try {
-            out.put("appId", session.getApplicationMetadata().getApplicationId());
-            out.put("appImages", createAppImagesObject(session));
-            out.put("displayName", session.getApplicationMetadata().getName());
+            ApplicationMetadata metadata = session.getApplicationMetadata();
+            out.put("appId", metadata.getApplicationId());
+            try {
+                out.put("appImages", createImagesArray(metadata.getImages()));
+            } catch (NullPointerException e) {
+            }
+            out.put("displayName", metadata.getName());
             out.put("media", createMediaArray(session));
             out.put("receiver", createReceiverObject(session));
             out.put("sessionId", session.getSessionId());
@@ -227,17 +373,13 @@ final class ChromecastUtilities {
         return out;
     }
 
-    private static JSONArray createAppImagesObject(CastSession session) {
+    private static JSONArray createImagesArray(List<WebImage> images) throws JSONException {
         JSONArray appImages = new JSONArray();
-        try {
-            MediaMetadata metadata = session.getRemoteMediaClient().getMediaInfo().getMetadata();
-            List<WebImage> images = metadata.getImages();
-            if (images != null) {
-                for (WebImage o : images) {
-                    appImages.put(o.toString());
-                }
-            }
-        } catch (NullPointerException e) {
+        JSONObject img;
+        for (WebImage o : images) {
+            img = new JSONObject();
+            img.put("url", o.getUrl().toString());
+            appImages.put(img);
         }
         return appImages;
     }
@@ -284,7 +426,10 @@ final class ChromecastUtilities {
             out.put("currentTime", mediaStatus.getStreamPosition() / 1000.0);
             out.put("customData", mediaStatus.getCustomData());
             //out.put("extendedStatus",);
-            out.put("idleReason", ChromecastUtilities.getMediaIdleReason(mediaStatus));
+            String idleReason = ChromecastUtilities.getMediaIdleReason(mediaStatus);
+            if (idleReason != null) {
+                out.put("idleReason", idleReason);
+            }
             //out.put("items", mediaStatus.getQueueItems());
             //out.put("liveSeekableRange",);
             out.put("loadingItemId", mediaStatus.getLoadingItemId());
@@ -294,11 +439,10 @@ final class ChromecastUtilities {
             out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus));
             out.put("preloadedItemId", mediaStatus.getPreloadedItemId());
             //out.put("queueData", );
-            //out.put("repeatMode", mediaStatus.getQueueRepeatMode());
+            out.put("repeatMode", getRepeatMode(mediaStatus));
             out.put("sessionId", session.getSessionId());
             //out.put("supportedMediaCommands", );
             //out.put("videoInfo", );
-
 
             JSONObject volume = new JSONObject();
             volume.put("level", mediaStatus.getStreamVolume());
@@ -361,28 +505,48 @@ final class ChromecastUtilities {
         JSONObject out = new JSONObject();
 
         try {
-            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
-            MediaInfo mediaInfo = mediaStatus.getMediaInfo();
+            MediaInfo mediaInfo = session.getRemoteMediaClient().getMediaInfo();
 
             // TODO: Missing attributes are commented out.
-            //  These are returned by the chromecast desktop SDK, we should probbaly return them too
+            //  These are returned by the chromecast desktop SDK, we should probably return them too
             //out.put("breakClips",);
             //out.put("breaks",);
             out.put("contentId", mediaInfo.getContentId());
             out.put("contentType", mediaInfo.getContentType());
             out.put("customData", mediaInfo.getCustomData());
-            //out.put("idleReason",);
-            //out.put("items",);
             out.put("duration", mediaInfo.getStreamDuration() / 1000.0);
             //out.put("mediaCategory",);
+            out.put("metadata", createMetadataObject(mediaInfo.getMetadata()));
             out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));
             out.put("tracks", createMediaInfoTracks(session));
             out.put("textTrackStyle", ChromecastUtilities.createTextTrackObject(mediaInfo.getTextTrackStyle()));
 
-            // TODO: Check if it's useful
-            //out.put("metadata", mediaInfo.getMetadata());
         } catch (JSONException e) {
         } catch (NullPointerException e) {
+        }
+
+        return out;
+    }
+
+    static JSONObject createMetadataObject(MediaMetadata metadata) {
+        JSONObject out = new JSONObject();
+        try {
+            try {
+                out.put("images", createImagesArray(metadata.getImages()));
+            } catch (Exception e) {
+            }
+            out.put("metadataType", metadata.getMediaType());
+            Set<String> keys = metadata.keySet();
+            String outKey;
+            for (String key : keys) {
+                outKey = ChromecastUtilities.getClientMetadataName(key);
+                if (outKey.equals("type")) {
+                    continue;
+                }
+                out.put(outKey, metadata.getString(key));
+            }
+            out.put("type", metadata.getMediaType());
+        } catch (Exception e) {
         }
 
         return out;

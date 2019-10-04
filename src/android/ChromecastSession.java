@@ -1,6 +1,7 @@
 package acidhax.cordova.chromecast;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.cordova.CallbackContext;
 import org.json.JSONArray;
@@ -224,7 +225,12 @@ public class ChromecastSession {
                     @Override
                     public void onResult(@NonNull MediaChannelResult result) {
                         if (result.getStatus().isSuccess()) {
-                            callback.success(createMediaObject());
+                            JSONObject out = createMediaObject();
+                            if (out == null) {
+                                callback.success();
+                            } else {
+                                callback.success(out);
+                            }
                         } else {
                             callback.error("session_error");
                         }
@@ -235,18 +241,35 @@ public class ChromecastSession {
     }
 
     private MediaInfo createMediaInfo(String contentId, JSONObject customData, String contentType, long duration, String streamType, JSONObject metadata, JSONObject textTrackStyle) {
-        // create GENERIC MediaMetadata first and fallback to movie
-        MediaMetadata mediaMetadata = new MediaMetadata();
+        MediaInfo.Builder mediaInfoBuilder = new MediaInfo.Builder(contentId);
+
+        MediaMetadata mediaMetadata;
         try {
-            int metadataType = metadata.has("metadataType") ? metadata.getInt("metadataType") : MediaMetadata.MEDIA_TYPE_MOVIE;
-            if (metadataType == MediaMetadata.MEDIA_TYPE_GENERIC) {
-                mediaMetadata.putString(MediaMetadata.KEY_TITLE, (metadata.has("title")) ? metadata.getString("title") : "[Title not set]"); // TODO: What should it default to?
-                mediaMetadata.putString(MediaMetadata.KEY_SUBTITLE, (metadata.has("title")) ? metadata.getString("subtitle") : "[Subtitle not set]"); // TODO: What should it default to?
-                mediaMetadata = addImages(metadata, mediaMetadata);
+            int metadataType = metadata.has("metadataType") ? metadata.getInt("metadataType") : MediaMetadata.MEDIA_TYPE_GENERIC;
+            // Set the metadataType
+            mediaMetadata = new MediaMetadata(metadataType);
+            // Add any images
+            addImages(metadata, mediaMetadata);
+
+            // Dynamically add other parameters
+            Iterator<String> keys = metadata.keys();
+            String key;
+            String value;
+            while (keys.hasNext()) {
+                key = keys.next();
+                value = metadata.getString(key);
+                if (key.equals("metadataType")
+                        || key.equals("images")
+                        || key.equals("type")) {
+                    continue;
+                }
+                key = ChromecastUtilities.getAndroidMetadataName(key);
+                mediaMetadata.putString(key, value);
             }
+
+            mediaInfoBuilder.setMetadata(mediaMetadata);
+
         } catch (Exception e) {
-            e.printStackTrace();
-            mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE);
         }
 
         int intStreamType;
@@ -262,33 +285,29 @@ public class ChromecastSession {
         }
 
         TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
-        MediaInfo mediaInfo = new MediaInfo.Builder(contentId)
+
+        mediaInfoBuilder
                 .setContentType(contentType)
                 .setCustomData(customData)
                 .setStreamType(intStreamType)
                 .setStreamDuration(duration)
-                .setMetadata(mediaMetadata)
-                .setTextTrackStyle(trackStyle)
-                .build();
+                .setTextTrackStyle(trackStyle);
 
-        return mediaInfo;
+        return mediaInfoBuilder.build();
     }
 
-    private MediaMetadata addImages(JSONObject metadata, MediaMetadata mediaMetadata) throws JSONException {
+    private void addImages(JSONObject metadata, MediaMetadata mediaMetadata) throws JSONException {
         if (metadata.has("images")) {
-            JSONArray imageUrls = metadata.getJSONArray("images");
-            for (int i = 0; i < imageUrls.length(); i++) {
-                JSONObject imageObj = imageUrls.getJSONObject(i);
-                String imageUrl = imageObj.has("url") ? imageObj.getString("url") : "undefined";
-                if (!imageUrl.contains("http://")) {
-                    continue;
+            JSONArray images = metadata.getJSONArray("images");
+            for (int i = 0; i < images.length(); i++) {
+                JSONObject imageObj = images.getJSONObject(i);
+                try {
+                    Uri imageURI = Uri.parse(imageObj.getString("url"));
+                    mediaMetadata.addImage(new WebImage(imageURI));
+                } catch (Exception e) {
                 }
-                Uri imageURI = Uri.parse(imageUrl);
-                WebImage webImage = new WebImage(imageURI);
-                mediaMetadata.addImage(webImage);
             }
         }
-        return mediaMetadata;
     }
 
     /**

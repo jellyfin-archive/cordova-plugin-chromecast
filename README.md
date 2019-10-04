@@ -79,7 +79,7 @@ Follow these direction to set up for plugin development:
 * You will need an existing cordova project or [create a new cordova project](https://cordova.apache.org/#getstarted).
 * With **admin permission** run: `cordova plugin add --link <relative path to the plugin's root dir>`
 
-### About the `--link` flag
+#### About the `--link` flag
 The `--link` flag allows you to modify the native code (java/swift/obj-c) directly in the relative platform folder if desired.
   * This means you can work directly from Android Studio/Xcode!
   * Note: Be careful about adding and deleting files.  These changes will be exclusive to the platform folder and will not be transferred back to your plugin folder.
@@ -110,7 +110,7 @@ How to run the tests:
 
 The auto tests also run in desktop chrome.  
 They use the google provided cast_sender.js.  
-These are particularily useful for ensuring we are following the [official Google Cast API for Chrome](https://developers.google.com/cast/docs/reference/chrome#chrome.cast) correctly.  
+These are particularly useful for ensuring we are following the [official Google Cast API for Chrome](https://developers.google.com/cast/docs/reference/chrome#chrome.cast) correctly.  
 To run the tests:
 * run: `npm run host-chrome-tests [<port default=8432>]`
 * Navigate to: `http://localhost:<port>/chrome/tests_chrome.html`

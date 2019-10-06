@@ -31,7 +31,9 @@
         this.slow(8000);
         this.bail(true);
 
+        var imageUrl = 'https://ia800705.us.archive.org/1/items/GoodHousekeeping193810/Good%20Housekeeping%201938-10.jpg';
         var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
+        var audioUrl = 'https://ia600304.us.archive.org/20/items/OTRR_Gunsmoke_Singles/Gunsmoke_52-10-03_024_Cain.mp3';
 
         // callOrder constants that are re-used frequently
         var success = 'success';
@@ -527,27 +529,38 @@
             afterEach(function () {
                 session.removeMediaListener(mediaListener);
             });
-            it('session.loadMedia should be able to load a remote video and return the metadata', function (done) {
-                var called = utils.callOrder([
-                    { id: success, repeats: false },
-                    { id: update, repeats: true }
-                ], done);
+            it('session.loadMedia should be able to load a remote video and handle GenericMediaMetadata', function (done) {
                 var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                mediaInfo.metadata = new chrome.cast.media.MovieMediaMetadata();
+                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
                 mediaInfo.metadata.title = 'DaTitle';
                 mediaInfo.metadata.subtitle = 'DaSubtitle';
-                mediaInfo.metadata.images = [new chrome.cast.Image('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/b60a3dda-caeb-4853-8292-52b2a0420183/d90sp0y-899e3e51-557d-4fd4-a41a-366c2d74c074.png/v1/fill/w_1024,h_576,q_80,strp/yu_yu_hakusho_group_minecraft_pixel_art_by_sel_en_ium_d90sp0y-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTc2IiwicGF0aCI6IlwvZlwvYjYwYTNkZGEtY2FlYi00ODUzLTgyOTItNTJiMmEwNDIwMTgzXC9kOTBzcDB5LTg5OWUzZTUxLTU1N2QtNGZkNC1hNDFhLTM2NmMyZDc0YzA3NC5wbmciLCJ3aWR0aCI6Ijw9MTAyNCJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.bO8CoNGr2_NEKrw9Yhey4txiK7Z8z_ryM25RkfC1owg')];
-                mediaInfo.metadata.myMadeUpMetadata = 'DaMadeUpMetadata';
-
+                mediaInfo.metadata.releaseDate = new Date().valueOf();
+                mediaInfo.metadata.someTrueBoolean = true;
+                mediaInfo.metadata.someFalseBoolean = false;
+                mediaInfo.metadata.someSmallNumber = 15;
+                mediaInfo.metadata.someLargeNumber = 1234567890123456;
+                mediaInfo.metadata.someSmallDecimal = 15.15;
+                mediaInfo.metadata.someLargeDecimal = 1234567.123456789;
+                mediaInfo.metadata.someString = 'SomeString';
+                mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
                 session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                     media = m;
                     utils.testMediaProperties(media);
                     assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
                     assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
+                    assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
+                    // TODO figure out how to maintain the data types for custom params on the native side
+                    // so that we don't have to do turn each actual and expected into a string
+                    assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
+                    assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
+                    assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
+                    assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
+                    assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
+                    assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
+                    assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
                     assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                    assert.equal(media.media.metadata.myMadeUpMetadata, mediaInfo.metadata.myMadeUpMetadata);
-                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.MOVIE);
-                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.MOVIE);
+                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
+                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
                     media.addUpdateListener(function listener (isAlive) {
                         assert.isTrue(isAlive);
                         utils.testMediaProperties(media);
@@ -556,10 +569,9 @@
                             chrome.cast.media.PlayerState.BUFFERING]);
                         if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
                             media.removeUpdateListener(listener);
-                            called(update);
+                            done();
                         }
                     });
-                    called(success);
                 }, function (err) {
                     assert.fail(err.code + ': ' + err.description);
                 });
@@ -818,51 +830,24 @@
                     done();
                 });
             });
-            it('session.loadMedia should be able to load a video with metadata twice in a row', function (done) {
-                var called = utils.callOrder([
-                    { id: success, repeats: false },
-                    { id: update, repeats: true }
-                ], function () {
-                    var called = utils.callOrder([
-                        { id: success, repeats: false },
-                        { id: update, repeats: true }
-                    ], done);
-                    session.loadMedia(new chrome.cast.media.LoadRequest(
-                        new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4')
-                    ), function (m) {
-                        media = m;
-                        utils.testMediaProperties(media);
-                        media.addUpdateListener(function listener (isAlive) {
-                            assert.isTrue(isAlive);
-                            utils.testMediaProperties(media);
-                            assert.oneOf(media.playerState, [
-                                chrome.cast.media.PlayerState.PLAYING,
-                                chrome.cast.media.PlayerState.BUFFERING]);
-                            if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
-                                media.removeUpdateListener(listener);
-                                called(update);
-                            }
-                        });
-                        called(success);
-                    }, function (err) {
-                        assert.fail(err.code + ': ' + err.description);
-                    });
-                });
+            it('session.loadMedia should be able to load videos twice in a row and handle MovieMediaMetadata and TvShowMediaMetadata correctly', function (done) {
                 var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+                mediaInfo.metadata = new chrome.cast.media.MovieMediaMetadata();
                 mediaInfo.metadata.title = 'DaTitle';
                 mediaInfo.metadata.subtitle = 'DaSubtitle';
-                mediaInfo.metadata.images = [new chrome.cast.Image('https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/b60a3dda-caeb-4853-8292-52b2a0420183/d90sp0y-899e3e51-557d-4fd4-a41a-366c2d74c074.png/v1/fill/w_1024,h_576,q_80,strp/yu_yu_hakusho_group_minecraft_pixel_art_by_sel_en_ium_d90sp0y-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NTc2IiwicGF0aCI6IlwvZlwvYjYwYTNkZGEtY2FlYi00ODUzLTgyOTItNTJiMmEwNDIwMTgzXC9kOTBzcDB5LTg5OWUzZTUxLTU1N2QtNGZkNC1hNDFhLTM2NmMyZDc0YzA3NC5wbmciLCJ3aWR0aCI6Ijw9MTAyNCJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.bO8CoNGr2_NEKrw9Yhey4txiK7Z8z_ryM25RkfC1owg')];
+                mediaInfo.metadata.studio = 'DaStudio';
                 mediaInfo.metadata.myMadeUpMetadata = 'DaMadeUpMetadata';
+                mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
                 session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                     media = m;
                     utils.testMediaProperties(media);
                     assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
                     assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                    assert.equal(media.media.metadata.studio, mediaInfo.metadata.studio);
                     assert.equal(media.media.metadata.myMadeUpMetadata, mediaInfo.metadata.myMadeUpMetadata);
-                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
-                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.MOVIE);
+                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.MOVIE);
                     media.addUpdateListener(function listener (isAlive) {
                         assert.isTrue(isAlive);
                         utils.testMediaProperties(media);
@@ -871,10 +856,128 @@
                             chrome.cast.media.PlayerState.BUFFERING]);
                         if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
                             media.removeUpdateListener(listener);
-                            called(update);
+                            loadSecond();
                         }
                     });
-                    called(success);
+                }, function (err) {
+                    assert.fail(err.code + ': ' + err.description);
+                });
+
+                function loadSecond () {
+                    var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
+                    mediaInfo.metadata = new chrome.cast.media.TvShowMediaMetadata();
+                    mediaInfo.metadata.title = 'DaTitle';
+                    mediaInfo.metadata.subtitle = 'DaSubtitle';
+                    mediaInfo.metadata.originalAirDate = new Date().valueOf();
+                    mediaInfo.metadata.episode = 15;
+                    mediaInfo.metadata.season = 2;
+                    mediaInfo.metadata.seriesTitle = 'DaSeries';
+                    mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+                    session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
+                        media = m;
+                        utils.testMediaProperties(media);
+                        assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                        assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
+                        assert.equal(media.media.metadata.originalAirDate, mediaInfo.metadata.originalAirDate);
+                        assert.equal(media.media.metadata.episode, mediaInfo.metadata.episode);
+                        assert.equal(media.media.metadata.season, mediaInfo.metadata.season);
+                        assert.equal(media.media.metadata.seriesTitle, mediaInfo.metadata.seriesTitle);
+                        assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                        assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
+                        assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
+                        media.addUpdateListener(function listener (isAlive) {
+                            assert.isTrue(isAlive);
+                            utils.testMediaProperties(media);
+                            assert.oneOf(media.playerState, [
+                                chrome.cast.media.PlayerState.PLAYING,
+                                chrome.cast.media.PlayerState.BUFFERING]);
+                            if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                                media.removeUpdateListener(listener);
+                                done();
+                            }
+                        });
+                    }, function (err) {
+                        assert.fail(err.code + ': ' + err.description);
+                    });
+                }
+            });
+            it('session.loadMedia should be able to load remote audio and return the MusicTrackMediaMetadata', function (done) {
+                var mediaInfo = new chrome.cast.media.MediaInfo(audioUrl, 'audio/mpeg');
+                mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+                mediaInfo.metadata.albumArtist = 'DaAlmbumArtist';
+                mediaInfo.metadata.albumName = 'DaAlbum';
+                mediaInfo.metadata.artist = 'DaArtist';
+                mediaInfo.metadata.composer = 'DaComposer';
+                mediaInfo.metadata.title = 'DaTitle';
+                mediaInfo.metadata.songName = 'DaSongName';
+                mediaInfo.metadata.releaseDate = new Date().valueOf();
+                mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+                mediaInfo.metadata.myMadeUpMetadata = 15;
+                session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
+                    media = m;
+                    utils.testMediaProperties(media);
+                    assert.equal(media.media.metadata.albumArtist, mediaInfo.metadata.albumArtist);
+                    assert.equal(media.media.metadata.albumName, mediaInfo.metadata.albumName);
+                    assert.equal(media.media.metadata.artist, mediaInfo.metadata.artist);
+                    assert.equal(media.media.metadata.composer, mediaInfo.metadata.composer);
+                    assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                    assert.equal(media.media.metadata.songName, mediaInfo.metadata.songName);
+                    assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
+                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                    assert.equal(media.media.metadata.myMadeUpMetadata, mediaInfo.metadata.myMadeUpMetadata);
+                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.MUSIC_TRACK);
+                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.MUSIC_TRACK);
+                    media.addUpdateListener(function listener (isAlive) {
+                        assert.isTrue(isAlive);
+                        utils.testMediaProperties(media);
+                        assert.oneOf(media.playerState, [
+                            chrome.cast.media.PlayerState.PLAYING,
+                            chrome.cast.media.PlayerState.BUFFERING]);
+                        if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                            media.removeUpdateListener(listener);
+                            done();
+                        }
+                    });
+                }, function (err) {
+                    assert.fail(err.code + ': ' + err.description);
+                });
+            });
+            it('session.loadMedia should be able to load remote image and return the PhotoMediaMetadata', function (done) {
+                var mediaInfo = new chrome.cast.media.MediaInfo(imageUrl, 'image/jpeg');
+                mediaInfo.metadata = new chrome.cast.media.PhotoMediaMetadata();
+                mediaInfo.metadata.title = 'DaTitle';
+                mediaInfo.metadata.artist = 'DaArtist';
+                mediaInfo.metadata.location = 'DaLocation';
+                mediaInfo.metadata.latitude = 102.13;
+                mediaInfo.metadata.longitude = 101.12;
+                mediaInfo.metadata.height = 100;
+                mediaInfo.metadata.width = 100;
+                mediaInfo.metadata.myMadeUpMetadata = 15;
+                mediaInfo.metadata.creationDateTime = new Date().valueOf();
+                mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+                session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
+                    media = m;
+                    utils.testMediaProperties(media);
+                    assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                    assert.equal(media.media.metadata.artist, mediaInfo.metadata.artist);
+                    assert.equal(media.media.metadata.location, mediaInfo.metadata.location);
+                    assert.equal(media.media.metadata.latitude, mediaInfo.metadata.latitude);
+                    assert.equal(media.media.metadata.longitude, mediaInfo.metadata.longitude);
+                    assert.equal(media.media.metadata.height, mediaInfo.metadata.height);
+                    assert.equal(media.media.metadata.width, mediaInfo.metadata.width);
+                    assert.equal(media.media.metadata.myMadeUpMetadata, mediaInfo.metadata.myMadeUpMetadata);
+                    assert.equal(media.media.metadata.creationDateTime, mediaInfo.metadata.creationDateTime);
+                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.PHOTO);
+                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.PHOTO);
+                    media.addUpdateListener(function listener (isAlive) {
+                        assert.isTrue(isAlive);
+                        utils.testMediaProperties(media);
+                        if (media.playerState === chrome.cast.media.PlayerState.PAUSED) {
+                            media.removeUpdateListener(listener);
+                            done();
+                        }
+                    });
                 }, function (err) {
                     assert.fail(err.code + ': ' + err.description);
                 });

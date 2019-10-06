@@ -188,7 +188,7 @@ final class ChromecastUtilities {
         switch (clientName) {
             case "albumArtist":
                 return MediaMetadata.KEY_ALBUM_ARTIST;
-            case "albumTitle":
+            case "albumName":
                 return MediaMetadata.KEY_ALBUM_TITLE;
             case "artist":
                 return MediaMetadata.KEY_ARTIST;
@@ -203,24 +203,26 @@ final class ChromecastUtilities {
             case "composer":
                 return MediaMetadata.KEY_COMPOSER;
             case "creationDate":
+            case "creationDateTime":
                 return MediaMetadata.KEY_CREATION_DATE;
             case "discNumber":
                 return MediaMetadata.KEY_DISC_NUMBER;
-            case "episodeNumber":
+            case "episode":
                 return MediaMetadata.KEY_EPISODE_NUMBER;
             case "height":
                 return MediaMetadata.KEY_HEIGHT;
-            case "locationLatitude":
+            case "latitude":
                 return MediaMetadata.KEY_LOCATION_LATITUDE;
-            case "locationLongitude":
+            case "longitude":
                 return MediaMetadata.KEY_LOCATION_LONGITUDE;
             case "locationName":
                 return MediaMetadata.KEY_LOCATION_NAME;
             case "queueItemId":
                 return MediaMetadata.KEY_QUEUE_ITEM_ID;
             case "releaseDate":
+            case "originalAirDate":
                 return MediaMetadata.KEY_RELEASE_DATE;
-            case "seasonNumber":
+            case "season":
                 return MediaMetadata.KEY_SEASON_NUMBER;
             case "sectionDuration":
                 return MediaMetadata.KEY_SECTION_DURATION;
@@ -252,7 +254,7 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_ALBUM_ARTIST:
                 return "albumArtist";
             case MediaMetadata.KEY_ALBUM_TITLE:
-                return "albumTitle";
+                return "albumName";
             case MediaMetadata.KEY_ARTIST:
                 return "artist";
             case MediaMetadata.KEY_BOOK_TITLE:
@@ -270,21 +272,21 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_DISC_NUMBER:
                 return "discNumber";
             case MediaMetadata.KEY_EPISODE_NUMBER:
-                return "episodeNumber";
+                return "episode";
             case MediaMetadata.KEY_HEIGHT:
                 return "height";
             case MediaMetadata.KEY_LOCATION_LATITUDE:
-                return "locationLatitude";
+                return "latitude";
             case MediaMetadata.KEY_LOCATION_LONGITUDE:
-                return "locationLongitude";
+                return "longitude";
             case MediaMetadata.KEY_LOCATION_NAME:
-                return "locationName";
+                return "location";
             case MediaMetadata.KEY_QUEUE_ITEM_ID:
                 return "queueItemId";
             case MediaMetadata.KEY_RELEASE_DATE:
                 return "releaseDate";
             case MediaMetadata.KEY_SEASON_NUMBER:
-                return "seasonNumber";
+                return "season";
             case MediaMetadata.KEY_SECTION_DURATION:
                 return "sectionDuration";
             case MediaMetadata.KEY_SECTION_START_ABSOLUTE_TIME:
@@ -307,6 +309,46 @@ final class ChromecastUtilities {
                 return "width";
             default:
                 return androidName;
+        }
+    }
+
+    static String getMetadataType(String androidName) {
+        switch (androidName) {
+            case MediaMetadata.KEY_ALBUM_ARTIST:
+            case MediaMetadata.KEY_ALBUM_TITLE:
+            case MediaMetadata.KEY_ARTIST:
+            case MediaMetadata.KEY_BOOK_TITLE:
+            case MediaMetadata.KEY_CHAPTER_NUMBER:
+            case MediaMetadata.KEY_CHAPTER_TITLE:
+            case MediaMetadata.KEY_COMPOSER:
+            case MediaMetadata.KEY_LOCATION_NAME:
+            case MediaMetadata.KEY_SERIES_TITLE:
+            case MediaMetadata.KEY_STUDIO:
+            case MediaMetadata.KEY_SUBTITLE:
+            case MediaMetadata.KEY_TITLE:
+                return "string"; // 1 in MediaMetadata
+            case MediaMetadata.KEY_DISC_NUMBER:
+            case MediaMetadata.KEY_EPISODE_NUMBER:
+            case MediaMetadata.KEY_HEIGHT:
+            case MediaMetadata.KEY_QUEUE_ITEM_ID:
+            case MediaMetadata.KEY_SEASON_NUMBER:
+            case MediaMetadata.KEY_TRACK_NUMBER:
+            case MediaMetadata.KEY_WIDTH:
+                return "int"; // 2 in MediaMetadata
+            case MediaMetadata.KEY_LOCATION_LATITUDE:
+            case MediaMetadata.KEY_LOCATION_LONGITUDE:
+                return "double"; // 3 in MediaMetadata
+            case MediaMetadata.KEY_BROADCAST_DATE:
+            case MediaMetadata.KEY_CREATION_DATE:
+            case MediaMetadata.KEY_RELEASE_DATE:
+                return "date"; // 4 in MediaMetadata
+            case MediaMetadata.KEY_SECTION_DURATION:
+            case MediaMetadata.KEY_SECTION_START_ABSOLUTE_TIME:
+            case MediaMetadata.KEY_SECTION_START_TIME_IN_CONTAINER:
+            case MediaMetadata.KEY_SECTION_START_TIME_IN_MEDIA:
+                return "ms"; // 5 in MediaMetadata
+            default:
+                return "custom";
         }
     }
 
@@ -532,21 +574,53 @@ final class ChromecastUtilities {
         JSONObject out = new JSONObject();
         try {
             try {
+                // Must be in own try catch
                 out.put("images", createImagesArray(metadata.getImages()));
             } catch (Exception e) {
             }
             out.put("metadataType", metadata.getMediaType());
+            out.put("type", metadata.getMediaType());
+
             Set<String> keys = metadata.keySet();
             String outKey;
+            // First translate and add the Android specific keys
             for (String key : keys) {
                 outKey = ChromecastUtilities.getClientMetadataName(key);
-                if (outKey.equals("type")) {
+                if (outKey.equals(key) || outKey.equals("type")) {
                     continue;
+                }
+                switch (ChromecastUtilities.getMetadataType(key)) {
+                    case "string":
+                        out.put(outKey, metadata.getString(key));
+                        break;
+                    case "int":
+                        out.put(outKey, metadata.getInt(key));
+                        break;
+                    case "double":
+                        out.put(outKey, metadata.getDouble(key));
+                        break;
+                    case "date":
+                        out.put(outKey, metadata.getDate(key).getTimeInMillis());
+                        break;
+                    case "ms":
+                        out.put(outKey, metadata.getTimeMillis(key));
+                        break;
+                    default:
+                }
+            }
+            // Then add the non-Android specific keys ensuring we don't overwrite existing keys
+            for (String key : keys) {
+                outKey = ChromecastUtilities.getClientMetadataName(key);
+                if (!outKey.equals(key) || out.has(outKey) || outKey.equals("type")) {
+                    continue;
+                }
+                if (outKey.startsWith("cordova-plugin-chromecast_metadata_key=")) {
+                    outKey = outKey.substring("cordova-plugin-chromecast_metadata_key=".length());
                 }
                 out.put(outKey, metadata.getString(key));
             }
-            out.put("type", metadata.getMediaType());
         } catch (Exception e) {
+            e.printStackTrace();
         }
 
         return out;

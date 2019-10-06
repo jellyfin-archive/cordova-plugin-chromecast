@@ -705,6 +705,8 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
             _currentMedia = new chrome.cast.media.Media(self.sessionId, obj.mediaSessionId);
             _currentMedia._update(obj);
             successCallback(_currentMedia);
+            // Also trigger the update notification
+            _currentMedia.emit('_mediaUpdated', _currentMedia.playerState !== 'IDLE');
         } else {
             handleError(err, errorCallback);
         }

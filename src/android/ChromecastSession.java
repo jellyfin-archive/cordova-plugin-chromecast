@@ -1,6 +1,7 @@
 package acidhax.cordova.chromecast;
 
 import java.io.IOException;
+import java.util.GregorianCalendar;
 import java.util.Iterator;
 
 import org.apache.cordova.CallbackContext;
@@ -245,32 +246,94 @@ public class ChromecastSession {
 
         MediaMetadata mediaMetadata;
         try {
-            int metadataType = metadata.has("metadataType") ? metadata.getInt("metadataType") : MediaMetadata.MEDIA_TYPE_GENERIC;
-            // Set the metadataType
-            mediaMetadata = new MediaMetadata(metadataType);
-            // Add any images
-            addImages(metadata, mediaMetadata);
-
-            // Dynamically add other parameters
-            Iterator<String> keys = metadata.keys();
-            String key;
-            String value;
-            while (keys.hasNext()) {
-                key = keys.next();
-                value = metadata.getString(key);
-                if (key.equals("metadataType")
-                        || key.equals("images")
-                        || key.equals("type")) {
-                    continue;
-                }
-                key = ChromecastUtilities.getAndroidMetadataName(key);
-                mediaMetadata.putString(key, value);
-            }
-
-            mediaInfoBuilder.setMetadata(mediaMetadata);
-
-        } catch (Exception e) {
+            mediaMetadata = new MediaMetadata(metadata.getInt("metadataType"));
+        } catch (JSONException e) {
+            mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_GENERIC);
         }
+        // Add any images
+        try {
+            JSONArray images = metadata.getJSONArray("images");
+            for (int i = 0; i < images.length(); i++) {
+                JSONObject imageObj = images.getJSONObject(i);
+                try {
+                    Uri imageURI = Uri.parse(imageObj.getString("url"));
+                    mediaMetadata.addImage(new WebImage(imageURI));
+                } catch (Exception e) {
+                }
+            }
+        } catch (JSONException e) {
+        }
+
+        // Dynamically add other parameters
+        Iterator<String> keys = metadata.keys();
+        String key;
+        String convertedKey;
+        Object value;
+        while (keys.hasNext()) {
+            key = keys.next();
+            if (key.equals("metadataType")
+                    || key.equals("images")
+                    || key.equals("type")) {
+                continue;
+            }
+            try {
+                value = metadata.get(key);
+                convertedKey = ChromecastUtilities.getAndroidMetadataName(key);
+                // Try to add the translated version of the key
+                switch (ChromecastUtilities.getMetadataType(convertedKey)) {
+                    case "string":
+                        mediaMetadata.putString(convertedKey, metadata.getString(key));
+                        break;
+                    case "int":
+                        mediaMetadata.putInt(convertedKey, metadata.getInt(key));
+                        break;
+                    case "double":
+                        mediaMetadata.putDouble(convertedKey, metadata.getDouble(key));
+                        break;
+                    case "date":
+                        GregorianCalendar c = new GregorianCalendar();
+                        if (value instanceof java.lang.Integer
+                                || value instanceof java.lang.Long
+                                || value instanceof java.lang.Float
+                                || value instanceof java.lang.Double) {
+                            c.setTimeInMillis(metadata.getLong(key));
+                            mediaMetadata.putDate(convertedKey, c);
+                        } else {
+                            String stringValue;
+                            try {
+                                stringValue = " value: " + metadata.getString(key);
+                            } catch (JSONException e) {
+                                stringValue = "";
+                            }
+                            new Error("Cannot date from metadata key: " + key + stringValue
+                                    + "\n Dates must be in milliseconds from epoch UTC")
+                                    .printStackTrace();
+                        }
+                        break;
+                    case "ms":
+                        mediaMetadata.putTimeMillis(convertedKey, metadata.getLong(key));
+                        break;
+                    default:
+                }
+                // Also always add the client's version of the key because sometimes the
+                // MediaMetadata object removes some parameters.
+                // eg. If you pass metadataType == 2 == MEDIA_TYPE_TV_SHOW you will lose any
+                // subtitle added for "com.google.android.gms.cast.metadata.SUBTITLE", but this
+                // is not in-line with chrome desktop which preserves the value.
+                if (!key.equals(convertedKey)) {
+                    // It is is really stubborn and if you try to add the key "subtitle" that is
+                    // also stripped.  (Hence the "cordova-plugin-chromecast_metadata_key=" prefix
+                    convertedKey = "cordova-plugin-chromecast_metadata_key=" + key;
+                }
+                mediaMetadata.putString(convertedKey, metadata.getString(key));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+            }
+        }
+
+        mediaInfoBuilder.setMetadata(mediaMetadata);
 
         int intStreamType;
         switch (streamType) {
@@ -294,20 +357,6 @@ public class ChromecastSession {
                 .setTextTrackStyle(trackStyle);
 
         return mediaInfoBuilder.build();
-    }
-
-    private void addImages(JSONObject metadata, MediaMetadata mediaMetadata) throws JSONException {
-        if (metadata.has("images")) {
-            JSONArray images = metadata.getJSONArray("images");
-            for (int i = 0; i < images.length(); i++) {
-                JSONObject imageObj = images.getJSONObject(i);
-                try {
-                    Uri imageURI = Uri.parse(imageObj.getString("url"));
-                    mediaMetadata.addImage(new WebImage(imageURI));
-                } catch (Exception e) {
-                }
-            }
-        }
     }
 
     /**

@@ -22,7 +22,7 @@
             prependPath.pop();
             prependPath = prependPath.join('/') + '/';
 
-            var lines = err.stack.split('\n');
+            var lines = (err.stack || err.message || err).split('\n');
             var line, filePath;
             for (var i = 1; i < lines.length; i++) {
                 line = lines[i];
@@ -31,7 +31,7 @@
                     line = line.split('(');
                     filePath = line[line.length - 1];
                     // Does the path need pre-pending?
-                    if (filePath.indexOf(window.location.origin) === -1) {
+                    if (filePath.indexOf('://') === -1) {
                         // Insert the full path to the file
                         line[line.length - 1] = prependPath + filePath;
                         // Rejoin the line

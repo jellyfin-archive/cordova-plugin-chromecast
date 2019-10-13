@@ -29,6 +29,11 @@
      * call.
      */
     utils.callOrder = function (calls, callback) {
+        var timeout = setTimeout(function () {
+            console.error('Did not receive all expected calls before 10s.\n'
+            + 'Call state (look for "called" parameter): ');
+            console.error(calls);
+        }, 10000);
         // Set called to 0
         for (var i = 0; i < calls.length; i++) {
             calls[i].called = 0;
@@ -76,6 +81,7 @@
             }
 
             if (calls.length === expectedPos || calls[calls.length - 1].called === 1) {
+                clearTimeout(timeout);
                 callback();
             }
         };
@@ -92,6 +98,12 @@
      * call.
      */
     utils.waitForAllCalls = function (calls, callback) {
+        var timeout = setTimeout(function () {
+            console.error('Did not receive all expected calls before 10s.\n'
+            + 'Call state (look for "called" parameter): ');
+            console.error(calls);
+        }, 10000);
+
         var called = [];
 
         return function (callId) {
@@ -114,6 +126,7 @@
                 // Else, it has not been called before, so add it to called
                 called.push(callId);
                 if (called.length === calls.length) {
+                    clearTimeout(timeout);
                     callback();
                 }
             }

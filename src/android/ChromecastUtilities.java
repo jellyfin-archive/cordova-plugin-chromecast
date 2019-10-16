@@ -626,7 +626,10 @@ final class ChromecastUtilities {
         return out;
     }
 
-    static JSONObject createTextTrackObject(TextTrackStyle textTrackStyle) {
+    private static JSONObject createTextTrackObject(TextTrackStyle textTrackStyle) {
+        if (textTrackStyle == null) {
+            return null;
+        }
         JSONObject out = new JSONObject();
         try {
             out.put("backgroundColor", getHexColor(textTrackStyle.getBackgroundColor()));

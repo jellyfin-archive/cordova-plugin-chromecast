@@ -1,7 +1,13 @@
+html, body {
+  height: 100%;
+}
+h1 {
+    margin: 0.5em;
+}
 button {
     height: 3em;
     width: 10em;
-    margin-top: 1em;
+    margin: 0.5em;
     margin-bottom: 0em;
 }
 .center-horizontal {
@@ -9,4 +15,7 @@ button {
     margin-left: auto;
     margin-right: auto;
     text-align: center;
-  }
+}
+#mocha {
+    margin: 1em !important;
+}

@@ -230,6 +230,34 @@
         }
     };
 
+    utils.testQueueItems = function (items) {
+        assert.isArray(items);
+        var item;
+        for (var i = 0; i < items.length; i++) {
+            item = items[i];
+            assert.isBoolean(item.autoplay);
+            assert.isNumber(item.itemId);
+            utils.testQueueItemMediaInfoProperties(item.media);
+            assert.isNumber(item.orderId);
+            assert.isNumber(item.preloadTime);
+            assert.isNumber(item.startTime);
+        }
+    };
+
+    utils.testQueueItemMediaInfoProperties = function (mediaInfo) {
+        assert.isObject(mediaInfo);
+        assert.isString(mediaInfo.contentId);
+        assert.isString(mediaInfo.contentType);
+        if (mediaInfo.duration) {
+            assert.isNumber(mediaInfo.duration);
+        }
+        utils.testMediaMetadata(mediaInfo.metadata);
+        assert.isString(mediaInfo.streamType);
+        if (mediaInfo.tracks) {
+            assert.isArray(mediaInfo.tracks);
+        }
+    };
+
     window['cordova-plugin-chromecast-tests'] = window['cordova-plugin-chromecast-tests'] || {};
     window['cordova-plugin-chromecast-tests'].utils = utils;
 }());

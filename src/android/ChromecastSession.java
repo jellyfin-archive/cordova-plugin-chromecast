@@ -1,8 +1,7 @@
 package acidhax.cordova.chromecast;
 
 import java.io.IOException;
-import java.util.GregorianCalendar;
-import java.util.Iterator;
+import java.util.ArrayList;
 
 import org.apache.cordova.CallbackContext;
 import org.json.JSONArray;
@@ -13,26 +12,24 @@ import com.google.android.gms.cast.ApplicationMetadata;
 import com.google.android.gms.cast.Cast;
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaLoadRequestData;
-import com.google.android.gms.cast.MediaMetadata;
+import com.google.android.gms.cast.MediaQueueItem;
 import com.google.android.gms.cast.MediaSeekOptions;
 import com.google.android.gms.cast.MediaStatus;
-import com.google.android.gms.cast.TextTrackStyle;
 import com.google.android.gms.cast.framework.CastSession;
+import com.google.android.gms.cast.framework.media.MediaQueue;
 import com.google.android.gms.cast.framework.media.RemoteMediaClient;
 import com.google.android.gms.cast.framework.media.RemoteMediaClient.MediaChannelResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
-import com.google.android.gms.common.images.WebImage;
 
 import android.app.Activity;
-import android.net.Uri;
+
 import androidx.annotation.NonNull;
 
 /*
  * All of the Chromecast session specific functions should start here.
  */
 public class ChromecastSession {
-
     /** The current context. */
     private Activity activity;
     /** A registered callback that we will un-register and re-register each time the session changes. */
@@ -41,6 +38,14 @@ public class ChromecastSession {
     private CastSession session;
     /** The current session's client for controlling playback. */
     private RemoteMediaClient client;
+    /** Indicates whether we are requesting media or not. **/
+    private boolean requestingMedia = false;
+    /** Keeps track of the queueItems. **/
+    private JSONArray queueItems;
+    /** Stores a callback that should be called when the queue is loaded. **/
+    private Runnable queueReloadCallback;
+    /** Stores a callback that should be called when the queue status is updated. **/
+    private Runnable queueStatusUpdatedCallback;
 
     /**
      * ChromecastSession constructor.
@@ -68,53 +73,43 @@ public class ChromecastSession {
                     return;
                 }
                 session = castSession;
-                client = session.getRemoteMediaClient();
+                 client = session.getRemoteMediaClient();
                 if (client == null) {
                     return;
                 }
                 client.registerCallback(new RemoteMediaClient.Callback() {
-                    private String currentState = "idle";
+                    private int prevState = MediaStatus.PLAYER_STATE_IDLE;
+                    private MediaInfo lastMedia;
                     @Override
                     public void onStatusUpdated() {
                         MediaStatus status = client.getMediaStatus();
-                        if (status != null) {
-                            switch (status.getPlayerState()) {
-                                case MediaStatus.PLAYER_STATE_LOADING:
-                                case MediaStatus.PLAYER_STATE_IDLE:
-                                    if (!currentState.equals("requesting")) {
-                                        currentState = "loading";
-                                    }
-                                    break;
-                                default:
-                                    if (currentState.equals("loading")) {
-                                        clientListener.onMediaLoaded(createMediaObject());
-                                    }
-                                    currentState = "loaded";
-                                    break;
-                            }
+                        if (requestingMedia
+                                || queueStatusUpdatedCallback != null
+                                || queueReloadCallback != null) {
+                            return;
                         }
+
+                        if (status != null) {
+                            int state = status.getPlayerState();
+                            if (lastMedia != null
+                                    && state != prevState
+                                    && state == MediaStatus.PLAYER_STATE_LOADING) {
+                                // It appears the queue has advanced to the next item
+                                // So send an update to indicate the previous has finished
+                                clientListener.onMediaUpdate(createMediaObject(MediaStatus.IDLE_REASON_FINISHED));
+                            }
+                            prevState = status.getPlayerState();
+                        }
+                        // Send update
                         clientListener.onMediaUpdate(createMediaObject());
-                    }
-                    @Override
-                    public void onMetadataUpdated() {
-                        clientListener.onMediaUpdate(createMediaObject());
+                        lastMedia = client.getMediaInfo();
                     }
                     @Override
                     public void onQueueStatusUpdated() {
-                        clientListener.onMediaUpdate(createMediaObject());
-                    }
-                    @Override
-                    public void onPreloadStatusUpdated() {
-                        clientListener.onMediaUpdate(createMediaObject());
-                    }
-                    @Override
-                    public void onSendingRemoteMediaRequest() {
-                        currentState = "requesting";
-                        clientListener.onMediaUpdate(createMediaObject());
-                    }
-                    @Override
-                    public void onAdBreakStatusUpdated() {
-                        clientListener.onMediaUpdate(createMediaObject());
+                        if (queueStatusUpdatedCallback != null) {
+                            queueStatusUpdatedCallback.run();
+                            setQueueStatusUpdatedCallback(null);
+                        }
                     }
                 });
                 session.addCastListener(new Cast.Listener() {
@@ -144,6 +139,7 @@ public class ChromecastSession {
                         clientListener.onSessionUpdate(createSessionObject());
                     }
                 });
+                setupQueue();
             }
         });
     }
@@ -195,6 +191,8 @@ public class ChromecastSession {
         });
     }
 
+/* ------------------------------------   MEDIA FNs   ------------------------------------------- */
+
     /**
      * Loads media over the media API.
      * @param contentId      - The URL of the content
@@ -215,148 +213,31 @@ public class ChromecastSession {
         }
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                MediaInfo mediaInfo = createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);
+                MediaInfo mediaInfo = ChromecastUtilities.createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);
                 MediaLoadRequestData loadRequest = new MediaLoadRequestData.Builder()
                         .setMediaInfo(mediaInfo)
                         .setAutoplay(autoPlay)
                         .setCurrentTime((long) currentTime * 1000)
                         .build();
 
+                requestingMedia = true;
+                setQueueReloadCallback(new Runnable() {
+                    @Override
+                    public void run() {
+                        callback.success(createMediaObject());
+                    }
+                });
                 client.load(loadRequest).setResultCallback(new ResultCallback<MediaChannelResult>() {
                     @Override
                     public void onResult(@NonNull MediaChannelResult result) {
-                        if (result.getStatus().isSuccess()) {
-                            JSONObject out = createMediaObject();
-                            if (out == null) {
-                                callback.success();
-                            } else {
-                                callback.success(out);
-                            }
-                        } else {
+                        requestingMedia = false;
+                        if (!result.getStatus().isSuccess()) {
                             callback.error("session_error");
                         }
                     }
                 });
             }
         });
-    }
-
-    private MediaInfo createMediaInfo(String contentId, JSONObject customData, String contentType, long duration, String streamType, JSONObject metadata, JSONObject textTrackStyle) {
-        MediaInfo.Builder mediaInfoBuilder = new MediaInfo.Builder(contentId);
-
-        MediaMetadata mediaMetadata;
-        try {
-            mediaMetadata = new MediaMetadata(metadata.getInt("metadataType"));
-        } catch (JSONException e) {
-            mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_GENERIC);
-        }
-        // Add any images
-        try {
-            JSONArray images = metadata.getJSONArray("images");
-            for (int i = 0; i < images.length(); i++) {
-                JSONObject imageObj = images.getJSONObject(i);
-                try {
-                    Uri imageURI = Uri.parse(imageObj.getString("url"));
-                    mediaMetadata.addImage(new WebImage(imageURI));
-                } catch (Exception e) {
-                }
-            }
-        } catch (JSONException e) {
-        }
-
-        // Dynamically add other parameters
-        Iterator<String> keys = metadata.keys();
-        String key;
-        String convertedKey;
-        Object value;
-        while (keys.hasNext()) {
-            key = keys.next();
-            if (key.equals("metadataType")
-                    || key.equals("images")
-                    || key.equals("type")) {
-                continue;
-            }
-            try {
-                value = metadata.get(key);
-                convertedKey = ChromecastUtilities.getAndroidMetadataName(key);
-                // Try to add the translated version of the key
-                switch (ChromecastUtilities.getMetadataType(convertedKey)) {
-                    case "string":
-                        mediaMetadata.putString(convertedKey, metadata.getString(key));
-                        break;
-                    case "int":
-                        mediaMetadata.putInt(convertedKey, metadata.getInt(key));
-                        break;
-                    case "double":
-                        mediaMetadata.putDouble(convertedKey, metadata.getDouble(key));
-                        break;
-                    case "date":
-                        GregorianCalendar c = new GregorianCalendar();
-                        if (value instanceof java.lang.Integer
-                                || value instanceof java.lang.Long
-                                || value instanceof java.lang.Float
-                                || value instanceof java.lang.Double) {
-                            c.setTimeInMillis(metadata.getLong(key));
-                            mediaMetadata.putDate(convertedKey, c);
-                        } else {
-                            String stringValue;
-                            try {
-                                stringValue = " value: " + metadata.getString(key);
-                            } catch (JSONException e) {
-                                stringValue = "";
-                            }
-                            new Error("Cannot date from metadata key: " + key + stringValue
-                                    + "\n Dates must be in milliseconds from epoch UTC")
-                                    .printStackTrace();
-                        }
-                        break;
-                    case "ms":
-                        mediaMetadata.putTimeMillis(convertedKey, metadata.getLong(key));
-                        break;
-                    default:
-                }
-                // Also always add the client's version of the key because sometimes the
-                // MediaMetadata object removes some parameters.
-                // eg. If you pass metadataType == 2 == MEDIA_TYPE_TV_SHOW you will lose any
-                // subtitle added for "com.google.android.gms.cast.metadata.SUBTITLE", but this
-                // is not in-line with chrome desktop which preserves the value.
-                if (!key.equals(convertedKey)) {
-                    // It is is really stubborn and if you try to add the key "subtitle" that is
-                    // also stripped.  (Hence the "cordova-plugin-chromecast_metadata_key=" prefix
-                    convertedKey = "cordova-plugin-chromecast_metadata_key=" + key;
-                }
-                mediaMetadata.putString(convertedKey, metadata.getString(key));
-            } catch (JSONException e) {
-                e.printStackTrace();
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            }
-        }
-
-        mediaInfoBuilder.setMetadata(mediaMetadata);
-
-        int intStreamType;
-        switch (streamType) {
-            case "buffered":
-                intStreamType = MediaInfo.STREAM_TYPE_BUFFERED;
-                break;
-            case "live":
-                intStreamType = MediaInfo.STREAM_TYPE_LIVE;
-                break;
-            default:
-                intStreamType = MediaInfo.STREAM_TYPE_NONE;
-        }
-
-        TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
-
-        mediaInfoBuilder
-                .setContentType(contentType)
-                .setCustomData(customData)
-                .setStreamType(intStreamType)
-                .setStreamDuration(duration)
-                .setTextTrackStyle(trackStyle);
-
-        return mediaInfoBuilder.build();
     }
 
     /**
@@ -535,6 +416,268 @@ public class ChromecastSession {
         });
     }
 
+/* ------------------------------------   QUEUE FNs   ------------------------------------------- */
+
+    private void setQueueReloadCallback(Runnable callback) {
+        this.queueReloadCallback = callback;
+    }
+
+    private void setQueueStatusUpdatedCallback(Runnable callback) {
+        this.queueStatusUpdatedCallback = callback;
+    }
+
+    /**
+     * Sets up the objects and listeners required for queue functionality.
+     */
+    public void setupQueue() {
+        MediaQueue queue = client.getMediaQueue();
+        queueItems = null;
+        ChromecastUtilities.setQueueItems(queueItems);
+        queueReloadCallback = null;
+        // Set up the queue listener
+        queue.registerCallback(new MediaQueue.Callback() {
+            private boolean isQueueFinishedLoading = false;
+            private ArrayList<Integer> lookingForIndexes = new ArrayList<Integer>();
+
+            private void queueItemsPutAt(int index, JSONObject item) {
+                try {
+                    queueItems.put(index, item);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("See above stack trace for error: " + e.getMessage());
+                }
+            }
+            private void lookForItems(ArrayList<Integer> indexes) {
+                synchronized (queue) {
+                    // Merge the two arrays
+                    lookingForIndexes.addAll(indexes);
+                    checkItems();
+                }
+            }
+            private void checkItems() {
+                MediaQueueItem item;
+                int index;
+                while (lookingForIndexes.size() > 0) {
+                    index = lookingForIndexes.get(0);
+                    item = queue.getItemAtIndex(index, true);
+                    if (item != null) {
+                        queueItemsPutAt(index, ChromecastUtilities.createQueueItem(item, index));
+                        lookingForIndexes.remove(0);
+                    } else {
+                        break;
+                    }
+                }
+                if (lookingForIndexes.size() == 0) {
+                    updateFinished();
+                }
+            }
+            private void updateFinished() {
+                // Update the queueItems
+                ChromecastUtilities.setQueueItems(queueItems);
+                if (!isQueueFinishedLoading) {
+                    isQueueFinishedLoading = true;
+                    if (queueReloadCallback != null && queue.getItemCount() > 0) {
+                        queueReloadCallback.run();
+                        setQueueReloadCallback(null);
+                    }
+                }
+                clientListener.onMediaUpdate(createMediaObject());
+            }
+
+            @Override
+            public void itemsReloaded() {
+                synchronized (queue) {
+                    isQueueFinishedLoading = false;
+                    int itemCount = queue.getItemCount();
+                    if (queueReloadCallback == null) {
+                        setQueueReloadCallback(new Runnable() {
+                            @Override
+                            public void run() {
+                                // This was externally loaded
+                                clientListener.onMediaLoaded(createMediaObject());
+                            }
+                        });
+                    }
+                    // init the arrays
+                    ArrayList<Integer> findIndexes = new ArrayList<>();
+                    queueItems = new JSONArray();
+                    for (int i = 0; i < itemCount; i++) {
+                        findIndexes.add(i);
+                        queueItems.put(null);
+                    }
+                    // Start loading the items
+                    lookForItems(findIndexes);
+                }
+            }
+            @Override
+            public void itemsUpdatedAtIndexes(int[] ints) {
+                synchronized (queue) {
+                    ArrayList<Integer> unread = new ArrayList<>();
+                    for (int i : ints) {
+                        if (queue.getItemAtIndex(i) == null) {
+                            unread.add(i);
+                        }
+                    }
+                    lookForItems(unread);
+                }
+            }
+            @Override
+            public void itemsInsertedInRange(int startIndex, int insertCount) {
+                synchronized (queue) {
+                    // Make room for inserts
+                    for (int i = 0; i < insertCount; i++) {
+                        queueItems.put(new JSONObject());
+                    }
+                    // Shift existing entries
+                    for (int i = startIndex; i < startIndex + insertCount; i++) {
+                        JSONObject movingObj = new JSONObject();
+                        try {
+                            movingObj = queueItems.getJSONObject(i);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                            throw new RuntimeException("Expected queueItems to contain index: "
+                                    + i + " queueItems.length: " + queueItems.length()
+                                    + "\nSee above stack trace for error: " + e.getMessage());
+                        }
+                        queueItemsPutAt(i + insertCount, movingObj);
+                    }
+                    // Shift the lookingForIndexes
+                    int index;
+                    for (int i = 0; i < lookingForIndexes.size(); i++) {
+                        index = lookingForIndexes.get(i);
+                        if (index >= startIndex) {
+                            lookingForIndexes.set(i, index + insertCount);
+                        }
+                    }
+                    // null new entries and build indexes array to update
+                    ArrayList<Integer> updateIndexes = new ArrayList<>();
+                    for (int i = startIndex; i < startIndex + insertCount; i++) {
+                        updateIndexes.add(startIndex + i);
+                        queueItemsPutAt(startIndex + i, null);
+                    }
+                    // Trigger the media update
+                    lookForItems(updateIndexes);
+                }
+            }
+            @Override
+            public void itemsRemovedAtIndexes(int[] ints) {
+                synchronized (queue) {
+                    ArrayList<Integer> lookingForInts = new ArrayList<Integer>();
+                    // Remove the required indexes
+                    int index;
+                    for (int i : ints) {
+                        queueItems.remove(i);
+                        // Also, update/remove any references to look for these indexes
+                        for (int j = 0; j < lookingForIndexes.size(); j++) {
+                            index = lookingForIndexes.get(j);
+                            if (index > i) {
+                                lookingForInts.add(j, index - 1);
+                            } else if (index < i) {
+                                lookingForInts.add(index);
+                            }
+                        }
+                        lookingForIndexes = lookingForInts;
+                    }
+                    // Trigger the media update
+                    itemsUpdatedAtIndexes(new int[0]);
+                }
+            }
+        });
+    }
+
+    /**
+     * Loads a queue of media to the Chromecast.
+     * @param queueLoadRequest chrome.cast.media.QueueLoadRequest
+     * @param callback called with success or error
+     */
+    public void queueLoad(JSONObject queueLoadRequest, CallbackContext callback) {
+        if (client == null || session == null) {
+            callback.error("session_error");
+            return;
+        }
+        activity.runOnUiThread(new Runnable() {
+            public void run() {
+                try {
+                    JSONArray qItems = queueLoadRequest.getJSONArray("items");
+                    MediaQueueItem[] items = new MediaQueueItem[qItems.length()];
+                    for (int i = 0; i < qItems.length(); i++) {
+                        items[i] = ChromecastUtilities.createMediaQueueItem(qItems.getJSONObject(i));
+                    }
+
+                    int startIndex = queueLoadRequest.getInt("startIndex");
+                    int repeatMode = ChromecastUtilities.getAndroidRepeatMode(queueLoadRequest.getString("repeatMode"));
+                    long playPosition = Double.valueOf(items[startIndex].getStartTime() * 1000).longValue();
+                    JSONObject customData = null;
+                    try {
+                        customData = queueLoadRequest.getJSONObject("customData");
+                    } catch (JSONException e) {
+                    }
+
+                    setQueueReloadCallback(new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.success(createMediaObject());
+                        }
+                    });
+                    client.queueLoad(items, startIndex, repeatMode, playPosition, customData).setResultCallback(new ResultCallback<MediaChannelResult>() {
+                        @Override
+                        public void onResult(@NonNull MediaChannelResult result) {
+                            if (!result.getStatus().isSuccess()) {
+                                callback.error("session_error");
+                                setQueueReloadCallback(null);
+                            }
+                        }
+                    });
+                } catch (JSONException e) {
+                    callback.error(ChromecastUtilities.createError("invalid_parameter", e.getMessage()));
+                }
+            }
+        });
+    }
+
+    /**
+     * Plays the item with itemId in the queue.
+     * @param itemId The ID of the item to jump to.
+     * @param callback called with .success or .error depending on the result
+     */
+    public void queueJumpToItem(Integer itemId, CallbackContext callback) {
+        if (client == null || session == null) {
+            callback.error("session_error");
+            return;
+        }
+
+        activity.runOnUiThread(new Runnable() {
+            public void run() {
+                setQueueStatusUpdatedCallback(new Runnable() {
+                    @Override
+                    public void run() {
+                        clientListener.onMediaUpdate(createMediaObject(MediaStatus.IDLE_REASON_INTERRUPTED));
+                    }
+                });
+                client.queueJumpToItem(itemId, null)
+                        .setResultCallback(new ResultCallback<MediaChannelResult>() {
+                    @Override
+                    public void onResult(@NonNull MediaChannelResult result) {
+
+                        if (result.getStatus().isSuccess()) {
+                            callback.success();
+                        } else {
+                            setQueueStatusUpdatedCallback(null);
+                            JSONObject errorResult = result.getCustomData();
+                            String error = "Failed to jump to queue item with ID: " + itemId;
+                            if (errorResult != null) {
+                                error += "\nError details: " + errorResult;
+                            }
+                            callback.error(error);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+/* ------------------------------------   SESSION FNs ------------------------------------------- */
+
     /**
      * Sets the receiver volume level.
      * @param volume volume to set the receiver to
@@ -579,6 +722,8 @@ public class ChromecastSession {
         });
     }
 
+/* ------------------------------------   HELPERS  ---------------------------------------------- */
+
     /**
      * Returns a resultCallback that wraps the callback and calls the onMediaUpdate listener.
      * @param callback client callback
@@ -607,8 +752,24 @@ public class ChromecastSession {
         return ChromecastUtilities.createSessionObject(session);
     }
 
+    /** Last sent media object. **/
+    private JSONObject lastMediaObject;
     private JSONObject createMediaObject() {
-        return ChromecastUtilities.createMediaObject(session);
+        return createMediaObject(null);
+    }
+
+    private JSONObject createMediaObject(Integer idleReason) {
+        if (idleReason != null && lastMediaObject != null) {
+            try {
+                lastMediaObject.put("playerState", ChromecastUtilities.getMediaPlayerState(MediaStatus.PLAYER_STATE_IDLE));
+                lastMediaObject.put("idleReason", ChromecastUtilities.getMediaIdleReason(idleReason));
+                return lastMediaObject;
+            } catch (JSONException e) {
+            }
+        }
+        JSONObject out = ChromecastUtilities.createMediaObject(session);
+        lastMediaObject = out;
+        return out;
     }
 
     interface Listener extends Cast.MessageReceivedCallback {

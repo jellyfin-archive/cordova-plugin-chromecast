@@ -386,6 +386,43 @@ public final class Chromecast extends CordovaPlugin {
     }
 
     /**
+     * Loads a queue of media to the Chromecast.
+     * @param queueLoadRequest chrome.cast.media.QueueLoadRequest
+     * @param callbackContext called with .success or .error depending on the result
+     * @return true for cordova
+     */
+    public boolean queueLoad(JSONObject queueLoadRequest, final CallbackContext callbackContext) {
+        this.media.queueLoad(queueLoadRequest, callbackContext);
+        return true;
+    }
+
+    /**
+     * Plays the item with itemId in the queue.
+     * @param itemId The ID of the item to jump to.
+     * @param callbackContext called with .success or .error depending on the result
+     * @return true for cordova
+     */
+    public boolean queueJumpToItem(Integer itemId, final CallbackContext callbackContext) {
+        this.media.queueJumpToItem(itemId, callbackContext);
+        return true;
+    }
+
+    /**
+     * Plays the item with itemId in the queue.
+     * @param itemId The ID of the item to jump to.
+     * @param callbackContext called with .success or .error depending on the result
+     * @return true for cordova
+     */
+    public boolean queueJumpToItem(Double itemId, final CallbackContext callbackContext) {
+        if (itemId - Double.valueOf(itemId).intValue() == 0) {
+            // Only perform the jump if the double is a whole number
+            return queueJumpToItem(Double.valueOf(itemId).intValue(), callbackContext);
+        } else {
+            return true;
+        }
+    }
+
+    /**
      * Stops the session.
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova

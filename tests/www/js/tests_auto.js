@@ -39,6 +39,7 @@
         var success = 'success';
         var update = 'update';
         var stopped = 'stopped';
+        var newMedia = 'newMedia';
 
         var session;
 
@@ -546,6 +547,7 @@
                 session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                     media = m;
                     utils.testMediaProperties(media);
+                    assert.isUndefined(media.queueData);
                     assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
                     assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
                     assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
@@ -1001,6 +1003,244 @@
                     called(success);
                 }, function (err) {
                     assert.fail(err.code + ': ' + err.description);
+                });
+            });
+            describe('Queues', function () {
+                var videoItem;
+                var audioItem;
+                var startTime = 40;
+                function getCurrentItemIndex (media) {
+                    for (var i = 0; i < media.items.length; i++) {
+                        if (media.items[i].itemId === media.currentItemId) {
+                            return i;
+                        }
+                    }
+                    return 'Could get current item index for itemId: ' + media.currentItemId;
+                }
+                function checkItems (items) {
+                    assert.isTrue(items[0].autoplay);
+                    assert.equal(items[0].startTime, startTime);
+                    assert.equal(items[0].media.contentId, videoUrl);
+                    assert.isTrue(items[1].autoplay);
+                    assert.equal(items[1].startTime, startTime * 2);
+                    assert.equal(items[1].media.contentId, audioUrl);
+                }
+                before(function () {
+                    videoItem = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
+                    videoItem.metadata = new chrome.cast.media.TvShowMediaMetadata();
+                    videoItem.metadata.title = 'DaTitle';
+                    videoItem.metadata.subtitle = 'DaSubtitle';
+                    videoItem.metadata.originalAirDate = new Date().valueOf();
+                    videoItem.metadata.episode = 15;
+                    videoItem.metadata.season = 2;
+                    videoItem.metadata.seriesTitle = 'DaSeries';
+                    videoItem.metadata.images = [new chrome.cast.Image(imageUrl)];
+
+                    audioItem = new chrome.cast.media.MediaInfo(audioUrl, 'audio/mpeg');
+                    audioItem.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+                    audioItem.metadata.albumArtist = 'DaAlmbumArtist';
+                    audioItem.metadata.albumName = 'DaAlbum';
+                    audioItem.metadata.artist = 'DaArtist';
+                    audioItem.metadata.composer = 'DaComposer';
+                    audioItem.metadata.title = 'DaTitle';
+                    audioItem.metadata.songName = 'DaSongName';
+                    audioItem.metadata.myMadeUpMetadata = '15';
+                    audioItem.metadata.releaseDate = new Date().valueOf();
+                    audioItem.metadata.images = [new chrome.cast.Image(imageUrl)];
+                });
+                it('session.queueLoad should return an error when we attempt to load an empty queue', function (done) {
+                    session.queueLoad(new chrome.cast.media.QueueLoadRequest([]), function (m) {
+                        assert.fail('Should not be able to load an empty queue.');
+                    }, function (err) {
+                        assert.isObject(err);
+                        assert.equal(err.code, chrome.cast.ErrorCode.SESSION_ERROR);
+                        assert.equal(err.description, 'INVALID_PARAMS');
+                        assert.deepEqual(err.details, { reason: 'INVALID_PARAMS', type: 'INVALID_REQUEST' });
+                        done();
+                    });
+                });
+                it('session.queueLoad should be able to load remote audio/video queue and return the correct Metadata', function (done) {
+                    var item;
+                    var queue = [];
+
+                    // Add items to the queue
+                    item = new chrome.cast.media.QueueItem(videoItem);
+                    item.startTime = startTime;
+                    queue.push(item);
+                    item = new chrome.cast.media.QueueItem(audioItem);
+                    item.startTime = startTime * 2;
+                    queue.push(item);
+
+                    // Create request to repeat all and start at 2nd item
+                    var request = new chrome.cast.media.QueueLoadRequest(queue);
+                    request.repeatMode = chrome.cast.media.RepeatMode.ALL;
+                    request.startIndex = 1;
+
+                    session.queueLoad(request, function (m) {
+                        media = m;
+                        var i = getCurrentItemIndex(media);
+                        utils.testMediaProperties(media);
+                        assert.equal(media.currentItemId, media.items[i].itemId);
+                        assert.equal(media.repeatMode, chrome.cast.media.RepeatMode.ALL);
+                        assert.isObject(media.queueData);
+                        assert.equal(media.queueData.repeatMode, request.repeatMode);
+                        assert.isFalse(media.queueData.shuffle);
+                        assert.equal(media.queueData.startIndex, request.startIndex);
+                        utils.testQueueItems(media.items);
+                        assert.equal(media.media.contentId, audioUrl);
+                        assert.equal(media.items.length, 2);
+                        checkItems(media.items);
+                        assert.equal(media.items[i].media.metadata.albumArtist, audioItem.metadata.albumArtist);
+                        assert.equal(media.items[i].media.metadata.albumName, audioItem.metadata.albumName);
+                        assert.equal(media.items[i].media.metadata.artist, audioItem.metadata.artist);
+                        assert.equal(media.items[i].media.metadata.composer, audioItem.metadata.composer);
+                        assert.equal(media.items[i].media.metadata.title, audioItem.metadata.title);
+                        assert.equal(media.items[i].media.metadata.songName, audioItem.metadata.songName);
+                        assert.equal(media.items[i].media.metadata.releaseDate, audioItem.metadata.releaseDate);
+                        assert.equal(media.items[i].media.metadata.images[0].url, audioItem.metadata.images[0].url);
+                        assert.equal(media.items[i].media.metadata.myMadeUpMetadata, audioItem.metadata.myMadeUpMetadata);
+                        assert.equal(media.items[i].media.metadata.metadataType, chrome.cast.media.MetadataType.MUSIC_TRACK);
+                        assert.equal(media.items[i].media.metadata.type, chrome.cast.media.MetadataType.MUSIC_TRACK);
+                        media.addUpdateListener(function listener (isAlive) {
+                            assert.isTrue(isAlive);
+                            utils.testMediaProperties(media);
+                            assert.oneOf(media.playerState, [
+                                chrome.cast.media.PlayerState.PLAYING,
+                                chrome.cast.media.PlayerState.BUFFERING]);
+                            if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                                media.removeUpdateListener(listener);
+                                assert.closeTo(media.getEstimatedTime(), startTime * 2, 5);
+                                done();
+                            }
+                        });
+                    }, function (err) {
+                        assert.fail(err.code + ': ' + err.description);
+                    });
+                });
+                it('Queue should start the next item automatically when previous one finishes (tests loop around of repeat_all as well)', function (done) {
+                    var called = utils.callOrder([
+                        { id: success, repeats: false },
+                        { id: stopped, repeats: true },
+                        { id: newMedia, repeats: true },
+                        { id: update, repeats: true }
+                    ], done);
+                    // Create request
+                    var request = new chrome.cast.media.SeekRequest();
+                    request.currentTime = media.media.duration - 1;
+
+                    var i = getCurrentItemIndex(media);
+                    // Listen for current media end
+                    media.addUpdateListener(function listener (isAlive) {
+                        if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
+                            assert.equal(media.idleReason, chrome.cast.media.IdleReason.FINISHED);
+                            assert.isTrue(isAlive);
+                            called(stopped);
+                        }
+                        if (media.currentItemId !== media.items[i].itemId) {
+                            i = getCurrentItemIndex(media);
+                            media.removeUpdateListener(listener);
+                            utils.testMediaProperties(media);
+                            assert.equal(media.repeatMode, chrome.cast.media.RepeatMode.ALL);
+                            assert.equal(media.media.contentId, videoUrl);
+                            utils.testQueueItems(media.items);
+                            assert.equal(media.items.length, 2);
+                            checkItems(media.items);
+                            assert.equal(media.items[i].media.contentId, videoUrl);
+                            assert.equal(media.items[i].media.metadata.title, videoItem.metadata.title);
+                            assert.equal(media.items[i].media.metadata.subtitle, videoItem.metadata.subtitle);
+                            assert.equal(media.items[i].media.metadata.originalAirDate, videoItem.metadata.originalAirDate);
+                            assert.equal(media.items[i].media.metadata.episode, videoItem.metadata.episode);
+                            assert.equal(media.items[i].media.metadata.season, videoItem.metadata.season);
+                            assert.equal(media.items[i].media.metadata.seriesTitle, videoItem.metadata.seriesTitle);
+                            assert.equal(media.items[i].media.metadata.images[0].url, videoItem.metadata.images[0].url);
+                            assert.equal(media.items[i].media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
+                            assert.equal(media.items[i].media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
+                            called(newMedia);
+                            window.m = media;
+                            if (media.getEstimatedTime() > startTime - 5
+                                    && media.getEstimatedTime() < startTime + 5) {
+                                called(update);
+                            }
+                        }
+                    });
+                    // Seek to just before the end
+                    media.seek(request, function () {
+                        called(success);
+                    }, function (err) {
+                        assert.fail(err.code + ': ' + err.description);
+                    });
+                });
+                it('media.queueJumpToItem should not call a callback for null contentId', function () {
+                    media.queueJumpToItem(null, function () {
+                        assert.fail('Should not be called when passing null content id to queueJumpToItem');
+                    }, function () {
+                        assert.fail('Should not be called when passing null content id to queueJumpToItem');
+                    });
+                });
+                it('media.queueJumpToItem should not call a callback for unknown contentId', function () {
+                    media.queueJumpToItem('unknown_content_id', function () {
+                        assert.fail('Should not be called when passing unknown content id to queueJumpToItem');
+                    }, function () {
+                        assert.fail('Should not be called when passing unknown content id to queueJumpToItem');
+                    });
+                });
+                it('media.queueJumpToItem should not call a callback for decimal contentId', function () {
+                    media.queueJumpToItem(1.5, function () {
+                        assert.fail('Should not be called when passing decimal content id to queueJumpToItem');
+                    }, function () {
+                        assert.fail('Should not be called when passing decimal content id to queueJumpToItem');
+                    });
+                });
+                it('media.queueJumpToItem should jump to selected item', function (done) {
+                    var calledAnyOrder = utils.waitForAllCalls([
+                        { id: success, repeats: false },
+                        { id: update, repeats: true }
+                    ], done);
+                    var calledOrder = utils.callOrder([
+                        { id: stopped, repeats: true },
+                        { id: newMedia, repeats: true }
+                    ], function () {
+                        calledAnyOrder(update);
+                    });
+                    var i = getCurrentItemIndex(media);
+                    media.addUpdateListener(function listener (isAlive) {
+                        if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
+                            assert.equal(media.idleReason, chrome.cast.media.IdleReason.INTERRUPTED);
+                            assert.isTrue(isAlive);
+                            calledOrder(stopped);
+                        }
+                        if (media.currentItemId !== media.items[i].itemId) {
+                            i = getCurrentItemIndex(media);
+                            media.removeUpdateListener(listener);
+                            utils.testMediaProperties(media);
+                            assert.equal(media.currentItemId, media.items[i].itemId);
+                            utils.testQueueItems(media.items);
+                            assert.equal(media.media.contentId, audioUrl);
+                            assert.equal(media.items.length, 2);
+                            checkItems(media.items);
+                            assert.equal(media.items[i].media.contentId, audioUrl);
+                            assert.equal(media.items[i].media.metadata.albumArtist, audioItem.metadata.albumArtist);
+                            assert.equal(media.items[i].media.metadata.albumName, audioItem.metadata.albumName);
+                            assert.equal(media.items[i].media.metadata.artist, audioItem.metadata.artist);
+                            assert.equal(media.items[i].media.metadata.composer, audioItem.metadata.composer);
+                            assert.equal(media.items[i].media.metadata.title, audioItem.metadata.title);
+                            assert.equal(media.items[i].media.metadata.songName, audioItem.metadata.songName);
+                            assert.equal(media.items[i].media.metadata.releaseDate, audioItem.metadata.releaseDate);
+                            assert.equal(media.items[i].media.metadata.images[0].url, audioItem.metadata.images[0].url);
+                            assert.equal(media.items[i].media.metadata.myMadeUpMetadata, audioItem.metadata.myMadeUpMetadata);
+                            assert.equal(media.items[i].media.metadata.metadataType, chrome.cast.media.MetadataType.MUSIC_TRACK);
+                            assert.equal(media.items[i].media.metadata.type, chrome.cast.media.MetadataType.MUSIC_TRACK);
+                            assert.closeTo(media.getEstimatedTime(), startTime * 2, 5);
+                            calledOrder(newMedia);
+                        }
+                    });
+                    // Jump
+                    var jumpIndex = (i + 1) % media.items.length;
+                    media.queueJumpToItem(media.items[jumpIndex].itemId, function () {
+                        calledAnyOrder(success);
+                    }, function (err) {
+                        assert.fail(err.code + ': ' + err.description);
+                    });
                 });
             });
             after(function (done) {

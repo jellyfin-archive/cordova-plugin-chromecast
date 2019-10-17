@@ -1,13 +1,17 @@
 package acidhax.cordova.chromecast;
 
 import android.graphics.Color;
+import android.net.Uri;
 
+import androidx.annotation.NonNull;
 import androidx.mediarouter.media.MediaRouter;
 
 import com.google.android.gms.cast.ApplicationMetadata;
 import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaMetadata;
+import com.google.android.gms.cast.MediaQueueData;
+import com.google.android.gms.cast.MediaQueueItem;
 import com.google.android.gms.cast.MediaStatus;
 import com.google.android.gms.cast.MediaTrack;
 import com.google.android.gms.cast.TextTrackStyle;
@@ -18,17 +22,33 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.GregorianCalendar;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 final class ChromecastUtilities {
+    /** Stores a cache of the queueItems for building Media Objects. */
+    private static JSONArray queueItems = null;
 
     private ChromecastUtilities() {
         //not called
     }
 
-    static String getMediaIdleReason(MediaStatus mediaStatus) {
-        switch (mediaStatus.getIdleReason()) {
+    /**
+     * Sets the queueItems to be returned with the media object.
+     * @param arr queueItems
+     */
+    static void setQueueItems(JSONArray arr) {
+        // For some reason the desktop chrome behavior is that the queue items is never wiped out
+        // once they are in existence
+        if (arr == null || arr.length() > 0) {
+            queueItems = arr;
+        }
+    }
+
+    static String getMediaIdleReason(int idleReason) {
+        switch (idleReason) {
             case MediaStatus.IDLE_REASON_CANCELED:
                 return "CANCELLED";
             case MediaStatus.IDLE_REASON_ERROR:
@@ -43,8 +63,8 @@ final class ChromecastUtilities {
         }
     }
 
-    static String getMediaPlayerState(MediaStatus mediaStatus) {
-        switch (mediaStatus.getPlayerState()) {
+    static String getMediaPlayerState(int playerState) {
+        switch (playerState) {
             case MediaStatus.PLAYER_STATE_LOADING:
             case MediaStatus.PLAYER_STATE_BUFFERING:
                 return "BUFFERING";
@@ -169,8 +189,8 @@ final class ChromecastUtilities {
         }
     }
 
-    static String getRepeatMode(MediaStatus mediaStatus) {
-        switch (mediaStatus.getQueueRepeatMode()) {
+    static String getRepeatMode(int repeatMode) {
+        switch (repeatMode) {
             case MediaStatus.REPEAT_MODE_REPEAT_OFF:
                 return "REPEAT_OFF";
             case MediaStatus.REPEAT_MODE_REPEAT_ALL:
@@ -181,6 +201,21 @@ final class ChromecastUtilities {
                 return "REPEAT_ALL_AND_SHUFFLE";
             default:
                 return null;
+        }
+    }
+
+    static int getAndroidRepeatMode(String clientRepeatMode) throws JSONException {
+        switch (clientRepeatMode) {
+            case "REPEAT_OFF":
+                return MediaStatus.REPEAT_MODE_REPEAT_OFF;
+            case "REPEAT_ALL":
+                return MediaStatus.REPEAT_MODE_REPEAT_ALL;
+            case "REPEAT_SINGLE":
+                return MediaStatus.REPEAT_MODE_REPEAT_SINGLE;
+            case "REPEAT_ALL_AND_SHUFFLE":
+                return MediaStatus.REPEAT_MODE_REPEAT_ALL_AND_SHUFFLE;
+            default:
+                throw new JSONException("Invalid repeat mode: " + clientRepeatMode);
         }
     }
 
@@ -456,6 +491,10 @@ final class ChromecastUtilities {
     }
 
     static JSONObject createMediaObject(CastSession session) {
+        return createMediaObject(session, queueItems);
+    };
+
+    static JSONObject createMediaObject(CastSession session, JSONArray items) {
         JSONObject out = new JSONObject();
 
         try {
@@ -468,20 +507,21 @@ final class ChromecastUtilities {
             out.put("currentTime", mediaStatus.getStreamPosition() / 1000.0);
             out.put("customData", mediaStatus.getCustomData());
             //out.put("extendedStatus",);
-            String idleReason = ChromecastUtilities.getMediaIdleReason(mediaStatus);
+            String idleReason = ChromecastUtilities.getMediaIdleReason(mediaStatus.getIdleReason());
             if (idleReason != null) {
                 out.put("idleReason", idleReason);
             }
-            //out.put("items", mediaStatus.getQueueItems());
+            out.put("items", items);
+            out.put("isAlive", mediaStatus.getPlayerState() != MediaStatus.PLAYER_STATE_IDLE);
             //out.put("liveSeekableRange",);
             out.put("loadingItemId", mediaStatus.getLoadingItemId());
-            out.put("media", createMediaInfoObject(session));
+            out.put("media", createMediaInfoObject(session.getRemoteMediaClient().getMediaInfo()));
             out.put("mediaSessionId", 1);
             out.put("playbackRate", mediaStatus.getPlaybackRate());
-            out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus));
+            out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus.getPlayerState()));
             out.put("preloadedItemId", mediaStatus.getPreloadedItemId());
-            //out.put("queueData", );
-            out.put("repeatMode", getRepeatMode(mediaStatus));
+            out.put("queueData", createQueueData(mediaStatus));
+            out.put("repeatMode", getRepeatMode(mediaStatus.getQueueRepeatMode()));
             out.put("sessionId", session.getSessionId());
             //out.put("supportedMediaCommands", );
             //out.put("videoInfo", );
@@ -490,15 +530,7 @@ final class ChromecastUtilities {
             volume.put("level", mediaStatus.getStreamVolume());
             volume.put("muted", mediaStatus.isMute());
             out.put("volume", volume);
-
-            long[] activeTrackIds = mediaStatus.getActiveTrackIds();
-            if (activeTrackIds != null) {
-                JSONArray activeTracks = new JSONArray();
-                for (long activeTrackId : activeTrackIds) {
-                    activeTracks.put(activeTrackId);
-                }
-                out.put("activeTrackIds", activeTracks);
-            }
+            out.put("activeTrackIds", createActiveTrackIds(mediaStatus.getActiveTrackIds()));
         } catch (JSONException e) {
         } catch (NullPointerException e) {
             return null;
@@ -507,13 +539,69 @@ final class ChromecastUtilities {
         return out;
     }
 
-    private static JSONArray createMediaInfoTracks(CastSession session) {
+    private static JSONArray createActiveTrackIds(long[] activeTrackIds) {
+        JSONArray out = new JSONArray();
+        try {
+            if (activeTrackIds.length == 0) {
+                return null;
+            }
+            for (long id : activeTrackIds) {
+                out.put(id);
+            }
+        } catch (NullPointerException e) {
+            return null;
+        }
+        return out;
+    }
+
+    static JSONObject createQueueData(MediaStatus status) {
+        JSONObject out = new JSONObject();
+        try {
+            MediaQueueData data = status.getQueueData();
+            if (data == null) {
+                return null;
+            }
+            out.put("repeatMode", ChromecastUtilities.getRepeatMode(data.getRepeatMode()));
+            out.put("shuffle", data.getRepeatMode() == MediaStatus.REPEAT_MODE_REPEAT_ALL_AND_SHUFFLE);
+            out.put("startIndex", data.getStartIndex());
+        } catch (JSONException e) {
+            e.printStackTrace();
+            throw new RuntimeException("See above stack trace for error: " + e.getMessage());
+        }
+        return out;
+    }
+
+    static JSONObject createQueueItem(@NonNull MediaQueueItem item, int orderId) {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("activeTrackIds", createActiveTrackIds(item.getActiveTrackIds()));
+            out.put("autoplay", item.getAutoplay());
+            out.put("customData", item.getCustomData());
+            out.put("itemId", item.getItemId());
+            out.put("media", createMediaInfoObject(item.getMedia()));
+            out.put("orderId", orderId);
+            Double playbackDuration = item.getPlaybackDuration();
+            if (Double.isInfinite(playbackDuration)) {
+                playbackDuration = null;
+            }
+            out.put("playbackDuration", playbackDuration);
+            out.put("preloadTime", item.getPreloadTime());
+            Double startTime = item.getStartTime();
+            if (Double.isNaN(startTime)) {
+                startTime = null;
+            }
+            out.put("startTime", startTime);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            throw new RuntimeException("See above stack trace for error: " + e.getMessage());
+        }
+        return out;
+    }
+
+    private static JSONArray createMediaInfoTracks(MediaInfo mediaInfo) {
         JSONArray out = new JSONArray();
 
         try {
-            MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
-            MediaInfo mediaInfo = mediaStatus.getMediaInfo();
-
             if (mediaInfo.getMediaTracks() == null) {
                 return out;
             }
@@ -543,12 +631,10 @@ final class ChromecastUtilities {
         return out;
     }
 
-    private static JSONObject createMediaInfoObject(CastSession session) {
+    private static JSONObject createMediaInfoObject(MediaInfo mediaInfo) {
         JSONObject out = new JSONObject();
 
         try {
-            MediaInfo mediaInfo = session.getRemoteMediaClient().getMediaInfo();
-
             // TODO: Missing attributes are commented out.
             //  These are returned by the chromecast desktop SDK, we should probably return them too
             //out.put("breakClips",);
@@ -560,7 +646,7 @@ final class ChromecastUtilities {
             //out.put("mediaCategory",);
             out.put("metadata", createMetadataObject(mediaInfo.getMetadata()));
             out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));
-            out.put("tracks", createMediaInfoTracks(session));
+            out.put("tracks", createMediaInfoTracks(mediaInfo));
             out.put("textTrackStyle", ChromecastUtilities.createTextTrackObject(mediaInfo.getTextTrackStyle()));
 
         } catch (JSONException e) {
@@ -572,6 +658,9 @@ final class ChromecastUtilities {
 
     static JSONObject createMetadataObject(MediaMetadata metadata) {
         JSONObject out = new JSONObject();
+        if (metadata == null) {
+            return out;
+        }
         try {
             try {
                 // Must be in own try catch
@@ -685,4 +774,225 @@ final class ChromecastUtilities {
         }
         return out;
     }
+
+/* -------------------   Create NON-JSON (non-output) Objects  ---------------------------------- */
+
+    /**
+     * Creates a MediaQueueItem from a JSONObject representation of a MediaQueueItem.
+     * @param mediaQueueItem a JSONObject representation of a MediaQueueItem
+     * @return a MediaQueueItem
+     * @throws JSONException If the input mediaQueueItem is incorrect
+     */
+    static MediaQueueItem createMediaQueueItem(JSONObject mediaQueueItem) throws JSONException {
+        MediaInfo mediaInfo = createMediaInfo(mediaQueueItem.getJSONObject("media"));
+        MediaQueueItem.Builder builder = new MediaQueueItem.Builder(mediaInfo);
+
+        try {
+            long[] activeTrackIds;
+            JSONArray trackIds = mediaQueueItem.getJSONArray("activeTrackIds");
+            activeTrackIds = new long[trackIds.length()];
+            for (int i = 0; i < trackIds.length(); i++) {
+                activeTrackIds[i] = trackIds.getLong(i);
+            }
+            builder.setActiveTrackIds(activeTrackIds);
+        } catch (JSONException e) {
+        }
+        try {
+            builder.setAutoplay(mediaQueueItem.getBoolean("autoplay"));
+        } catch (JSONException e) {
+        }
+        JSONObject customData = new JSONObject();
+        try {
+            customData.getJSONObject("customData");
+        } catch (JSONException e) {
+        }
+        try {
+            builder.setPlaybackDuration(mediaQueueItem.getDouble("playbackDuration"));
+        } catch (JSONException e) {
+        }
+        try {
+            builder.setPreloadTime(mediaQueueItem.getDouble("preloadTime"));
+        } catch (JSONException e) {
+        }
+        try {
+            builder.setStartTime(mediaQueueItem.getDouble("startTime"));
+        } catch (JSONException e) {
+        }
+        return builder.build();
+    }
+
+    static MediaInfo createMediaInfo(JSONObject mediaInfo) {
+        // Set defaults
+        String contentId = "";
+        JSONObject customData = new JSONObject();
+        String contentType = "unknown";
+        long duration = 0;
+        String streamType = "unknown";
+        JSONObject metadata = new JSONObject();
+        JSONObject textTrackStyle = new JSONObject();
+
+        // Try to get the actual values
+
+        // Try to get the actual values
+        try {
+            contentId = mediaInfo.getString("contentId");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        try {
+            customData = mediaInfo.getJSONObject("customData");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        try {
+            contentType = mediaInfo.getString("contentType");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        try {
+            duration = mediaInfo.getLong("duration");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        try {
+            streamType = mediaInfo.getString("streamType");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        try {
+            metadata = mediaInfo.getJSONObject("metadata");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        try {
+            textTrackStyle = mediaInfo.getJSONObject("textTrackStyle");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);
+    }
+
+    static MediaInfo createMediaInfo(String contentId, JSONObject customData, String contentType, long duration, String streamType, JSONObject metadata, JSONObject textTrackStyle) {
+        MediaInfo.Builder mediaInfoBuilder = new MediaInfo.Builder(contentId);
+
+        mediaInfoBuilder.setMetadata(createMediaMetadata(metadata));
+
+        int intStreamType;
+        switch (streamType) {
+            case "buffered":
+                intStreamType = MediaInfo.STREAM_TYPE_BUFFERED;
+                break;
+            case "live":
+                intStreamType = MediaInfo.STREAM_TYPE_LIVE;
+                break;
+            default:
+                intStreamType = MediaInfo.STREAM_TYPE_NONE;
+        }
+
+        TextTrackStyle trackStyle = ChromecastUtilities.parseTextTrackStyle(textTrackStyle);
+
+        mediaInfoBuilder
+                .setContentType(contentType)
+                .setCustomData(customData)
+                .setStreamType(intStreamType)
+                .setStreamDuration(duration)
+                .setTextTrackStyle(trackStyle);
+
+        return mediaInfoBuilder.build();
+    }
+
+    private static MediaMetadata createMediaMetadata(JSONObject metadata) {
+
+        MediaMetadata mediaMetadata;
+        try {
+            mediaMetadata = new MediaMetadata(metadata.getInt("metadataType"));
+        } catch (JSONException e) {
+            mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_GENERIC);
+        }
+        // Add any images
+        try {
+            JSONArray images = metadata.getJSONArray("images");
+            for (int i = 0; i < images.length(); i++) {
+                JSONObject imageObj = images.getJSONObject(i);
+                try {
+                    Uri imageURI = Uri.parse(imageObj.getString("url"));
+                    mediaMetadata.addImage(new WebImage(imageURI));
+                } catch (Exception e) {
+                }
+            }
+        } catch (JSONException e) {
+        }
+
+        // Dynamically add other parameters
+        Iterator<String> keys = metadata.keys();
+        String key;
+        String convertedKey;
+        Object value;
+        while (keys.hasNext()) {
+            key = keys.next();
+            if (key.equals("metadataType")
+                    || key.equals("images")
+                    || key.equals("type")) {
+                continue;
+            }
+            try {
+                value = metadata.get(key);
+                convertedKey = ChromecastUtilities.getAndroidMetadataName(key);
+                // Try to add the translated version of the key
+                switch (ChromecastUtilities.getMetadataType(convertedKey)) {
+                    case "string":
+                        mediaMetadata.putString(convertedKey, metadata.getString(key));
+                        break;
+                    case "int":
+                        mediaMetadata.putInt(convertedKey, metadata.getInt(key));
+                        break;
+                    case "double":
+                        mediaMetadata.putDouble(convertedKey, metadata.getDouble(key));
+                        break;
+                    case "date":
+                        GregorianCalendar c = new GregorianCalendar();
+                        if (value instanceof java.lang.Integer
+                                || value instanceof java.lang.Long
+                                || value instanceof java.lang.Float
+                                || value instanceof java.lang.Double) {
+                            c.setTimeInMillis(metadata.getLong(key));
+                            mediaMetadata.putDate(convertedKey, c);
+                        } else {
+                            String stringValue;
+                            try {
+                                stringValue = " value: " + metadata.getString(key);
+                            } catch (JSONException e) {
+                                stringValue = "";
+                            }
+                            new Error("Cannot date from metadata key: " + key + stringValue
+                                    + "\n Dates must be in milliseconds from epoch UTC")
+                                    .printStackTrace();
+                        }
+                        break;
+                    case "ms":
+                        mediaMetadata.putTimeMillis(convertedKey, metadata.getLong(key));
+                        break;
+                    default:
+                }
+                // Also always add the client's version of the key because sometimes the
+                // MediaMetadata object removes some parameters.
+                // eg. If you pass metadataType == 2 == MEDIA_TYPE_TV_SHOW you will lose any
+                // subtitle added for "com.google.android.gms.cast.metadata.SUBTITLE", but this
+                // is not in-line with chrome desktop which preserves the value.
+                if (!key.equals(convertedKey)) {
+                    // It is is really stubborn and if you try to add the key "subtitle" that is
+                    // also stripped.  (Hence the "cordova-plugin-chromecast_metadata_key=" prefix
+                    convertedKey = "cordova-plugin-chromecast_metadata_key=" + key;
+                }
+                mediaMetadata.putString(convertedKey, metadata.getString(key));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+            }
+        }
+        return  mediaMetadata;
+    }
+
 }

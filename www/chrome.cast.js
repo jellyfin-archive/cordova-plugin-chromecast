@@ -334,6 +334,35 @@ chrome.cast = {
         },
 
         /**
+         * Represents an item in a media queue.
+         * @param {chrome.cast.media.MediaInfo} mediaInfo - Value must not be null.
+         */
+        QueueItem: function (item) {
+            this.itemId = null;
+            this.media = item;
+            this.autoplay = !0;
+            this.startTime = 0;
+            this.playbackDuration = null;
+            this.preloadTime = 0;
+            this.customData = this.activeTrackIds = null;
+        },
+
+        /**
+         * A request to load and optionally start playback of a new ordered
+         * list of media items.
+         * @param {chrome.cast.media.QueueItem} items - The list of media items
+         *        to load. Must not be null or empty.  Value must not be null.
+         */
+        QueueLoadRequest: function (items) {
+            this.type = 'QUEUE_LOAD';
+            this.sessionId = this.requestId = null;
+            this.items = items;
+            this.startIndex = 0;
+            this.repeatMode = chrome.cast.media.RepeatMode.OFF;
+            this.customData = null;
+        },
+
+        /**
          * A generic media description.
          * @property {chrome.cast.Image[]}                 images         Content images.
          * @property {string}                             releaseDate ISO 8601 date and/or time when the content was released, e.g.
@@ -714,6 +743,38 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
 };
 
 /**
+ * Loads and optionally starts playback of a new queue of media items into a
+ * running receiver application.
+ * @param  {chrome.cast.media.QueueLoadRequest} loadRequest - Request to load a
+ *         new queue of media items. Value must not be null.
+ * @param  {function} successCallback Invoked with the loaded Media on success.
+ * @param  {function} errorCallback   Invoked on error. The possible errors
+ *         are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR,
+ *         SESSION_ERROR, and EXTENSION_MISSING.
+ */
+chrome.cast.Session.prototype.queueLoad = function (loadRequest, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
+    if (!loadRequest.items || loadRequest.items.length === 0) {
+        return errorCallback && errorCallback(new chrome.cast.Error(
+            chrome.cast.ErrorCode.SESSION_ERROR, 'INVALID_PARAMS',
+            { reason: 'INVALID_PARAMS', type: 'INVALID_REQUEST' }));
+    }
+    var self = this;
+
+    execute('queueLoad', loadRequest, function (err, obj) {
+        if (!err) {
+            _currentMedia = new chrome.cast.media.Media(self.sessionId, obj.mediaSessionId);
+            _currentMedia._update(obj);
+            successCallback(_currentMedia);
+            // Also trigger the update notification
+            _currentMedia.emit('_mediaUpdated', _currentMedia.playerState !== 'IDLE');
+        } else {
+            handleError(err, errorCallback);
+        }
+    });
+};
+
+/**
  * Adds a listener that is invoked when the Session has changed.
  * Changes to the following properties will trigger the listener:
  *     statusText, namespaces, status, and the volume of the receiver.
@@ -962,6 +1023,7 @@ chrome.cast.media.Media = function Media (sessionId, mediaSessionId) {
     this.volume = new chrome.cast.Volume(1, false);
     this._lastUpdatedTime = Date.now();
     this.media = null;
+    this.queueData = undefined;
 };
 
 chrome.cast.media.Media.prototype = Object.create(EventEmitter.prototype);
@@ -1126,7 +1188,40 @@ chrome.cast.media.Media.prototype.editTracksInfo = function (editTracksInfoReque
             handleError(err, errorCallback);
         }
     });
+};
 
+/**
+ * Plays the item with itemId in the queue.
+ * If itemId is not found in the queue, either because it wasn't there
+ * originally or it was removed by another sender before calling this function,
+ * this function will silently return without sending a request to the
+ * receiver.
+ *
+ * @param {number}                               itemId The ID of the item to which to jump.
+ *                                               Value must not be null.
+ * @param {function()}                           successCallback Invoked on success.
+ * @param {function(not-null chrome.cast.Error)} errorCallback Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
+ **/
+chrome.cast.media.Media.prototype.queueJumpToItem = function (itemId, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
+    var isValidItemId = false;
+    for (var i = 0; i < _currentMedia.items.length; i++) {
+        if (_currentMedia.items[i].itemId === itemId) {
+            isValidItemId = true;
+            break;
+        }
+    }
+    if (!isValidItemId) {
+        return;
+    }
+
+    execute('queueJumpToItem', itemId, function (err) {
+        if (!err) {
+            successCallback && successCallback();
+        } else {
+            handleError(err, errorCallback);
+        }
+    });
 };
 
 /**
@@ -1299,7 +1394,7 @@ execute('setup', function (err, args) {
             if (_session) {
                 _session.media[0] = _currentMedia;
             }
-            _currentMedia.emit('_mediaUpdated', _currentMedia.playerState !== 'IDLE');
+            _currentMedia.emit('_mediaUpdated', !!media.isAlive);
         },
         MEDIA_LOAD: function (media) {
             if (_session) {

@@ -11,6 +11,8 @@
     chrome.cast = chrome.cast || {};
     chrome.cast.cordova = {};
 
+/* -------------------------- Poly fill Cordova Functions ---------------------------------- */
+
     var startJoiningButton = document.getElementById('start-session');
     var doneJoiningButton = document.getElementById('joined-session');
     var _scanning = false;
@@ -95,9 +97,7 @@
                     doneJoiningButton.style = 'display:none;';
 
                     clearTimeout(timeout);
-                    // setTimeout(function () {
                     successCallback(session);
-                    // }, 1000);
                 });
                 doneJoiningButton.style = '';
 
@@ -122,11 +122,23 @@
         successCallback(['SETUP']);
     };
 
+/* ------------------------- Start Tests ---------------------------------- */
+
     // This actually starts the tests
     window['__onGCastApiAvailable'] = function (isAvailable, err) {
         // If error, it is probably because we are not on chrome, so just disregard
         if (isAvailable) {
-            mocha.run();
+            var runner;
+            if (window['cordova-plugin-chromecast-tests'].runMocha) {
+                runner = window['cordova-plugin-chromecast-tests'].runMocha();
+            } else {
+                runner = mocha.run();
+            }
+            // This makes it so that tests actually fail in the case of
+            // uncaught exceptions inside promise catch blocks
+            window.addEventListener('unhandledrejection', function (event) {
+                runner.fail(runner.test, event.reason);
+            });
         }
     };
 

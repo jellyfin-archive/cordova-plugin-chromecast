@@ -18,19 +18,18 @@
 
     // Set the reporter
     mocha.setup({
+        bail: true,
         ui: 'bdd',
         useColors: true,
-        reporter: window['cordova-plugin-chromecast-tests'].customHtmlReporter
+        reporter: window['cordova-plugin-chromecast-tests'].customHtmlReporter,
+        slow: 8000,
+        timeout: 10000
     });
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
 
     describe('cordova-plugin-chromecast', function () {
-        this.timeout(10000);
-        this.slow(8000);
-        this.bail(true);
-
         var imageUrl = 'https://ia800705.us.archive.org/1/items/GoodHousekeeping193810/Good%20Housekeeping%201938-10.jpg';
         var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
         var audioUrl = 'https://ia600304.us.archive.org/20/items/OTRR_Gunsmoke_Singles/Gunsmoke_52-10-03_024_Cain.mp3';
@@ -143,7 +142,7 @@
             chrome.cast.initialize(apiConfig, function () {
                 called(success);
             }, function (err) {
-                assert.fail(err.code + ': ' + err.description);
+                assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
             });
         });
 
@@ -188,10 +187,10 @@
                     chrome.cast.cordova.stopRouteScan(function () {
                         done();
                     }, function (err) {
-                        assert.fail(err.code + ': ' + err.description);
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                     });
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('startRouteScan should find valid routes', function (done) {
@@ -238,7 +237,7 @@
                             scanState = 'stopped';
                             called(success);
                         }, function (err) {
-                            assert.fail(err.code + ': ' + err.description);
+                            assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                         });
                     }
                 }, function (err) {
@@ -250,6 +249,7 @@
             });
             it('selectRoute should receive a TIMEOUT error if route does not exist', function (done) {
                 this.timeout(20000);
+                this.slow(17000);
                 var routeId = 'non-existant-route-id';
                 chrome.cast.cordova.selectRoute(routeId, function (session) {
                     assert.fail('should not have hit the success callback');
@@ -266,7 +266,7 @@
                     utils.testSessionProperties(sess);
                     done();
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('selectRoute should return error if already joined', function (done) {
@@ -295,7 +295,7 @@
                 session.leave(function () {
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('initialize should not receive a session after session.leave', function (done) {
@@ -305,7 +305,7 @@
                 chrome.cast.initialize(apiConfig, function () {
                     done();
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('session.leave should give an error if session already left', function (done) {
@@ -359,10 +359,10 @@
                                 session = sess;
                                 done();
                             }, function (err) {
-                                assert.fail(err.code + ': ' + err.description);
+                                assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                             });
                         }, function (err) {
-                            assert.fail(err.code + ': ' + err.description);
+                            assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                         });
                     }
                 }, function (err) {
@@ -396,7 +396,7 @@
                 session.setReceiverMuted(muted, function () {
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('session.setReceiverVolumeLevel should set the volume level', function (done) {
@@ -425,7 +425,7 @@
                 session.setReceiverVolumeLevel(requestedVolume, function () {
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('session.stop should stop the session', function (done) {
@@ -444,7 +444,7 @@
                 session.stop(function () {
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('initialize should not receive a session after session.stop', function (done) {
@@ -454,7 +454,7 @@
                 chrome.cast.initialize(apiConfig, function () {
                     done();
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('session.stop should give an error if session already stopped', function (done) {
@@ -512,10 +512,10 @@
                                 session = sess;
                                 done();
                             }, function (err) {
-                                assert.fail(err.code + ': ' + err.description);
+                                assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                             });
                         }, function (err) {
-                            assert.fail(err.code + ': ' + err.description);
+                            assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                         });
                     }
                 }, function (err) {
@@ -575,7 +575,7 @@
                         }
                     });
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.setVolume should set the volume', function (done) {
@@ -613,7 +613,7 @@
                     assert.equal(media.volume.level, vol);
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.setVolume should set muted', function (done) {
@@ -645,7 +645,7 @@
                     assert.equal(media.volume.muted, muted);
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.setVolume should set the volume and mute state', function (done) {
@@ -686,7 +686,7 @@
                     assert.equal(media.volume.muted, muted);
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.pause should pause playback', function (done) {
@@ -706,7 +706,7 @@
                     assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.play should resume playback', function (done) {
@@ -728,7 +728,7 @@
                         chrome.cast.media.PlayerState.BUFFERING]);
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.seek should skip to requested position', function (done) {
@@ -750,7 +750,7 @@
                     assert.closeTo(media.getEstimatedTime(), request.currentTime, 1);
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.addUpdateListener should detect end of video', function (done) {
@@ -771,7 +771,7 @@
                 media.seek(request, function () {
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.setVolume should return error when media is finished', function (done) {
@@ -862,7 +862,7 @@
                         }
                     });
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
 
                 function loadSecond () {
@@ -899,7 +899,7 @@
                             }
                         });
                     }, function (err) {
-                        assert.fail(err.code + ': ' + err.description);
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                     });
                 }
             });
@@ -941,7 +941,7 @@
                         }
                     });
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('session.loadMedia should be able to load remote image and return the PhotoMediaMetadata', function (done) {
@@ -981,7 +981,7 @@
                         }
                     });
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             it('media.stop should end video playback', function (done) {
@@ -1002,7 +1002,7 @@
                     assert.equal(media.idleReason, chrome.cast.media.IdleReason.CANCELLED);
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
             describe('Queues', function () {
@@ -1114,7 +1114,7 @@
                             }
                         });
                     }, function (err) {
-                        assert.fail(err.code + ': ' + err.description);
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                     });
                 });
                 it('Queue should start the next item automatically when previous one finishes (tests loop around of repeat_all as well)', function (done) {
@@ -1167,7 +1167,7 @@
                     media.seek(request, function () {
                         called(success);
                     }, function (err) {
-                        assert.fail(err.code + ': ' + err.description);
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                     });
                 });
                 it('media.queueJumpToItem should not call a callback for null contentId', function () {
@@ -1239,7 +1239,7 @@
                     media.queueJumpToItem(media.items[jumpIndex].itemId, function () {
                         calledAnyOrder(success);
                     }, function (err) {
-                        assert.fail(err.code + ': ' + err.description);
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                     });
                 });
             });
@@ -1259,7 +1259,7 @@
                 session.stop(function () {
                     called(success);
                 }, function (err) {
-                    assert.fail(err.code + ': ' + err.description);
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
             });
         });

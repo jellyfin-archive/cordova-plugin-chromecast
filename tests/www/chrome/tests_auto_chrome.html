@@ -29,10 +29,10 @@
             </a>
         </div>
         <!-- <google-cast-launcher></google-cast-launcher> -->
-        <div>
-            Action Required: 
-            <button id="start-session" style='display:none'>Click to Start Joining</button>
-            <button id="joined-session" style='display:none'>Click when Done Joining</button>
+        <div id="action" class="no-action">
+            <h3>Action required:</h3>
+            <p id="action-text">Starting Tests...</p>
+            <button id="action-button"></button>
         </div>
         <div id="mocha"></div>
         <script type="text/javascript" src="../js/tests_auto.js"></script>

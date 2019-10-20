@@ -20,6 +20,81 @@
     var utils = {};
 
     /**
+     * Displays the action information.
+     */
+    utils.setAction = function (text, btnCallback, btnText) {
+        document.getElementById('action-text').innerHTML = text;
+        var button = document.getElementById('action-button');
+        if (btnCallback) {
+            button.style.display = 'block';
+            button.onclick = btnCallback;
+        } else {
+            button.style.display = 'none';
+        }
+        button.innerHTML = btnText || 'Done';
+    };
+
+    /**
+     * Clears the action information.
+     */
+    utils.clearAction = function () {
+        utils.setAction('None.');
+    };
+
+    /**
+     * Should successfully start a session on a non-nearby, non-castGroup device.
+     * If there is a problem with this function please ensure all the auto tests
+     * are passing.
+     */
+    utils.startSession = function (callback) {
+        var scanState = 'running';
+        var foundRoute = null;
+        chrome.cast.cordova.startRouteScan(function routeUpdate (routes) {
+            if (scanState === 'stopped') {
+                assert.fail('Should not have gotten route update after scan was stopped');
+            }
+            var route;
+            for (var i = 0; i < routes.length; i++) {
+                route = routes[i];
+                assert.instanceOf(route, chrome.cast.cordova.Route);
+                assert.isString(route.id);
+                assert.isString(route.name);
+                assert.isBoolean(route.isNearbyDevice);
+                assert.isBoolean(route.isCastGroup);
+                if (!route.isNearbyDevice && !route.isCastGroup) {
+                    foundRoute = route;
+                }
+            }
+            if (foundRoute && scanState === 'running') {
+                scanState = 'stopping';
+                chrome.cast.cordova.stopRouteScan(function () {
+                    scanState = 'stopped';
+                    utils.joinRoute(foundRoute.id, callback);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
+            }
+        }, function (err) {
+            assert.isObject(err);
+            assert.equal(err.code, chrome.cast.ErrorCode.CANCEL);
+            assert.equal(err.description, 'Scan stopped.');
+        });
+    };
+    /**
+     * Should successfully join a route.
+     * If there is a problem with this function please ensure all the auto tests
+     * are passing.
+     */
+    utils.joinRoute = function (routeId, callback) {
+        chrome.cast.cordova.selectRoute(routeId, function (session) {
+            utils.testSessionProperties(session);
+            callback(session);
+        }, function (err) {
+            assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+        });
+    };
+
+    /**
      * Allows you to check that a set of calls happen in a specific order.
      * @param {array} calls - array of expected callDetails to be receive in order
      *                        details include { id: callId, repeats: boolean }

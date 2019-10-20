@@ -7,14 +7,14 @@
     /* eslint-env mocha */
     /* global chrome */
 
+    var utils = window['cordova-plugin-chromecast-tests'].utils;
+
     window.chrome = window.chrome || {};
     chrome.cast = chrome.cast || {};
     chrome.cast.cordova = {};
 
 /* -------------------------- Poly fill Cordova Functions ---------------------------------- */
 
-    var startJoiningButton = document.getElementById('start-session');
-    var doneJoiningButton = document.getElementById('joined-session');
     var _scanning = false;
     var _startRouteScanErrorCallback;
 
@@ -79,31 +79,19 @@
         }
 
         var timeout = setTimeout(function () {
-            console.error('Make sure to click done joining button.');
+            console.error('Make sure to click the "Done Joining" button.');
         }, 10000);
 
-        // set up show the start join button
-        startJoiningButton.addEventListener('click', function joinListener () {
-            // hide the start joining button
-            startJoiningButton.style = 'display:none;';
-            startJoiningButton.removeEventListener('click', joinListener);
-
+        utils.setAction('1. Click "<b>Request Session</b>".', function () {
+            utils.setAction('2. <b>Select a device</b> in the chromecast dialog.');
             chrome.cast.requestSession(function (session) {
-
-                // set up and show the done joining button
-                doneJoiningButton.addEventListener('click', function doneListener () {
-                    // Hide the done joining button
-                    doneJoiningButton.removeEventListener('click', doneListener);
-                    doneJoiningButton.style = 'display:none;';
-
-                    clearTimeout(timeout);
+                clearTimeout(timeout);
+                utils.setAction('3. Click "<b>Done Joining</b>" after the session has started.', function () {
+                    utils.clearAction();
                     successCallback(session);
-                });
-                doneJoiningButton.style = '';
-
+                }, 'Done Joining');
             }, errorCallback);
-        });
-        startJoiningButton.style = '';
+        }, 'Request Session');
     };
 
     chrome.cast.cordova.Route = function (jsonRoute) {

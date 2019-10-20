@@ -15,15 +15,14 @@
         <script type="text/javascript" src="../js/utils.js"></script>
     </head>
     <body>
-        <h1>Manual Tests</h1>
-        <p id="skipped-tests"></p>
+        <h1>Manual Tests (Secondary Device)</h1>
         <div>
             <a href="tests_chrome.html">
                 <button>
                     Back
                 </button>
             </a>
-            <a href="tests_manual_chrome.html">
+            <a href="tests_manual_secondary_chrome.html">
                 <button>
                     Re-run
                 </button>
@@ -32,7 +31,7 @@
 
         <div id="action" class="no-action">
             <h3>Action required:</h3>
-            <p id="action-text">Starting Tests...</p>
+            <p id="action-text">Preparing Secondary App...</p>
             <button id="action-button"></button>
         </div>
         
@@ -43,7 +42,7 @@
             window['cordova-plugin-chromecast-tests'] = window['cordova-plugin-chromecast-tests'] || {};
             window['cordova-plugin-chromecast-tests'].isDesktop = true;
         </script>
-        <script type="text/javascript" src="../js/tests_manual.js"></script>
+        <script type="text/javascript" src="../js/tests_manual_secondary.js"></script>
         <script type="text/javascript" src="cordova_stubs.js"></script>
         <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=0"></script>
     </body>

@@ -82,16 +82,16 @@
             console.error('Make sure to click the "Done Joining" button.');
         }, 10000);
 
-        utils.setAction('1. Click "<b>Request Session</b>".', function () {
+        utils.setAction('1. Click "<b>Request Session</b>".', ' Request Session', function () {
             utils.setAction('2. <b>Select a device</b> in the chromecast dialog.');
             chrome.cast.requestSession(function (session) {
                 clearTimeout(timeout);
-                utils.setAction('3. Click "<b>Done Joining</b>" after the session has started.', function () {
+                utils.setAction('3. Click "<b>Done Joining</b>" after the session has started.', 'Done Joining', function () {
                     utils.clearAction();
                     successCallback(session);
-                }, 'Done Joining');
+                });
             }, errorCallback);
-        }, 'Request Session');
+        });
     };
 
     chrome.cast.cordova.Route = function (jsonRoute) {

@@ -1009,14 +1009,6 @@
                 var videoItem;
                 var audioItem;
                 var startTime = 40;
-                function getCurrentItemIndex (media) {
-                    for (var i = 0; i < media.items.length; i++) {
-                        if (media.items[i].itemId === media.currentItemId) {
-                            return i;
-                        }
-                    }
-                    return 'Could get current item index for itemId: ' + media.currentItemId;
-                }
                 function checkItems (items) {
                     assert.isTrue(items[0].autoplay);
                     assert.equal(items[0].startTime, startTime);
@@ -1078,7 +1070,7 @@
 
                     session.queueLoad(request, function (m) {
                         media = m;
-                        var i = getCurrentItemIndex(media);
+                        var i = utils.getCurrentItemIndex(media);
                         utils.testMediaProperties(media);
                         assert.equal(media.currentItemId, media.items[i].itemId);
                         assert.equal(media.repeatMode, chrome.cast.media.RepeatMode.ALL);
@@ -1128,7 +1120,7 @@
                     var request = new chrome.cast.media.SeekRequest();
                     request.currentTime = media.media.duration - 1;
 
-                    var i = getCurrentItemIndex(media);
+                    var i = utils.getCurrentItemIndex(media);
                     // Listen for current media end
                     media.addUpdateListener(function listener (isAlive) {
                         if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
@@ -1137,7 +1129,7 @@
                             called(stopped);
                         }
                         if (media.currentItemId !== media.items[i].itemId) {
-                            i = getCurrentItemIndex(media);
+                            i = utils.getCurrentItemIndex(media);
                             media.removeUpdateListener(listener);
                             utils.testMediaProperties(media);
                             assert.equal(media.repeatMode, chrome.cast.media.RepeatMode.ALL);
@@ -1156,7 +1148,6 @@
                             assert.equal(media.items[i].media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
                             assert.equal(media.items[i].media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
                             called(newMedia);
-                            window.m = media;
                             if (media.getEstimatedTime() > startTime - 5
                                     && media.getEstimatedTime() < startTime + 5) {
                                 called(update);
@@ -1202,7 +1193,7 @@
                     ], function () {
                         calledAnyOrder(update);
                     });
-                    var i = getCurrentItemIndex(media);
+                    var i = utils.getCurrentItemIndex(media);
                     media.addUpdateListener(function listener (isAlive) {
                         if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
                             assert.equal(media.idleReason, chrome.cast.media.IdleReason.INTERRUPTED);
@@ -1210,7 +1201,7 @@
                             calledOrder(stopped);
                         }
                         if (media.currentItemId !== media.items[i].itemId) {
-                            i = getCurrentItemIndex(media);
+                            i = utils.getCurrentItemIndex(media);
                             media.removeUpdateListener(listener);
                             utils.testMediaProperties(media);
                             assert.equal(media.currentItemId, media.items[i].itemId);

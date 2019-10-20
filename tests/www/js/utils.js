@@ -22,12 +22,17 @@
     /**
      * Displays the action information.
      */
-    utils.setAction = function (text, btnCallback, btnText) {
-        document.getElementById('action-text').innerHTML = text;
+    utils.setAction = function (text, btnText, btnCallback) {
+        if (text || text === '') {
+            document.getElementById('action-text').innerHTML = text;
+        }
         var button = document.getElementById('action-button');
         if (btnCallback) {
             button.style.display = 'block';
-            button.onclick = btnCallback;
+            button.onclick = function () {
+                button.style.display = 'none';
+                btnCallback();
+            };
         } else {
             button.style.display = 'none';
         }
@@ -92,6 +97,18 @@
         }, function (err) {
             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
         });
+    };
+
+    /**
+     * Returns the current queue item's index in the items array.
+     */
+    utils.getCurrentItemIndex = function (media) {
+        for (var i = 0; i < media.items.length; i++) {
+            if (media.items[i].itemId === media.currentItemId) {
+                return i;
+            }
+        }
+        return 'Could get current item index for itemId: ' + media.currentItemId;
     };
 
     /**

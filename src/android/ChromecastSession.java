@@ -83,6 +83,11 @@ public class ChromecastSession {
                     @Override
                     public void onStatusUpdated() {
                         MediaStatus status = client.getMediaStatus();
+                        if (status != null
+                                && status.getPlayerState() != MediaStatus.PLAYER_STATE_IDLE
+                                && status.getPlayerState() != MediaStatus.PLAYER_STATE_LOADING) {
+                            lastMedia = client.getMediaInfo();
+                        }
                         if (requestingMedia
                                 || queueStatusUpdatedCallback != null
                                 || queueReloadCallback != null) {
@@ -102,7 +107,6 @@ public class ChromecastSession {
                         }
                         // Send update
                         clientListener.onMediaUpdate(createMediaObject());
-                        lastMedia = client.getMediaInfo();
                     }
                     @Override
                     public void onQueueStatusUpdated() {

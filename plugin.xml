@@ -69,11 +69,13 @@
       <true/>
     </config-file>
 
-    <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
-
-    <source-file src="src/ios/Chromecast.swift" />
-    <source-file src="src/ios/ChromecastSession.swift" />
-    <source-file src="src/ios/CastUtilities.swift" />
-    <source-file src="src/ios/CastRequestDelegate.swift" />
+    <header-file src="src/ios/Chromecast.h" />
+    <source-file src="src/ios/Chromecast.m" />
+    <header-file src="src/ios/ChromecastSession.h" />
+    <source-file src="src/ios/ChromecastSession.m" />
+    <header-file src="src/ios/CastUtilities.h" />
+    <source-file src="src/ios/CastUtilities.m" />
+    <header-file src="src/ios/CastRequestDelegate.h" />
+    <source-file src="src/ios/CastRequestDelegate.m" />
   </platform>
 </plugin>

@@ -108,7 +108,7 @@
         runner.on('suite end', function (suite) {
             var passed = this.stats.passes === runner.total;
             if (passed) {
-                utils.setAction('All manual tests passed! (Assuming you did Part 1 as well)');
+                utils.setAction('All manual tests passed! [Assuming you did Part 1 as well :) ]');
                 document.getElementById('action').style.backgroundColor = '#ceffc4';
             }
         });

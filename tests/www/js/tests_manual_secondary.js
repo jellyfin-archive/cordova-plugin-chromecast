@@ -175,7 +175,7 @@
             });
         });
         it('media.stop should end video playback', function (done) {
-            utils.setAction('', 'Stop Media', function () {
+            utils.setAction('Wait for instructions from <u>primary</u>.', 'Stop Media', function () {
                 var called = utils.waitForAllCalls([
                         { id: success, repeats: false },
                         { id: update, repeats: true }
@@ -200,7 +200,7 @@
             });
         });
         it('session.queueLoad should be able to load remote audio/video queue and return the correct Metadata', function (done) {
-            utils.setAction('', 'Load Queue', function () {
+            utils.setAction('Wait for instructions from <u>primary</u>.', 'Load Queue', function () {
                 var item;
                 var queue = [];
 
@@ -260,7 +260,7 @@
             });
         });
         it('media.queueJumpToItem should jump to selected item', function (done) {
-            utils.setAction('', 'Queue Jump', function () {
+            utils.setAction('Wait for instructions from <u>primary</u>.', 'Queue Jump', function () {
                 var calledAnyOrder = utils.waitForAllCalls([
                         { id: success, repeats: false },
                         { id: update, repeats: true }
@@ -349,7 +349,7 @@
                 // from chrome first and then join from the app.
                 utils.startSession(function (sess) {
                     session = sess;
-                    utils.setAction('On <u>primary</u> click "<b>Enter Session</b>', 'Continue', done);
+                    utils.setAction('1. On <u>primary</u> click "<b>Enter Session</b><br>2. Wait for instructions from <u>primary</u>.', 'Continue', done);
                 });
                 return;
             }

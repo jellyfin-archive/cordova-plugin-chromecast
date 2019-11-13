@@ -85,7 +85,7 @@
                     initializeApi();
                 }
             }, 100);
-            function initializeApi () {
+            function initializeApi() {
                 var finished = false; // Need this so we stop testing after being finished
                 var unavailable = 'unavailable';
                 var available = 'available';
@@ -101,7 +101,7 @@
                     new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
                     function (sess) {
                         assert.fail('should not receive a session (make sure there is no active cast session when starting the tests)');
-                    }, function receiverListener (availability) {
+                    }, function receiverListener(availability) {
                         if (!finished) {
                             called(availability);
                         }
@@ -146,8 +146,8 @@
                     assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
                     assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
                     assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
-                        // TODO figure out how to maintain the data types for custom params on the native side
-                        // so that we don't have to do turn each actual and expected into a string
+                    // TODO figure out how to maintain the data types for custom params on the native side
+                    // so that we don't have to do turn each actual and expected into a string
                     assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
                     assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
                     assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
@@ -158,7 +158,7 @@
                     assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
                     assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
                     assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
-                    media.addUpdateListener(function listener (isAlive) {
+                    media.addUpdateListener(function listener(isAlive) {
                         assert.isTrue(isAlive);
                         utils.testMediaProperties(media);
                         assert.oneOf(media.playerState, [
@@ -177,12 +177,12 @@
         it('media.stop should end video playback', function (done) {
             utils.setAction('Wait for instructions from <u>primary</u>.', 'Stop Media', function () {
                 var called = utils.waitForAllCalls([
-                        { id: success, repeats: false },
-                        { id: update, repeats: true }
+                    { id: success, repeats: false },
+                    { id: update, repeats: true }
                 ], function () {
                     done();
                 });
-                media.addUpdateListener(function listener (isAlive) {
+                media.addUpdateListener(function listener(isAlive) {
                     if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
                         media.removeUpdateListener(listener);
                         assert.equal(media.idleReason, chrome.cast.media.IdleReason.CANCELLED);
@@ -242,7 +242,7 @@
                     assert.equal(media.items[i].media.metadata.myMadeUpMetadata, audioItem.metadata.myMadeUpMetadata);
                     assert.equal(media.items[i].media.metadata.metadataType, chrome.cast.media.MetadataType.MUSIC_TRACK);
                     assert.equal(media.items[i].media.metadata.type, chrome.cast.media.MetadataType.MUSIC_TRACK);
-                    media.addUpdateListener(function listener (isAlive) {
+                    media.addUpdateListener(function listener(isAlive) {
                         assert.isTrue(isAlive);
                         utils.testMediaProperties(media);
                         assert.oneOf(media.playerState, [
@@ -262,19 +262,19 @@
         it('media.queueJumpToItem should jump to selected item', function (done) {
             utils.setAction('Wait for instructions from <u>primary</u>.', 'Queue Jump', function () {
                 var calledAnyOrder = utils.waitForAllCalls([
-                        { id: success, repeats: false },
-                        { id: update, repeats: true }
+                    { id: success, repeats: false },
+                    { id: update, repeats: true }
                 ], function () {
                     done();
                 });
                 var calledOrder = utils.callOrder([
-                        { id: stopped, repeats: true },
-                        { id: newMedia, repeats: true }
+                    { id: stopped, repeats: true },
+                    { id: newMedia, repeats: true }
                 ], function () {
                     calledAnyOrder(update);
                 });
                 var i = utils.getCurrentItemIndex(media);
-                media.addUpdateListener(function listener (isAlive) {
+                media.addUpdateListener(function listener(isAlive) {
                     if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
                         assert.oneOf(media.idleReason,
                             [chrome.cast.media.IdleReason.INTERRUPTED, chrome.cast.media.IdleReason.FINISHED]);
@@ -322,14 +322,14 @@
         it('Primary should not receive session on initialize', function (done) {
             this.timeout(240000);
             utils.setAction('On <u><b>primary</b></u>:<br>1. Force kill and restart the app.'
-             + '<br>2. Select <b><u>Manual Tests (Primary) Part 2</u></b> from the home page to finish the manual tests.', 'Start Part 2', done);
+                + '<br>2. Select <b><u>Manual Tests (Primary) Part 2</u></b> from the home page to finish the manual tests.', 'Start Part 2', done);
         });
         it('Secondary session.leave should cause session to end (because all senders have left)', function (done) {
             var called = utils.waitForAllCalls([
-                    { id: success, repeats: false },
-                    { id: update, repeats: true }
+                { id: success, repeats: false },
+                { id: update, repeats: true }
             ], done);
-            session.addUpdateListener(function listener (isAlive) {
+            session.addUpdateListener(function listener(isAlive) {
                 if (session.status === chrome.cast.SessionStatus.DISCONNECTED) {
                     assert.isTrue(isAlive);
                     session.removeUpdateListener(listener);
@@ -362,10 +362,10 @@
         });
         it('session.stop', function (done) {
             var called = utils.waitForAllCalls([
-                    { id: success, repeats: false },
-                    { id: update, repeats: true }
+                { id: success, repeats: false },
+                { id: update, repeats: true }
             ], done);
-            session.addUpdateListener(function listener (isAlive) {
+            session.addUpdateListener(function listener(isAlive) {
                 if (session.status === chrome.cast.SessionStatus.STOPPED) {
                     assert.isFalse(isAlive);
                     session.removeUpdateListener(listener);

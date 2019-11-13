@@ -512,8 +512,10 @@
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.sessionCommand];
     }
-    [self.currentSession.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:false];
-    [self sendError:@"cancel" message:@"Session is stopped." command:self.sessionCommand];
+    if (self.currentSession.sessionStatus == @"stopped") {
+        [self.currentSession.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:false];
+        [self sendError:@"cancel" message:@"Session is stopped." command:self.sessionCommand];
+    }
 }
 
 

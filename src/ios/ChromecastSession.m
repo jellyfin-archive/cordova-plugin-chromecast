@@ -382,6 +382,8 @@
     
 }
 
+
+
 - (void)sessionManager:(GCKSessionManager *)sessionManager didResumeCastSession:(GCKCastSession *)session {
     self.currentSession = session;
     NSLog(@"here is the session");
@@ -393,12 +395,14 @@
 }
 
 #pragma -- GCKRemoteMediaClientListener
+
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didStartMediaSessionWithID:(NSInteger)sessionID {
     NSDictionary* media = [CastUtilities createMediaObject:self.currentSession];
-    if (!self.isRequesting) {
+//    if (!self.isRequesting) {
 //        [self.sessionListener onMediaLoaded:media];
-    }
+//    }
 }
+ 
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
     if (self.currentSession == nil) {

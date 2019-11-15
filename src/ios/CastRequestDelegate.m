@@ -14,7 +14,7 @@
     self = [super init];
     if (self) {
         self.onReceiverAvailableUpdate = onReceiverAvailableUpdate;
-        self.onSessionRejoin = onSessionRejoin;
+        onSessionRejoin = onSessionRejoin;
         onMediaLoaded = onMediaLoaded;
         onSessionUpdated = onSessionUpdated;
         onMediaUpdated = onMediaUpdated;
@@ -54,6 +54,10 @@
 
 - (void)onSessionEnd:(NSDictionary *)session {
     onSessionEnd(session);
+}
+
+- (void)onSessionRejoin:(NSDictionary *)session {
+    onSessionRejoin(session);
 }
 
 - (void)onMessageReceived:(NSDictionary *)session namespace:(NSString *)namespace message:(NSString *)message {

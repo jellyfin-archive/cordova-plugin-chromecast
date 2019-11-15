@@ -581,9 +581,9 @@
         return @{};
     }
     
-    NSLog(@"stream position: %f", mediaStatus.streamPosition );
-    NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
-    NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
+//    NSLog(@"stream position: %f", mediaStatus.streamPosition );
+//    NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
+//    NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
 //    if (mediaStatus.streamPosition == 0) {
 ////        NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
 ////        NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
@@ -650,9 +650,9 @@
         return @{};
     }
     
-    NSLog(@"stream position: %f", mediaStatus.streamPosition );
-    NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
-    NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
+//    NSLog(@"stream position: %f", mediaStatus.streamPosition );
+//    NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
+//    NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
 //    if (mediaStatus.streamPosition == 0) {
 ////        NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
 ////        NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);

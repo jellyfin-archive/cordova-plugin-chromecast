@@ -12,6 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @protocol  CastSessionListener<NSObject>
 
+-(void)onSessionRejoin:(NSDictionary*)session;
 -(void)onMediaLoaded:(NSDictionary*)media;
 -(void)onMediaUpdated:(NSDictionary*)media isAlive:(BOOL)isAlive;
 -(void)onSessionUpdated:(NSDictionary*)session isAlive:(BOOL)isAlive;
@@ -21,6 +22,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CastConnectionListener : NSObject<CastSessionListener>
 {
+    void (^onSessionRejoin)(NSDictionary* session);
     void (^onMediaLoaded)(NSDictionary* media);
     void (^onMediaUpdated)(NSDictionary* media,BOOL isAlive);
     void (^onSessionUpdated)(NSDictionary* session, BOOL isAlive);
@@ -29,9 +31,9 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @property (nonatomic, copy) void (^onReceiverAvailableUpdate)(BOOL available);
-@property (nonatomic, copy) void (^onSessionRejoin)(NSDictionary* session);
+//@property (nonatomic, copy) void (^onSessionRejoin)(NSDictionary* session);
 
-- (instancetype)initWithReceiverAvailableUpdate:(void(^)(BOOL available))onReceiverAvailableUpdate onSessionRejoin:(void(^)(NSDictionary* session))onSessionRejoin onMediaLoaded:(void(^)(NSDictionary* media))onMediaLoaded onMediaUpdated:(void(^)(NSDictionary* media, BOOL isAlive))onMediaUpdated onSessionUpdated:(void(^)(NSDictionary* session, BOOL isAlive))onSessionUpdated onSessionEnd:(void(^)(NSDictionary* session))onSessionEnd onMessageReceived:(void(^)(NSDictionary* session,NSString* namespace,NSString* message))onMessageReceived  ;
+- (instancetype)initWithReceiverAvailableUpdate:(void(^)(BOOL available))onReceiverAvailableUpdate onSessionRejoin:(void(^)(NSDictionary* session))onSessionRejoin onMediaLoaded:(void(^)(NSDictionary* m))onMediaLoaded onMediaUpdated:(void(^)(NSDictionary* media, BOOL isAlive))onMediaUpdated onSessionUpdated:(void(^)(NSDictionary* session, BOOL isAlive))onSessionUpdated onSessionEnd:(void(^)(NSDictionary* session))onSessionEnd onMessageReceived:(void(^)(NSDictionary* session,NSString* namespace,NSString* message))onMessageReceived  ;
 @end
 
 @interface CastRequestDelegate : NSObject<GCKRequestDelegate>

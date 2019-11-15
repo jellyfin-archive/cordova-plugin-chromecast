@@ -31,6 +31,7 @@
     return self;
 }
 
+
 - (void)add:(id<CastSessionListener>)listener {
     self.sessionListener = listener;
 }
@@ -38,6 +39,7 @@
 - (void)createSession:(GCKDevice*)device {
     if (device != nil) {
         [self.castContext.sessionManager startSessionWithDevice:device];
+        
     } else {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Cannot connect to selected cast device."];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.initialCommand.callbackId];
@@ -78,6 +80,7 @@
     
     [self.requestDelegates addObject:requestDelegate];
     [self.remoteMediaClient setStreamMuted:muted customData:nil];
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient setStreamVolume:newLevel customData:nil];
     request.delegate = requestDelegate;
 }
@@ -99,6 +102,7 @@
     }];
     
     [self.requestDelegates addObject:requestDelegate];
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient setStreamMuted:muted customData:nil];
     request.delegate = requestDelegate;
 }
@@ -119,35 +123,35 @@
     }];
     
     [self.requestDelegates addObject:requestDelegate];
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient setStreamVolume:newLevel customData:nil];
     request.delegate = requestDelegate;
 }
 
 - (void)setReceiverVolumeLevelWithCommand:(CDVInvokedUrlCommand*)withCommand newLevel:(float)newLevel {
     CastRequestDelegate* delegate = [self createGeneralRequestDelegate:withCommand];
+    self.isRequesting = YES;
     GCKRequest* request = [self.currentSession setDeviceVolume:newLevel];
     request.delegate = delegate;
 }
 
 - (void)setReceiverMutedWithCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted {
     CastRequestDelegate* delegate = [self createGeneralRequestDelegate:command];
-    
+    self.isRequesting = YES;
     GCKRequest* request = [self.currentSession setDeviceMuted:muted];
     request.delegate = delegate;
 }
 
+
 - (void)loadMediaWithCommand:(CDVInvokedUrlCommand*)command mediaInfo:(GCKMediaInformation*)mediaInfo autoPlay:(BOOL)autoPlay currentTime : (double)currentTime {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        self.isRequesting = NO;
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } failure:^(GCKError * error) {
-        self.isRequesting = NO;
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } abortion:^(GCKRequestAbortReason abortReason) {
-        self.isRequesting = NO;
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
@@ -156,8 +160,8 @@
     GCKMediaLoadOptions* options = [[GCKMediaLoadOptions alloc] init];
     options.autoplay = autoPlay;
     options.playPosition = currentTime;
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient loadMedia:mediaInfo withOptions:options];
-    isRequesting = YES;
     request.delegate = requestDelegate;
 }
 
@@ -169,6 +173,8 @@
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
+
+
 
 - (void)sendMessageWithCommand:(CDVInvokedUrlCommand*)command namespace:(NSString*)namespace message:(NSString*)message {
     GCKGenericChannel* channel = self.genericChannels[namespace];
@@ -207,7 +213,7 @@
     GCKMediaSeekOptions* options = [[GCKMediaSeekOptions alloc] init];
     options.interval = position;
     options.resumeState = resumeState;
-    
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient seekWithOptions:options];
     request.delegate = requestDelegate;
 }
@@ -215,9 +221,6 @@
 - (void)queueJumpToItemWithCommand:(CDVInvokedUrlCommand *)command itemId:(NSUInteger)itemId {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [NSUserDefaults.standardUserDefaults setBool:true forKey:@"jump"];
-        [NSUserDefaults.standardUserDefaults synchronize];
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
@@ -230,9 +233,10 @@
     }];
     
     [self.requestDelegates addObject:requestDelegate];
-    
+    [NSUserDefaults.standardUserDefaults setBool:true forKey:@"jump"];
+    [NSUserDefaults.standardUserDefaults synchronize];
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient queueJumpToItemWithID:itemId];
-    
     request.delegate = requestDelegate;
 }
 
@@ -252,7 +256,7 @@
     }];
     
     [self.requestDelegates addObject:requestDelegate];
-    
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient play];
     request.delegate = requestDelegate;
 }
@@ -273,7 +277,7 @@
     }];
     
     [self.requestDelegates addObject:requestDelegate];
-    
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient pause];
     request.delegate = requestDelegate;
 }
@@ -294,7 +298,7 @@
     }];
     
     [self.requestDelegates addObject:requestDelegate];
-    
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient stop];
     request.delegate = requestDelegate;
 }
@@ -315,6 +319,7 @@
     }];
     
     [self.requestDelegates addObject:requestDelegate];
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient setActiveTrackIDs:activeTrackIds];
     request.delegate = requestDelegate;
     request = [self.remoteMediaClient setTextTrackStyle:textTrackStyle];
@@ -322,7 +327,6 @@
 
 - (void)queueLoadItemsWithCommand:(CDVInvokedUrlCommand *)command queueItems:(NSArray *)queueItems startIndex:(NSInteger)startIndex repeatMode:(GCKMediaRepeatMode)repeatMode {
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObjectForQueue:self.currentSession] isAlive:NO];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObjectForQueue:self.currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
@@ -342,6 +346,7 @@
     options.playPosition = item.startTime;
     [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
     [NSUserDefaults.standardUserDefaults synchronize];
+    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient queueLoadItems:queueItems withOptions:options];
     request.delegate = requestDelegate;
 }
@@ -361,7 +366,6 @@
     self.currentSession = session;
     self.remoteMediaClient = session.remoteMediaClient;
     [self.remoteMediaClient addListener:self];
-    
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [CastUtilities createSessionObject:session] ];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:self.initialCommand.callbackId];
 }
@@ -390,19 +394,14 @@
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didResumeSession:(GCKSession *)session {
-    GCKSession *cursession = session;
-    NSLog(@"session received");
 }
 
 #pragma -- GCKRemoteMediaClientListener
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didStartMediaSessionWithID:(NSInteger)sessionID {
-    NSDictionary* media = [CastUtilities createMediaObject:self.currentSession];
-//    if (!self.isRequesting) {
-//        [self.sessionListener onMediaLoaded:media];
-//    }
 }
- 
+
+
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
     if (self.currentSession == nil) {
@@ -410,8 +409,28 @@
         return;
     }
     
-    NSDictionary* media = [CastUtilities createMediaObject:self.currentSession];
-    [self.sessionListener onMediaUpdated:media isAlive:true];
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"jump"]) {
+        NSDictionary* media = [CastUtilities createMediaObject:self.currentSession];
+        [self.sessionListener onMediaUpdated:media isAlive:true];
+        if (!self.isRequesting) {
+            if (mediaStatus.streamPosition > 0) {
+                
+                if (mediaStatus.queueItemCount > 1) {
+                    [self.sessionListener onMediaLoaded:[CastUtilities createMediaObjectForQueue:self.currentSession]];
+                    self.isRequesting = YES;
+                }
+                else {
+                    [self.sessionListener onMediaLoaded:media];
+                }
+            }
+
+        }
+    }
+    else {
+        NSDictionary* media = [CastUtilities createMediaObject:self.currentSession];
+        [self.sessionListener onMediaUpdated:media isAlive:false];
+    }
+    
 }
 
 - (void)remoteMediaClientDidUpdatePreloadStatus:(GCKRemoteMediaClient *)client {

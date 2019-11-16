@@ -507,14 +507,13 @@
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndSession:(GCKSession *)session withError:(NSError *)error {
-    self.currentSession.currentSession = nil;
-    
+
     if (error != nil) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.sessionCommand];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.sessionCommand.callbackId];
     }
-    if (self.currentSession.sessionStatus == @"stopped") {
-        [self.currentSession.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:false];
+    if ([self.currentSession.sessionStatus  isEqual: @"stopped"]) {
+        [self.currentSession.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:true];
         [self sendError:@"cancel" message:@"Session is stopped." command:self.sessionCommand];
     }
 }

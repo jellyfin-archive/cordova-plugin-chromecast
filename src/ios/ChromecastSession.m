@@ -373,17 +373,17 @@
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndCastSession:(GCKCastSession *)session withError:(NSError *)error {
-    self.currentSession = nil;
-    self.remoteMediaClient = nil;
+//    self.currentSession = nil;
+//    self.remoteMediaClient = nil;
     
     if (error != nil) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.initialCommand.callbackId];
     }
     if ([self.sessionStatus isEqualToString:@""]) {
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session] isAlive:false];
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:true];
     } else {
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:self.sessionStatus] isAlive:false];
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:self.sessionStatus] isAlive:true];
     }
     
 }

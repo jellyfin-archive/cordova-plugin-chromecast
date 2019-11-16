@@ -470,7 +470,7 @@
 }
 
 - (void)sendEvent:(NSString *)eventName args:(NSArray *)args{
-    NSLog(@"Event Name: %@", eventName);
+//    NSLog(@"Event Name: %@", eventName);
     if (self.eventCommand == nil) {
         return;
     }

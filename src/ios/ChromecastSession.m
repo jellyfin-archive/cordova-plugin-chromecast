@@ -38,6 +38,8 @@
 
 - (void)createSession:(GCKDevice*)device {
     if (device != nil) {
+        [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
+        [NSUserDefaults.standardUserDefaults synchronize];
         [self.castContext.sessionManager startSessionWithDevice:device];
         
     } else {

@@ -19,6 +19,33 @@
 
     var utils = {};
 
+    utils.setCookie = function (name, value) {
+        document.cookie = name + '=' + value + ';';
+    };
+
+    utils.getCookie = function (name) {
+        name = name + '=';
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i].trim();
+            if (c.indexOf(name) === 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+        return '';
+    };
+
+    utils.clearCookies = function () {
+        var cookies = document.cookie.split(';');
+
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i];
+            var eqPos = cookie.indexOf('=');
+            var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+    };
+
     /**
      * Displays the action information.
      */
@@ -349,6 +376,12 @@
             assert.isArray(mediaInfo.tracks);
         }
     };
+
+    document.addEventListener('DOMContentLoaded', function (event) {
+        // Clear test cookies on navigation away
+        document.getElementById('back').onclick = utils.clearCookies;
+        document.getElementById('rerun').onclick = utils.clearCookies;
+    });
 
     window['cordova-plugin-chromecast-tests'] = window['cordova-plugin-chromecast-tests'] || {};
     window['cordova-plugin-chromecast-tests'].utils = utils;

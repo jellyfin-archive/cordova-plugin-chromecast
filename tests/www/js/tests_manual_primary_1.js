@@ -39,15 +39,32 @@
         var media;
 
         before('Api should be available and initialize successfully', function (done) {
+            this.timeout(10000);
+            utils.setAction('Running tests...<br>Please wait for instruction');
             session = null;
             var interval = setInterval(function () {
                 if (chrome && chrome.cast && chrome.cast.isAvailable) {
                     clearInterval(interval);
-                    initializeApi();
+                    done();
                 }
             }, 100);
-            function initializeApi () {
+        });
+
+        describe('App restart and reload/change page simulation', function () {
+            var cookieName = 'primary-p1_restart-reload';
+            var runningNum = parseInt(utils.getCookie(cookieName) || '0');
+            it('Create session', function (done) {
+                this.timeout(10000);
+                if (runningNum > 0) {
+                    // Just pass the test because we need to skip ahead
+                    return done();
+                }
+
+                // Else, initialize and create the session (Should not receive session on initialize)
+                utils.setAction('Initializing...');
+
                 var finished = false; // Need this so we stop testing after being finished
+                var failed = false;
                 var unavailable = 'unavailable';
                 var available = 'available';
                 var called = utils.callOrder([
@@ -56,16 +73,26 @@
                     { id: available, repeats: true }
                 ], function () {
                     finished = true;
-                    done();
+                    // Initialize finished correctly, now create the session
+                    utils.setAction('Creating session...');
+                    utils.startSession(function (sess) {
+                        session = sess;
+                        utils.testSessionProperties(sess);
+                        utils.setCookie(cookieName, ++runningNum);
+                        if (failed) {
+                            // Ensure the session has stopped on failure because
+                            // we might not hit this point until after the "after" has already run
+                            session.stop();
+                        }
+                        done();
+                    });
                 });
                 var apiConfig = new chrome.cast.ApiConfig(
                     new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
                     function (sess) {
-                        if (!finished) {
-                            assert.fail('got session before "success", "unavailable", "available" sequence completed');
-                        }
+                        failed = true;
                         session = sess;
-                        utils.testSessionProperties(sess);
+                        assert.fail('Should not receive session on initialize.  We should only call this initialize when there is no existing session.');
                     }, function receiverListener (availability) {
                         if (!finished) {
                             called(availability);
@@ -76,46 +103,171 @@
                 }, function (err) {
                     assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
-            }
-        });
-
-        // Must be the first test
-        describe('App restart', function () {
-            it('Restart app with active session, should receive session on initialize', function (done) {
-                var interval;
-                var time = 15000;
-                interval = setInterval(function () {
-                    time -= 500;
-                    if (session) {
-                        clearInterval(interval);
+            });
+            it('Reload after session create, should receive session on initialize', function (done) {
+                this.timeout(10000);
+                var instructionNum = 1;
+                var testNum = 2;
+                assert.isAtLeast(runningNum, instructionNum, 'Should not be running this test yet');
+                switch (runningNum) {
+                case instructionNum:
+                    // Start the reload
+                    utils.setAction('Reloading...');
+                    utils.setCookie(cookieName, ++runningNum);
+                    window.location.reload();
+                    break;
+                case testNum:
+                    // Test initialize since we just reloaded
+                    utils.setAction('Testing reload after session create, should receive session...');
+                    var finished = false; // Need this so we stop testing after being finished
+                    var unavailable = 'unavailable';
+                    var available = 'available';
+                    var session_listener = 'session_listener';
+                    var called = utils.callOrder([
+                            { id: success, repeats: false },
+                            { id: unavailable, repeats: true },
+                            { id: available, repeats: true },
+                            { id: session_listener, repeats: false }
+                    ], function () {
+                        finished = true;
+                        utils.setCookie(cookieName, ++runningNum);
                         done();
+                    });
+                    var apiConfig = new chrome.cast.ApiConfig(
+                            new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
+                            function (sess) {
+                                session = sess;
+                                utils.testSessionProperties(sess);
+                                called(session_listener);
+                            }, function receiverListener (availability) {
+                                if (!finished) {
+                                    called(availability);
+                                }
+                            }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+                    chrome.cast.initialize(apiConfig, function () {
+                        called(success);
+                    }, function (err) {
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                    });
+                    break;
+
+                default:
+                    // We must be looking to run a test further down the line
+                    return done();
+                }
+            });
+            it('Restart app with active session, should receive session on initialize', function (done) {
+                var instructionNum = 3;
+                var testNum = 4;
+                assert.isAtLeast(runningNum, instructionNum, 'Should not be running this test yet');
+                switch (runningNum) {
+                case instructionNum:
+                    // Show instructions for app restart
+                    utils.setCookie(cookieName, testNum);
+                    if (isDesktop) {
+                        // If desktop, just reload the page (because restart doesn't work)
+                        window.location.reload();
                     }
-                    if (time < 0) {
-                        clearInterval(interval);
-                        assert.fail('Failed to find session for 15s after app restart.  '
-                        + 'Make sure that a session started by this device is active during app restart.');
-                    }
-                }, 500);
-                utils.setAction('<u>Situation #1</u> - First time you have reached the "restart app" test:<br>'
-                    + '&nbsp;&nbsp;&nbsp;&nbsp;1. Click "<b>Start Session</b>"<br><br>'
-                    + '<u>Situation #2</u> - You have force killed and restarted the app:<br>'
-                    + '&nbsp;&nbsp;&nbsp;&nbsp;1. Wait for session discovery. (Fails if none found after 15s)<br>',
-                    'Start Session',
-                    function () {
-                        clearInterval(interval);
-                        utils.startSession(function (sess) {
-                            session = sess;
-                            if (isDesktop) {
-                                utils.setAction('1. Refresh this page.');
-                            } else {
-                                utils.setAction('1. Force kill and restart the app.'
-                                + '<br>*Android 4.4 does not support this feature, so just refresh the page.');
-                            }
-                        });
-                    }
-                );
+                    this.timeout(0); // no timeout
+                    utils.setAction('Force kill and restart the app, and navigate back to <b><u>Manual Tests (Primary) Part 1</u></b>.'
+                                + '<br>Note: Android 4.4 does not support this feature, so just refresh the page.');
+                    break;
+                case testNum:
+                    this.timeout(10000);
+                    // Test initialize since we just reloaded
+                    utils.setAction('Testing initialize after app restart, should receive a session...');
+                    var finished = false; // Need this so we stop testing after being finished
+                    var unavailable = 'unavailable';
+                    var available = 'available';
+                    var session_listener = 'session_listener';
+                    var called = utils.callOrder([
+                            { id: success, repeats: false },
+                            { id: unavailable, repeats: true },
+                            { id: available, repeats: true },
+                            { id: session_listener, repeats: false }
+                    ], function () {
+                        finished = true;
+                        utils.setCookie(cookieName, ++runningNum);
+                        done();
+                    });
+                    var apiConfig = new chrome.cast.ApiConfig(
+                            new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
+                            function (sess) {
+                                session = sess;
+                                utils.testSessionProperties(sess);
+                                called(session_listener);
+                            }, function receiverListener (availability) {
+                                if (!finished) {
+                                    called(availability);
+                                }
+                            }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+                    chrome.cast.initialize(apiConfig, function () {
+                        called(success);
+                    }, function (err) {
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                    });
+                    break;
+
+                default:
+                    // We must be looking to run a test further down the line
+                    return done();
+                }
+            });
+            it('Reload after app restart, should receive session on initialize', function (done) {
+                this.timeout(10000);
+                var instructionNum = 5;
+                var testNum = 6;
+                assert.isAtLeast(runningNum, instructionNum, 'Should not be running this test yet');
+                switch (runningNum) {
+                case instructionNum:
+                    // Start the reload
+                    utils.setAction('Reloading...');
+                    utils.setCookie(cookieName, ++runningNum);
+                    window.location.reload();
+                    break;
+                case testNum:
+                    // Test initialize since we just reloaded
+                    utils.setAction('Testing reload after app restart, should receive a session...');
+                    var finished = false; // Need this so we stop testing after being finished
+                    var unavailable = 'unavailable';
+                    var available = 'available';
+                    var session_listener = 'session_listener';
+                    var called = utils.callOrder([
+                            { id: success, repeats: false },
+                            { id: unavailable, repeats: true },
+                            { id: available, repeats: true },
+                            { id: session_listener, repeats: false }
+                    ], function () {
+                        finished = true;
+                        utils.setCookie(cookieName, ++runningNum);
+                        done();
+                    });
+                    var apiConfig = new chrome.cast.ApiConfig(
+                            new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
+                            function (sess) {
+                                session = sess;
+                                utils.testSessionProperties(sess);
+                                called(session_listener);
+                            }, function receiverListener (availability) {
+                                if (!finished) {
+                                    called(availability);
+                                }
+                            }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+                    chrome.cast.initialize(apiConfig, function () {
+                        called(success);
+                    }, function (err) {
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                    });
+                    break;
+
+                default:
+                    // We must be looking to run a test further down the line
+                    return done();
+                }
             });
             after('Ensure session is stopped', function (done) {
+                // Reset tests
+                utils.setCookie(cookieName, 0);
                 if (!session) {
                     return done();
                 }

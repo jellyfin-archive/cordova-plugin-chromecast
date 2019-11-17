@@ -502,7 +502,6 @@
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didResumeSession:(GCKSession *)session {
-    [self onSessionRejoin:[CastUtilities createSessionObject:session]];
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndSession:(GCKSession *)session withError:(NSError *)error {

@@ -52,7 +52,7 @@
 
         describe('App restart and reload/change page simulation', function () {
             var cookieName = 'primary-p1_restart-reload';
-            var runningNum = parseInt(utils.getCookie(cookieName) || '0');
+            var runningNum = parseInt(utils.getValue(cookieName) || '0');
             it('Create session', function (done) {
                 this.timeout(10000);
                 if (runningNum > 0) {
@@ -78,7 +78,7 @@
                     utils.startSession(function (sess) {
                         session = sess;
                         utils.testSessionProperties(sess);
-                        utils.setCookie(cookieName, ++runningNum);
+                        utils.storeValue(cookieName, ++runningNum);
                         if (failed) {
                             // Ensure the session has stopped on failure because
                             // we might not hit this point until after the "after" has already run
@@ -113,7 +113,7 @@
                 case instructionNum:
                     // Start the reload
                     utils.setAction('Reloading...');
-                    utils.setCookie(cookieName, ++runningNum);
+                    utils.storeValue(cookieName, ++runningNum);
                     window.location.reload();
                     break;
                 case testNum:
@@ -130,7 +130,7 @@
                             { id: session_listener, repeats: false }
                     ], function () {
                         finished = true;
-                        utils.setCookie(cookieName, ++runningNum);
+                        utils.storeValue(cookieName, ++runningNum);
                         done();
                     });
                     var apiConfig = new chrome.cast.ApiConfig(
@@ -163,7 +163,7 @@
                 switch (runningNum) {
                 case instructionNum:
                     // Show instructions for app restart
-                    utils.setCookie(cookieName, testNum);
+                    utils.storeValue(cookieName, testNum);
                     if (isDesktop) {
                         // If desktop, just reload the page (because restart doesn't work)
                         window.location.reload();
@@ -187,7 +187,7 @@
                             { id: session_listener, repeats: false }
                     ], function () {
                         finished = true;
-                        utils.setCookie(cookieName, ++runningNum);
+                        utils.storeValue(cookieName, ++runningNum);
                         done();
                     });
                     var apiConfig = new chrome.cast.ApiConfig(
@@ -222,7 +222,7 @@
                 case instructionNum:
                     // Start the reload
                     utils.setAction('Reloading...');
-                    utils.setCookie(cookieName, ++runningNum);
+                    utils.storeValue(cookieName, ++runningNum);
                     window.location.reload();
                     break;
                 case testNum:
@@ -239,7 +239,7 @@
                             { id: session_listener, repeats: false }
                     ], function () {
                         finished = true;
-                        utils.setCookie(cookieName, ++runningNum);
+                        utils.storeValue(cookieName, ++runningNum);
                         done();
                     });
                     var apiConfig = new chrome.cast.ApiConfig(
@@ -267,7 +267,7 @@
             });
             after('Ensure session is stopped', function (done) {
                 // Reset tests
-                utils.setCookie(cookieName, 0);
+                utils.storeValue(cookieName, 0);
                 if (!session) {
                     return done();
                 }

@@ -19,31 +19,16 @@
 
     var utils = {};
 
-    utils.setCookie = function (name, value) {
-        document.cookie = name + '=' + value + ';';
+    utils.storeValue = function (name, value) {
+        localStorage.setItem(name, value);
     };
 
-    utils.getCookie = function (name) {
-        name = name + '=';
-        var ca = document.cookie.split(';');
-        for (var i = 0; i < ca.length; i++) {
-            var c = ca[i].trim();
-            if (c.indexOf(name) === 0) {
-                return c.substring(name.length, c.length);
-            }
-        }
-        return '';
+    utils.getValue = function (name) {
+        return localStorage.getItem(name);
     };
 
-    utils.clearCookies = function () {
-        var cookies = document.cookie.split(';');
-
-        for (var i = 0; i < cookies.length; i++) {
-            var cookie = cookies[i];
-            var eqPos = cookie.indexOf('=');
-            var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        }
+    utils.clearStoredValues = function () {
+       localStorage.clear();
     };
 
     /**
@@ -379,8 +364,8 @@
 
     document.addEventListener('DOMContentLoaded', function (event) {
         // Clear test cookies on navigation away
-        document.getElementById('back').onclick = utils.clearCookies;
-        document.getElementById('rerun').onclick = utils.clearCookies;
+        document.getElementById('back').onclick = utils.clearStoredValues;
+        document.getElementById('rerun').onclick = utils.clearStoredValues;
     });
 
     window['cordova-plugin-chromecast-tests'] = window['cordova-plugin-chromecast-tests'] || {};

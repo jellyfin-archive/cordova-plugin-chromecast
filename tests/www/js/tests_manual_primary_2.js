@@ -43,7 +43,7 @@
         });
         describe('App restart and reload/change page simulation', function () {
             var cookieName = 'primary-p2_restart-reload';
-            var runningNum = parseInt(utils.getCookie(cookieName) || '0');
+            var runningNum = parseInt(utils.getValue(cookieName) || '0');
             it('Should not receive a session on initialize after a page change', function (done) {
                 this.timeout(10000);
                 if (runningNum > 0) {
@@ -62,7 +62,7 @@
                     finished = true;
                     // Give it an extra moment to check for the session
                     setTimeout(function () {
-                        utils.setCookie(cookieName, ++runningNum);
+                        utils.storeValue(cookieName, ++runningNum);
                         done();
                     }, 1000);
                 });
@@ -91,7 +91,7 @@
                 switch (runningNum) {
                 case instructionNum:
                     // Show instructions for app restart
-                    utils.setCookie(cookieName, testNum);
+                    utils.storeValue(cookieName, testNum);
                     if (isDesktop) {
                         // If desktop, just reload the page (because restart doesn't work)
                         window.location.reload();
@@ -115,7 +115,7 @@
                         finished = true;
                         // Give it an extra moment to check for the session
                         setTimeout(function () {
-                            utils.setCookie(cookieName, ++runningNum);
+                            utils.storeValue(cookieName, ++runningNum);
                             done();
                         }, 1000);
                     });
@@ -144,7 +144,7 @@
             });
             after(function () {
                 // Reset tests
-                utils.setCookie(cookieName, 0);
+                utils.storeValue(cookieName, 0);
             });
         });
         describe('session interaction with secondary', function () {

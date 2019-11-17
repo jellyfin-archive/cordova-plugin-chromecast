@@ -19,7 +19,7 @@
 
 - (void)pluginInitialize {
     [super pluginInitialize];
-//    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onCastStateChanged:) name:kGCKCastStateDidChangeNotification object:nil];
+    //    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onCastStateChanged:) name:kGCKCastStateDidChangeNotification object:nil];
 }
 
 - (void)sendJavascript:(NSString*)jsCommand {
@@ -61,9 +61,9 @@
     
     //For debugging purpose
     GCKLogger.sharedInstance.delegate = self;
-//    [self log:[NSString stringWithFormat:@"API Initialized with appID %@", appId]];
+    //    [self log:[NSString stringWithFormat:@"API Initialized with appID %@", appId]];
     
-//    ChromecastSession *session = [[ChromecastSession alloc] init];
+    //    ChromecastSession *session = [[ChromecastSession alloc] init];
     [[GCKCastContext sharedInstance].sessionManager addListener:self];
     
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
@@ -140,7 +140,7 @@
         self.sessionCommand = command;
         self.currentSession.sessionStatus = @"stopped";
         [[GCKCastContext sharedInstance].sessionManager endSession];
-
+        
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
         NSLog(@"Canceld");
@@ -187,7 +187,7 @@
         queueItemBuilder.startTime = [item[@"startTime"] doubleValue];
         queueItemBuilder.preloadTime = [item[@"preloadTime"] doubleValue];
         double duration = media[@"duration"] == [NSNull null] ? 0 : [media[@"duration"] doubleValue];
-
+        
         GCKMediaInformation *mediaInformation = [CastUtilities buildMediaInformationForQueueItem:media[@"contentId"] customData:media[@"customData"] contentType:media[@"contentType"] duration:duration startTime:0 streamType:media[@"streamType"] metaData:media[@"metadata"]];
         queueItemBuilder.mediaInformation = mediaInformation;
         [queueItems addObject: [queueItemBuilder build]];
@@ -224,7 +224,7 @@
         BOOL muted = [command.arguments[1] boolValue];
         [self.currentSession setMediaMutedAndVolumeWIthCommand:command muted:muted nvewLevel:newLevel];
     }
-//    [self.currentSession setReceiverVolumeLevelWithCommand:command newLevel:newLevel];
+    //    [self.currentSession setReceiverVolumeLevelWithCommand:command newLevel:newLevel];
 }
 
 - (void)setReceiverVolumeLevel:(CDVInvokedUrlCommand*) command {
@@ -352,7 +352,7 @@
 
 #pragma GCKLoggerDelegate
 - (void)logMessage:(NSString *)message atLevel:(GCKLoggerLevel)level fromFunction:(NSString *)function location:(NSString *)location {
-//    [self log:[NSString stringWithFormat:@"GCKLogger = %@, %ld, %@, %@", message,(long)level,function,location]];
+    //    [self log:[NSString stringWithFormat:@"GCKLogger = %@, %ld, %@, %@", message,(long)level,function,location]];
 }
 
 #pragma GCKDiscoveryManagerListener
@@ -364,9 +364,9 @@
         deviceName = device.deviceID;
     }
     NSDictionary* deviceJson = @{
-        @"name" : deviceName,
-        @"id" : device.uniqueID
-    };
+                                 @"name" : deviceName,
+                                 @"id" : device.uniqueID
+                                 };
     return [CastUtilities convertDictToJsonString:deviceJson];
 }
 
@@ -381,7 +381,7 @@
     } else {
         deviceName = device.deviceID;
     }
-
+    
     [self.devicesAvailable insertObject:device atIndex:index];
     [self checkReceiverAvailable];
 }
@@ -442,7 +442,7 @@
 }
 
 - (void)sendEvent:(NSString *)eventName args:(NSArray *)args{
-//    NSLog(@"Event Name: %@", eventName);
+    //    NSLog(@"Event Name: %@", eventName);
     if (self.eventCommand == nil) {
         return;
     }
@@ -478,7 +478,7 @@
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndSession:(GCKSession *)session withError:(NSError *)error {
-
+    
     if (error != nil) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.sessionCommand.callbackId];
@@ -488,6 +488,5 @@
         [self sendError:@"cancel" message:@"Session is stopped." command:self.sessionCommand];
     }
 }
-
 
 @end

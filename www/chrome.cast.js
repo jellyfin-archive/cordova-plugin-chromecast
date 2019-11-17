@@ -1383,7 +1383,9 @@ execute('setup', function (err, args) {
         MEDIA_UPDATE: function (media) {
             if (!media) {
                 _currentMedia = null;
-                _session.media = [];
+                if (_session) {
+                    _session.media = [];
+                }
                 return;
             }
             if (!_currentMedia) {

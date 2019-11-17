@@ -106,8 +106,12 @@
     }
     self.scanCommand = command;
     [self sendScanUpdate];
-    [[GCKCastContext sharedInstance].discoveryManager startDiscovery];
+    [self startRouteScan];
     return YES;
+}
+
+-(void) startRouteScan {
+    [[GCKCastContext sharedInstance].discoveryManager startDiscovery];
 }
 
 - (void)sendScanUpdate {
@@ -319,27 +323,36 @@
     }
     
     NSString* routeID = command.arguments[0];
-    
-    [self selectRouteRecursive:routeID forTime:15 command:command timesRetried:0];
+    // Ensure the scan is running
+    [self startRouteScan];
+    [self selectRouteRecursive:routeID forTime:15 command:command timesRetried:0 callback:^{
+        // If there is no scanCommand that means we only started the scan for selectRoute
+        if (self.scanCommand == nil) {
+            // So we should also stop it
+            [self stopRouteScan];
+        }
+    }];
 }
 
 // Check for a device with the routeID every 1.5 second forTime seconds
-- (void)selectRouteRecursive:(NSString*)routeID forTime:(int)remainTime command:(CDVInvokedUrlCommand*)command timesRetried:(int)retries {
+- (void)selectRouteRecursive:(NSString*)routeID forTime:(int)remainTime command:(CDVInvokedUrlCommand*)command timesRetried:(int)retries callback:(void(^)(void))callback {
     GCKDevice* device = [[GCKCastContext sharedInstance].discoveryManager deviceWithUniqueID:routeID];
     if (device != nil) {
         self.currentSession = [[ChromecastSession alloc] initWithDevice:device cordovaDelegate:self.commandDelegate initialCommand:command];
+        callback();
         [self.currentSession add:self];
         return;
     }
     if (remainTime <= 0) {
         [self sendError:@"timeout" message:[NSString stringWithFormat:@"Failed to join route (%@) after 15s and %d tries.", routeID, retries + 1] command:command];
+        callback();
         return;
     }
     remainTime -= 1;
     retries += 1;
     
     // check again in 1 second
-    NSMethodSignature *signature  = [self methodSignatureForSelector:@selector(selectRouteRecursive:forTime:command:timesRetried:)];
+    NSMethodSignature *signature  = [self methodSignatureForSelector:@selector(selectRouteRecursive:forTime:command:timesRetried:callback:)];
     NSInvocation      *invocation = [NSInvocation invocationWithMethodSignature:signature];
     [invocation setTarget:self];
     [invocation setSelector:_cmd];
@@ -347,6 +360,7 @@
     [invocation setArgument:&remainTime atIndex:3];
     [invocation setArgument:&command atIndex:4];
     [invocation setArgument:&retries atIndex:5];
+    [invocation setArgument:&callback atIndex:6];
     [NSTimer scheduledTimerWithTimeInterval:1 invocation:invocation repeats:NO];
 }
 
@@ -488,5 +502,6 @@
         [self sendError:@"cancel" message:@"Session is stopped." command:self.sessionCommand];
     }
 }
+
 
 @end

@@ -39,7 +39,7 @@
         var media;
 
         before('Api should be available and initialize successfully', function (done) {
-            this.timeout(10000);
+            this.timeout(15000);
             utils.setAction('Running tests...<br>Please wait for instruction');
             session = null;
             var interval = setInterval(function () {
@@ -54,7 +54,7 @@
             var cookieName = 'primary-p1_restart-reload';
             var runningNum = parseInt(utils.getValue(cookieName) || '0');
             it('Create session', function (done) {
-                this.timeout(10000);
+                this.timeout(15000);
                 if (runningNum > 0) {
                     // Just pass the test because we need to skip ahead
                     return done();
@@ -105,7 +105,7 @@
                 });
             });
             it('Reload after session create, should receive session on initialize', function (done) {
-                this.timeout(10000);
+                this.timeout(15000);
                 var instructionNum = 1;
                 var testNum = 2;
                 assert.isAtLeast(runningNum, instructionNum, 'Should not be running this test yet');
@@ -173,7 +173,7 @@
                                 + '<br>Note: Android 4.4 does not support this feature, so just refresh the page.');
                     break;
                 case testNum:
-                    this.timeout(10000);
+                    this.timeout(15000);
                     // Test initialize since we just reloaded
                     utils.setAction('Testing initialize after app restart, should receive a session...');
                     var finished = false; // Need this so we stop testing after being finished
@@ -214,7 +214,7 @@
                 }
             });
             it('Reload after app restart, should receive session on initialize', function (done) {
-                this.timeout(10000);
+                this.timeout(15000);
                 var instructionNum = 5;
                 var testNum = 6;
                 assert.isAtLeast(runningNum, instructionNum, 'Should not be running this test yet');

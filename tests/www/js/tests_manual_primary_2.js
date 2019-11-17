@@ -32,7 +32,7 @@
         var session;
 
         before('Api should be available and initialize successfully', function (done) {
-            this.timeout(10000);
+            this.timeout(15000);
             session = null;
             var interval = setInterval(function () {
                 if (chrome && chrome.cast && chrome.cast.isAvailable) {
@@ -45,7 +45,7 @@
             var cookieName = 'primary-p2_restart-reload';
             var runningNum = parseInt(utils.getValue(cookieName) || '0');
             it('Should not receive a session on initialize after a page change', function (done) {
-                this.timeout(10000);
+                this.timeout(15000);
                 if (runningNum > 0) {
                     // Just pass the test because we need to skip ahead
                     return done();
@@ -101,7 +101,7 @@
                                 + '<br>Note: Android 4.4 does not support this feature, so just refresh the page.');
                     break;
                 case testNum:
-                    this.timeout(10000);
+                    this.timeout(15000);
                     // Test initialize since we just reloaded
                     utils.setAction('Checking for session after app restart, (should not find session)...');
                     var finished = false; // Need this so we stop testing after being finished

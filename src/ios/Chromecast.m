@@ -32,7 +32,7 @@
 
 - (void)setup:(CDVInvokedUrlCommand*) command {
     self.eventCommand = command;
-    [self stopRouteScanForSetup:self.scanCommand];
+    [self stopRouteScanForSetup];
     [self sendEvent:@"SETUP" args:@[]];
 }
 
@@ -75,44 +75,29 @@
     }
 }
 
-- (BOOL)stopRouteScanForSetup:(CDVInvokedUrlCommand*)command {
-    
+- (void)stopRouteScanForSetup {
     if (self.scanCommand != nil) {
         [self sendError:@"cancel" message:@"Scan stopped because setup triggered." command:self.scanCommand];
         self.scanCommand = nil;
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
-        [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } else {
-        [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-        if (command != nil) {
-            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
-            [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        }
     }
-    
-    return YES;
+    [self stopRouteScan];
 }
 
 - (BOOL)stopRouteScan:(CDVInvokedUrlCommand*)command {
-    
+    [self stopRouteScan];
+    if (command != nil) {
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
+    return YES;
+}
+
+- (void)stopRouteScan {
     if (self.scanCommand != nil) {
         [self sendError:@"cancel" message:@"Scan stopped." command:self.scanCommand];
         self.scanCommand = nil;
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
-        [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } else {
-        [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-        if (command != nil) {
-            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]]; 
-            [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        }
     }
-    
-    return YES;
+    [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
 }
 
 -(BOOL) startRouteScan:(CDVInvokedUrlCommand*)command {
@@ -120,31 +105,18 @@
         [self sendError:@"cancel" message:@"Started a new route scan before stopping previous one." command:self.scanCommand];
     }
     self.scanCommand = command;
-    [self startRotueScanWithTimer:0 completion:nil];
+    [self sendScanUpdate];
+    [[GCKCastContext sharedInstance].discoveryManager startDiscovery];
     return YES;
 }
-- (void)startRotueScanWithTimer:(NSTimeInterval)timer completion:(void(^)(void))completion {
-    if (timer != 0) {
-        if (completion != nil) {
-            if ([GCKCastContext sharedInstance].discoveryManager.discoveryActive) {
-                [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-                [self sendReceiverData];
-            } else {
-                [NSTimer scheduledTimerWithTimeInterval:timer repeats:NO block:^(NSTimer * _Nonnull timer) {
-                    completion();
-                }];
 
-            }
-        }
-    } else {
-        if ([GCKCastContext sharedInstance].discoveryManager.discoveryActive) {
-            [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
-            [self sendReceiverData];
-        } else {
-            [[GCKCastContext sharedInstance].discoveryManager startDiscovery];
-            [self sendReceiverData];
-        }
-    }    
+- (void)sendScanUpdate {
+    if (self.scanCommand == nil) {
+        return;
+    }
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[CastUtilities createDeviceObject:self.devicesAvailable]];
+    [pluginResult setKeepCallback:@(true)];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.scanCommand.callbackId];
 }
 
 - (void)checkReceiverAvailable {
@@ -155,20 +127,6 @@
     }
 }
 
-- (void)sendReceiverData {
-    if (self.scanCommand == nil) {
-        return;
-    }
-    GCKSessionManager* sessionManager = GCKCastContext.sharedInstance.sessionManager;
-//    [sessionManager startSessionWithDevice:<#(nonnull GCKDevice *)#>]
-    if (self.devicesAvailable.count > 0 || sessionManager.currentSession != nil) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[CastUtilities createDeviceObject:self.devicesAvailable]];
-        [pluginResult setKeepCallback:@(true)];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.scanCommand.callbackId];
-    }else {
-        [self stopRouteScan:self.scanCommand];
-    }
-}
 - (void)requestSession:(CDVInvokedUrlCommand*) command {
     UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Cast to" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     for (GCKDevice* device in self.devicesAvailable) {
@@ -355,30 +313,41 @@
 }
 
 - (void)selectRoute:(CDVInvokedUrlCommand*)command {
+    if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil || [GCKCastContext sharedInstance].sessionManager.connectionState == GCKConnectionStateConnected) {
+        [self sendError:@"session_error" message:@"Leave or stop current session before attempting to join new session." command:command];
+        return;
+    }
+    
     NSString* routeID = command.arguments[0];
+    
+    [self selectRouteRecursive:routeID forTime:15 command:command timesRetried:0];
+}
+
+// Check for a device with the routeID every 1.5 second forTime seconds
+- (void)selectRouteRecursive:(NSString*)routeID forTime:(int)remainTime command:(CDVInvokedUrlCommand*)command timesRetried:(int)retries {
     GCKDevice* device = [[GCKCastContext sharedInstance].discoveryManager deviceWithUniqueID:routeID];
-    int retries = 0;
-    
-    //testing purpose
-    if ([routeID isEqualToString:@""]) {
-        if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil || [GCKCastContext sharedInstance].sessionManager.connectionState == GCKConnectionStateConnected) {
-            [self sendError:@"session_error" message:@"Leave or stop current session before attempting to join new session." command:command];
-        }
+    if (device != nil) {
+        self.currentSession = [[ChromecastSession alloc] initWithDevice:device cordovaDelegate:self.commandDelegate initialCommand:command];
+        [self.currentSession add:self];
+        return;
     }
-    if (device == nil) {
-        [self startRotueScanWithTimer:1 completion:^{
-            [self sendError:@"timeout" message:[NSString stringWithFormat:@"Failed to join route (%@) after 15s and %d tries.",routeID,retries + 1] command:command];
-        }];
-    } else {
-        if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil || [GCKCastContext sharedInstance].sessionManager.connectionState == GCKConnectionStateConnected) {
-            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [CastUtilities createSessionObject:[GCKCastContext sharedInstance].sessionManager.currentCastSession] ];
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        } else {
-            self.currentSession = [[ChromecastSession alloc] initWithDevice:device cordovaDelegate:self.commandDelegate initialCommand:command];
-            [self.currentSession add:self];
-        }
+    if (remainTime <= 0) {
+        [self sendError:@"timeout" message:[NSString stringWithFormat:@"Failed to join route (%@) after 15s and %d tries.", routeID, retries + 1] command:command];
+        return;
     }
+    remainTime -= 1;
+    retries += 1;
     
+    // check again in 1 second
+    NSMethodSignature *signature  = [self methodSignatureForSelector:@selector(selectRouteRecursive:forTime:command:timesRetried:)];
+    NSInvocation      *invocation = [NSInvocation invocationWithMethodSignature:signature];
+    [invocation setTarget:self];
+    [invocation setSelector:_cmd];
+    [invocation setArgument:&routeID atIndex:2];
+    [invocation setArgument:&remainTime atIndex:3];
+    [invocation setArgument:&command atIndex:4];
+    [invocation setArgument:&retries atIndex:5];
+    [NSTimer scheduledTimerWithTimeInterval:1 invocation:invocation repeats:NO];
 }
 
 #pragma GCKLoggerDelegate
@@ -401,8 +370,12 @@
     return [CastUtilities convertDictToJsonString:deviceJson];
 }
 
+- (void) didUpdateDeviceList {
+    [self sendScanUpdate];
+}
+
 - (void)didInsertDevice:(GCKDevice *)device atIndex:(NSUInteger)index {
-     NSString* deviceName = @"";
+    NSString* deviceName = @"";
     if (device.friendlyName != nil) {
         deviceName = device.friendlyName;
     } else {

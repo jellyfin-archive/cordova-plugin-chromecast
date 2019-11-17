@@ -63,10 +63,6 @@
     GCKLogger.sharedInstance.delegate = self;
 //    [self log:[NSString stringWithFormat:@"API Initialized with appID %@", appId]];
     
-    if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil) {
-        [self onSessionRejoin:[CastUtilities createSessionObject:[GCKCastContext sharedInstance].sessionManager.currentCastSession]];
-    }
-    
 //    ChromecastSession *session = [[ChromecastSession alloc] init];
     [[GCKCastContext sharedInstance].sessionManager addListener:self];
     
@@ -74,6 +70,9 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     [self checkReceiverAvailable];
     
+    if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil) {
+        [self onSessionRejoin:[CastUtilities createSessionObject:[GCKCastContext sharedInstance].sessionManager.currentCastSession]];
+    }
 }
 
 - (BOOL)stopRouteScanForSetup:(CDVInvokedUrlCommand*)command {

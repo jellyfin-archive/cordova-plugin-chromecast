@@ -321,8 +321,9 @@
         });
         it('Primary should not receive session on initialize', function (done) {
             this.timeout(240000);
-            utils.setAction('On <u><b>primary</b></u>:<br>1. Click "Back".'
-                + '<br>2. Select <b><u>Manual Tests (Primary) Part 2</u></b> from the home page.', 'Start Part 2', done);
+            utils.setAction('1. On <u><b>primary</b></u>, click "Back".'
+                + '<br>2. On <u><b>primary</b></u>, Select <b><u>Manual Tests (Primary) Part 2</u></b>.'
+                + '<br>3. Wait for instructions from <u><b>primary</b></u>.', 'Start Part 2', done);
         });
         it('Secondary session.leave should cause session to end (because all senders have left)', function (done) {
             var called = utils.waitForAllCalls([
@@ -349,11 +350,11 @@
                 // from chrome first and then join from the app.
                 utils.startSession(function (sess) {
                     session = sess;
-                    utils.setAction('1. On <u>primary</u> click "<b>Enter Session</b><br>2. Wait for instructions from <u>primary</u>.', 'Continue', done);
+                    utils.setAction('1. On <u>primary</u> click "<b>Enter Session</b>"<br>2. Wait for instructions from <u>primary</u>.', 'Continue', done);
                 });
                 return;
             }
-            utils.setAction('On <u>primary</u> click "<b>Enter Session</b>', 'Continue', function () {
+            utils.setAction('On <u>primary</u> click "<b>Enter Session</b>"', 'Continue', function () {
                 utils.startSession(function (sess) {
                     session = sess;
                     done();

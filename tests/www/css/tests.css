@@ -5,9 +5,11 @@ h1 {
     margin: 0.5em;
 }
 button {
-    height: 3em;
+    -webkit-appearance: none;
+    background-color: rgb(223, 223, 223);
+    height: 5em;
     min-width: 10em;
-    margin: 0.5em;
+    margin: 1em;
 }
 .center-horizontal {
     display: block;

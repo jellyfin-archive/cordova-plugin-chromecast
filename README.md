@@ -29,7 +29,7 @@ These strings will be used when asking the user for permission to use the microp
 # Supports
 
 **Android** 4.4+ (7.x highest confirmed) (may support lower, untested)  
-**iOS** 9.0+ (13.2.1 highest confirmed) (may support lower, untested)
+**iOS** 9.0+ (13.2.1 highest confirmed)
 
 ## Quirks
 * Android 4.4 (maybe 5.x and 6.x) are not able automatically rejoin/resume a chromecast session after an app restart.  

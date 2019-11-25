@@ -36,12 +36,6 @@
     [self sendEvent:@"SETUP" args:@[]];
 }
 
-- (void)emitAllRoutes:(CDVInvokedUrlCommand*) command {
-    // No arguments. It's only implemented to satisfy plugin's JS API.
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
-
 -(void) initialize:(CDVInvokedUrlCommand*)command {
     
     if (self.devicesAvailable == nil) {

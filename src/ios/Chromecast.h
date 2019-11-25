@@ -21,11 +21,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) CDVInvokedUrlCommand* scanCommand;
 
 - (void)setup:(CDVInvokedUrlCommand*) command;
-- (void)emitAllRoutes:(CDVInvokedUrlCommand*) command;
 - (void)initialize:(CDVInvokedUrlCommand*)command;
 - (BOOL)startRouteScan:(CDVInvokedUrlCommand*)command;
 - (BOOL)stopRouteScan:(CDVInvokedUrlCommand*)command;
-- (void)checkReceiverAvailable;
 - (void)requestSession:(CDVInvokedUrlCommand*) command;
 - (void)setReceiverVolumeLevel:(CDVInvokedUrlCommand*) command;
 - (void)queueLoad:(CDVInvokedUrlCommand *)command;

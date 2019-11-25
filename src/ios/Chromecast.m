@@ -16,14 +16,42 @@
 @end
 
 @implementation Chromecast
+NSString* appId = nil;
 
 - (void)pluginInitialize {
     [super pluginInitialize];
+    self.currentSession = [ChromecastSession alloc];
+    
+    NSString* applicationId = [NSUserDefaults.standardUserDefaults stringForKey:@"appId"];
+    if (applicationId == nil) {
+        applicationId = kGCKDefaultMediaReceiverApplicationID;
+    }
+    [self setAppId:applicationId];
 }
 
+- (void)setAppId:(NSString*)applicationId {
+    if ([applicationId isEqualToString:appId]) {
+        return;
+    }
+    appId = applicationId;
+    [NSUserDefaults.standardUserDefaults setObject:appId forKey:@"appId"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc]
+                                      initWithApplicationID:appId];
+    GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
+    options.physicalVolumeButtonsWillControlDeviceVolume = YES;
+    options.disableDiscoveryAutostart = NO;
+    [GCKCastContext setSharedInstanceWithOptions:options];
 
-- (void)log:(NSString*)s {
-    [self sendJavascript:[NSString stringWithFormat: @"console.log('Chromecast-iOS: ', %@)",s]];
+    // Enable chromecast logger.
+//    [GCKLogger sharedInstance].delegate = self;
+    
+    // Ensure we have only 1 listener attached
+    [GCKCastContext.sharedInstance.discoveryManager removeListener:self];
+    [GCKCastContext.sharedInstance.discoveryManager addListener:self];
+    
+    self.currentSession = [self.currentSession initWithListener:self cordovaDelegate:self.commandDelegate];
 }
 
 - (void)setup:(CDVInvokedUrlCommand*) command {
@@ -33,35 +61,33 @@
 }
 
 -(void) initialize:(CDVInvokedUrlCommand*)command {
-    
-    if (self.devicesAvailable == nil) {
-        self.devicesAvailable = [[NSMutableArray alloc] init];
-    }
-    
-    NSString* appId = kGCKDefaultMediaReceiverApplicationID;
-    if (command.arguments[0] != nil) {
-        appId = command.arguments[0];
-    }
-    GCKDiscoveryCriteria* criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:appId];
-    GCKCastOptions* options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
-    options.physicalVolumeButtonsWillControlDeviceVolume = YES;
-    options.disableDiscoveryAutostart = NO;
-    [GCKCastContext setSharedInstanceWithOptions:options];
-    [GCKCastContext.sharedInstance.discoveryManager addListener:self];
-    
-    //For debugging purpose
-    GCKLogger.sharedInstance.delegate = self;
-    //    [self log:[NSString stringWithFormat:@"API Initialized with appID %@", appId]];
-    
-    //    ChromecastSession *session = [[ChromecastSession alloc] init];
-    [[GCKCastContext sharedInstance].sessionManager addListener:self];
-    
+    [self setAppId:command.arguments[0]];
+
+    // Initialize success
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     
-    if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil) {
-        [self onSessionRejoin:[CastUtilities createSessionObject:[GCKCastContext sharedInstance].sessionManager.currentCastSession]];
-    }
+    // Search for existing session
+    [self findAvailableReceiver:^{
+        [self.currentSession tryRejoin];
+    }];
+}
+
+- (void)findAvailableReceiver:(void(^)(void))successCallback {
+    // Ensure the scan is running
+    [self startRouteScan];
+    [self retry:^BOOL{
+        // Did we find any devices?
+        if ([GCKCastContext.sharedInstance.discoveryManager hasDiscoveredDevices]) {
+            [self sendReceiverAvailable:YES];
+            return YES;
+        }
+        return NO;
+    } forTries:5 callback:^(BOOL passed){
+        if (passed) {
+            successCallback();
+        }
+    }];
 }
 
 - (void)stopRouteScanForSetup {
@@ -117,8 +143,7 @@
     UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Cast to" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     for (GCKDevice* device in self.devicesAvailable) {
         [alert addAction:[UIAlertAction actionWithTitle:device.friendlyName style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            self.currentSession = [[ChromecastSession alloc] initWithDevice:device cordovaDelegate:self.commandDelegate initialCommand:command];
-            [self.currentSession add:self];
+            [self.currentSession joinDevice:device cdvCommand:command];
         }]];
     }
     [alert addAction:[UIAlertAction actionWithTitle:@"Stop Casting" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
@@ -299,7 +324,10 @@
 }
 
 - (void)selectRoute:(CDVInvokedUrlCommand*)command {
-    if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil || [GCKCastContext sharedInstance].sessionManager.connectionState == GCKConnectionStateConnected) {
+    GCKCastSession* currentSession = [GCKCastContext sharedInstance].sessionManager.currentCastSession;
+    if (currentSession != nil
+        || [currentSession connectionState] == GCKConnectionStateConnected
+        || [currentSession connectionState] == GCKConnectionStateConnecting) {
         [self sendError:@"session_error" message:@"Leave or stop current session before attempting to join new session." command:command];
         return;
     }
@@ -307,48 +335,47 @@
     NSString* routeID = command.arguments[0];
     // Ensure the scan is running
     [self startRouteScan];
-    [self selectRouteRecursive:routeID forTime:15 command:command timesRetried:0 callback:^{
-        // If there is no scanCommand that means we only started the scan for selectRoute
-        if (self.scanCommand == nil) {
-            // So we should also stop it
-            [self stopRouteScan];
+    
+    [self retry:^BOOL{
+        GCKDevice* device = [[GCKCastContext sharedInstance].discoveryManager deviceWithUniqueID:routeID];
+        if (device != nil) {
+            [self.currentSession joinDevice:device cdvCommand:command];
+            return YES;
         }
+        return NO;
+    } forTries:1 callback:^(BOOL passed) {
+        if (!passed) {
+            [self sendError:@"timeout" message:[NSString stringWithFormat:@"Failed to join route (%@) after 15s and %d tries.", routeID, 15] command:command];
+        }
+        [self stopRouteScan];
     }];
 }
 
-// Check for a device with the routeID every 1.5 second forTime seconds
-- (void)selectRouteRecursive:(NSString*)routeID forTime:(int)remainTime command:(CDVInvokedUrlCommand*)command timesRetried:(int)retries callback:(void(^)(void))callback {
-    GCKDevice* device = [[GCKCastContext sharedInstance].discoveryManager deviceWithUniqueID:routeID];
-    if (device != nil) {
-        self.currentSession = [[ChromecastSession alloc] initWithDevice:device cordovaDelegate:self.commandDelegate initialCommand:command];
-        callback();
-        [self.currentSession add:self];
+// retries every 1 second forTries times
+// pass -1 to forTries to try infinitely
+- (void)retry:(BOOL(^)(void))condition forTries:(int)remainTries callback:(void(^)(BOOL))callback {
+    BOOL passed = condition();
+    if (passed || remainTries == 0) {
+        callback(passed);
         return;
     }
-    if (remainTime <= 0) {
-        [self sendError:@"timeout" message:[NSString stringWithFormat:@"Failed to join route (%@) after 15s and %d tries.", routeID, retries + 1] command:command];
-        callback();
-        return;
-    }
-    remainTime -= 1;
-    retries += 1;
+
+    remainTries--;
     
     // check again in 1 second
-    NSMethodSignature *signature  = [self methodSignatureForSelector:@selector(selectRouteRecursive:forTime:command:timesRetried:callback:)];
+    NSMethodSignature *signature  = [self methodSignatureForSelector:@selector(retry:forTries:callback:)];
     NSInvocation      *invocation = [NSInvocation invocationWithMethodSignature:signature];
     [invocation setTarget:self];
     [invocation setSelector:_cmd];
-    [invocation setArgument:&routeID atIndex:2];
-    [invocation setArgument:&remainTime atIndex:3];
-    [invocation setArgument:&command atIndex:4];
-    [invocation setArgument:&retries atIndex:5];
-    [invocation setArgument:&callback atIndex:6];
+    [invocation setArgument:&condition atIndex:2];
+    [invocation setArgument:&remainTries atIndex:3];
+    [invocation setArgument:&callback atIndex:4];
     [NSTimer scheduledTimerWithTimeInterval:1 invocation:invocation repeats:NO];
 }
 
 #pragma GCKLoggerDelegate
 - (void)logMessage:(NSString *)message atLevel:(GCKLoggerLevel)level fromFunction:(NSString *)function location:(NSString *)location {
-    //    [self log:[NSString stringWithFormat:@"GCKLogger = %@, %ld, %@, %@", message,(long)level,function,location]];
+    NSLog(@"%@", [NSString stringWithFormat:@"GCKLogger = %@, %ld, %@, %@", message,(long)level,function,location]);
 }
 
 #pragma GCKDiscoveryManagerListener
@@ -421,13 +448,6 @@
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:[CastUtilities createError:code message:message]];
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
-
-- (void)sessionManager:(GCKSessionManager *)sessionManager didResumeCastSession:(GCKCastSession *)session {
-    [self onSessionRejoin:[CastUtilities createSessionObject:session]];
-}
-
-- (void)sessionManager:(GCKSessionManager *)sessionManager didResumeSession:(GCKSession *)session {
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndSession:(GCKSession *)session withError:(NSError *)error {

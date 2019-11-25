@@ -15,8 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface ChromecastSession : NSObject <GCKSessionManagerListener,GCKRemoteMediaClientListener,GCKGenericChannelDelegate>
 
 @property (nonatomic, retain) id<CDVCommandDelegate> commandDelegate;
-@property (nonatomic, retain) CDVInvokedUrlCommand* initialCommand;
-@property (nonatomic, retain) GCKCastSession* currentSession;
+@property (nonatomic, retain) GCKSessionManager* sessionManager;
 @property (nonatomic, retain) GCKRemoteMediaClient* remoteMediaClient;
 @property (nonatomic, retain) GCKCastContext* castContext;
 @property (nonatomic, retain) NSMutableArray<CastRequestDelegate*>* requestDelegates;
@@ -24,9 +23,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, retain) NSMutableDictionary* genericChannels;
 @property (nonatomic, retain) NSString* sessionStatus;
 
-- (instancetype)initWithDevice:(GCKDevice*)device cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate initialCommand:(CDVInvokedUrlCommand*)initialCommand;
-- (void)add:(id<CastSessionListener>)listener;
-- (void)createSession:(GCKDevice*)device;
+- (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate;
+- (void)tryRejoin;
+- (void)joinDevice:(GCKDevice*)device cdvCommand:(CDVInvokedUrlCommand*)command;
 - (CastRequestDelegate*)createGeneralRequestDelegate:(CDVInvokedUrlCommand*)command;
 - (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel;
 - (void)setMediaMutedWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted;

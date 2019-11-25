@@ -16,36 +16,42 @@
 @end
 
 @implementation ChromecastSession
+GCKCastSession* currentSession;
+CDVInvokedUrlCommand* joinSessionCommand;
 
-- (instancetype)initWithDevice:(GCKDevice*)device cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate initialCommand:(CDVInvokedUrlCommand*)initialCommand
+- (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate
 {
     self = [super init];
-    if (self) {
-        self.sessionStatus = @"";
-        self.commandDelegate = cordovaDelegate;
-        self.initialCommand = initialCommand;
-        self.castContext = [GCKCastContext sharedInstance];
-        [self.castContext.sessionManager addListener:self];
-        [self createSession:device];
-    }
+    self.sessionListener = listener;
+    self.commandDelegate = cordovaDelegate;
+    self.sessionStatus = @"disconnected";
+    self.castContext = [GCKCastContext sharedInstance];
+    self.sessionManager = self.castContext.sessionManager;
+    
+    // Ensure we are only listening once after init
+    [self.sessionManager removeListener:self];
+    [self.sessionManager addListener:self];
+    
     return self;
 }
 
-
-- (void)add:(id<CastSessionListener>)listener {
-    self.sessionListener = listener;
+- (void)setSession:(GCKCastSession*)session {
+    currentSession = session;
+    self.sessionStatus = @"connected";
 }
 
-- (void)createSession:(GCKDevice*)device {
-    if (device != nil) {
-        [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
-        [NSUserDefaults.standardUserDefaults synchronize];
-        [self.castContext.sessionManager startSessionWithDevice:device];
-        
-    } else {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Cannot connect to selected cast device."];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.initialCommand.callbackId];
+- (void)tryRejoin {
+    if (currentSession != nil) {
+        [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:currentSession status:self.sessionStatus]];
     }
+}
+
+- (void)joinDevice:(GCKDevice*)device cdvCommand:(CDVInvokedUrlCommand*)command {
+    joinSessionCommand = command;
+    
+    [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
+    [NSUserDefaults.standardUserDefaults synchronize];
+    [self.sessionManager startSessionWithDevice:device];
 }
 
 -(CastRequestDelegate*)createGeneralRequestDelegate:(CDVInvokedUrlCommand*)command {
@@ -53,7 +59,7 @@
     CastRequestDelegate* delegate = [[CastRequestDelegate alloc] initWithSuccess:^{
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:self.currentSession] isAlive:NO];
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:currentSession status:self.sessionStatus] isAlive:NO];
     } failure:^(GCKError * error) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -68,8 +74,8 @@
 - (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -87,12 +93,11 @@
     request.delegate = requestDelegate;
 }
 
-
 - (void)setMediaMutedWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -112,8 +117,8 @@
 - (void)setMediaVolumeWithCommand:(CDVInvokedUrlCommand*)withCommand newVolumeLevel:(float)newLevel {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:withCommand.callbackId];
         
     } failure:^(GCKError * error) {
@@ -133,22 +138,21 @@
 - (void)setReceiverVolumeLevelWithCommand:(CDVInvokedUrlCommand*)withCommand newLevel:(float)newLevel {
     CastRequestDelegate* delegate = [self createGeneralRequestDelegate:withCommand];
     self.isRequesting = YES;
-    GCKRequest* request = [self.currentSession setDeviceVolume:newLevel];
+    GCKRequest* request = [currentSession setDeviceVolume:newLevel];
     request.delegate = delegate;
 }
 
 - (void)setReceiverMutedWithCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted {
     CastRequestDelegate* delegate = [self createGeneralRequestDelegate:command];
     self.isRequesting = YES;
-    GCKRequest* request = [self.currentSession setDeviceMuted:muted];
+    GCKRequest* request = [currentSession setDeviceMuted:muted];
     request.delegate = delegate;
 }
-
 
 - (void)loadMediaWithCommand:(CDVInvokedUrlCommand*)command mediaInfo:(GCKMediaInformation*)mediaInfo autoPlay:(BOOL)autoPlay currentTime : (double)currentTime {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } failure:^(GCKError * error) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
@@ -171,7 +175,7 @@
     GCKGenericChannel* newChannel = [[GCKGenericChannel alloc] initWithNamespace:namespace];
     newChannel.delegate = self;
     self.genericChannels[namespace] = newChannel;
-    [self.currentSession addChannel:newChannel];
+    [currentSession addChannel:newChannel];
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
@@ -196,8 +200,8 @@
 - (void)mediaSeekWithCommand:(CDVInvokedUrlCommand*)command position:(NSTimeInterval)position resumeState:(GCKMediaResumeState)resumeState {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -221,7 +225,7 @@
 - (void)queueJumpToItemWithCommand:(CDVInvokedUrlCommand *)command itemId:(NSUInteger)itemId {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -243,8 +247,8 @@
 - (void)mediaPlayWithCommand:(CDVInvokedUrlCommand*)command {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -264,8 +268,8 @@
 - (void)mediaPauseWithCommand:(CDVInvokedUrlCommand*)command {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -285,8 +289,8 @@
 - (void)mediaStopWithCommand:(CDVInvokedUrlCommand*)command {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -306,8 +310,8 @@
 - (void)setActiveTracksWithCommand:(CDVInvokedUrlCommand*)command activeTrackIds:(NSArray<NSNumber*>*)activeTrackIds textTrackStyle:(GCKMediaTextTrackStyle*)textTrackStyle {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:self.currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:self.currentSession]];
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -327,7 +331,7 @@
 
 - (void)queueLoadItemsWithCommand:(CDVInvokedUrlCommand *)command queueItems:(NSArray *)queueItems startIndex:(NSInteger)startIndex repeatMode:(GCKMediaRepeatMode)repeatMode {
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObjectForQueue:self.currentSession]];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         
     } failure:^(GCKError * error) {
@@ -363,32 +367,33 @@
 
 #pragma -- GCKSessionManagerListener
 - (void)sessionManager:(GCKSessionManager *)sessionManager didStartCastSession:(GCKCastSession *)session {
-    self.currentSession = session;
+    [self setSession:session];
     self.remoteMediaClient = session.remoteMediaClient;
     [self.remoteMediaClient addListener:self];
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [CastUtilities createSessionObject:session] ];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.initialCommand.callbackId];
+    if (joinSessionCommand != nil) {
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [CastUtilities createSessionObject:session status:self.sessionStatus] ];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:joinSessionCommand.callbackId];
+        joinSessionCommand = nil;
+    }
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndCastSession:(GCKCastSession *)session withError:(NSError *)error {
-    if (error != nil) {
+    if (error != nil && joinSessionCommand != nil) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.initialCommand.callbackId];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:joinSessionCommand.callbackId];
+        joinSessionCommand = nil;
     }
     if ([self.sessionStatus isEqualToString:@""]) {
         [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:true];
     } else {
         [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:self.sessionStatus] isAlive:true];
     }
-    
+    currentSession = nil;
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didResumeCastSession:(GCKCastSession *)session {
-    self.currentSession = session;
-    NSLog(@"here is the session");
-}
-
-- (void)sessionManager:(GCKSessionManager *)sessionManager didResumeSession:(GCKSession *)session {
+    [self setSession:session];
+    [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session status:self.sessionStatus]];
 }
 
 #pragma -- GCKRemoteMediaClientListener
@@ -397,20 +402,20 @@
 }
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
-    if (self.currentSession == nil) {
+    if (currentSession == nil) {
         [self.sessionListener onMediaUpdated:@{} isAlive:false];
         return;
     }
     
     if (![[NSUserDefaults standardUserDefaults] boolForKey:@"jump"]) {
-        NSDictionary* media = [CastUtilities createMediaObject:self.currentSession];
+        NSDictionary* media = [CastUtilities createMediaObject:currentSession];
         [self.sessionListener onMediaUpdated:media isAlive:true];
         if (!self.isRequesting) {
             if (mediaStatus.streamPosition > 0) {
                 
                 if (mediaStatus.queueItemCount > 1) {
-                    [self.sessionListener onMediaLoaded:[CastUtilities createMediaObjectForQueue:self.currentSession]];
-                    self.isRequesting = YES;
+                    [self.sessionListener onMediaLoaded:[CastUtilities createMediaObject:currentSession]];
+                    isRequesting = YES;
                 }
                 else {
                     [self.sessionListener onMediaLoaded:media];
@@ -420,7 +425,7 @@
         }
     }
     else {
-        NSDictionary* media = [CastUtilities createMediaObject:self.currentSession];
+        NSDictionary* media = [CastUtilities createMediaObject:currentSession];
         [self.sessionListener onMediaUpdated:media isAlive:false];
     }
     
@@ -448,7 +453,7 @@
 
 #pragma -- GCKGenericChannelDelegate
 - (void)castChannel:(GCKGenericChannel *)channel didReceiveTextMessage:(NSString *)message withNamespace:(NSString *)protocolNamespace {
-    NSDictionary* currentSession = [CastUtilities createSessionObject:self.currentSession];
-    [self.sessionListener onMessageReceived:currentSession namespace:protocolNamespace message:message];
+    NSDictionary* session = [CastUtilities createSessionObject:currentSession status:self.sessionStatus];
+    [self.sessionListener onMessageReceived:session namespace:protocolNamespace message:message];
 }
 @end

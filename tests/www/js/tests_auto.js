@@ -449,7 +449,7 @@
             });
             it('initialize should not receive a session after session.stop', function (done) {
                 var apiConfig = new chrome.cast.ApiConfig(new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID), function sessionListener (session) {
-                    assert.fail('should not receive a session (we did sessionLeave so we shouldnt be able to auto rejoin rejoin)');
+                    assert.fail('should not receive a session (we did sessionStop so we shouldnt be able to auto rejoin rejoin)');
                 });
                 chrome.cast.initialize(apiConfig, function () {
                     done();

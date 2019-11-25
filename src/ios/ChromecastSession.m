@@ -176,8 +176,6 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-
-
 - (void)sendMessageWithCommand:(CDVInvokedUrlCommand*)command namespace:(NSString*)namespace message:(NSString*)message {
     GCKGenericChannel* channel = self.genericChannels[namespace];
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[NSString stringWithFormat:@"Namespace %@ not founded",namespace]];
@@ -373,9 +371,6 @@
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndCastSession:(GCKCastSession *)session withError:(NSError *)error {
-//    self.currentSession = nil;
-//    self.remoteMediaClient = nil;
-    
     if (error != nil) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.initialCommand.callbackId];
@@ -387,8 +382,6 @@
     }
     
 }
-
-
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didResumeCastSession:(GCKCastSession *)session {
     self.currentSession = session;
@@ -402,8 +395,6 @@
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didStartMediaSessionWithID:(NSInteger)sessionID {
 }
-
-
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
     if (self.currentSession == nil) {

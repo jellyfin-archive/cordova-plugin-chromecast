@@ -19,7 +19,6 @@
 
 - (void)pluginInitialize {
     [super pluginInitialize];
-    //    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onCastStateChanged:) name:kGCKCastStateDidChangeNotification object:nil];
 }
 
 - (void)sendJavascript:(NSString*)jsCommand {
@@ -412,8 +411,6 @@
 
 #pragma CastSessionListener
 
-
-
 - (void)onMediaLoaded:(NSDictionary *)media {
     [self sendEvent:@"MEDIA_LOAD" args:@[media]];
 }
@@ -421,7 +418,6 @@
 - (void)onMediaUpdated:(NSDictionary *)media isAlive:(BOOL)isAlive {
     [self sendEvent:@"MEDIA_UPDATE" args:@[media]];
 }
-
 
 - (void)onSessionRejoin:(NSDictionary*)session {
     [self sendEvent:@"SESSION_LISTENER" args:@[session]];
@@ -436,11 +432,10 @@
 }
 
 - (void)onSessionEnd:(NSDictionary *)session {
-    
     [self sendEvent:@"SESSION_UPDATE" args:@[session]];
 }
+
 - (void)onCastStateChanged:(NSNotification*)notification {
-    
     GCKCastState castState = [notification.userInfo[kGCKNotificationKeyCastState] intValue];
     if (castState == GCKCastStateNoDevicesAvailable) {
         [self sendEvent:@"RECEIVER_LISTENER" args:@[@(false)]];

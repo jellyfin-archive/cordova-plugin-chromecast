@@ -468,9 +468,14 @@
 }
 
 + (NSDictionary *)createSessionObject:(GCKCastSession *)session {
+    NSDictionary* media = [CastUtilities createMediaObject:session];
+    NSMutableArray<NSDictionary*>* mediaArray = [NSMutableArray new];
+    if ([media count] != 0) {
+        [mediaArray addObject: media];
+    }
     return @{
         @"appId" : session.applicationMetadata.applicationID? session.applicationMetadata.applicationID : @"",
-        @"media" : [CastUtilities createMediaObject:session],
+        @"media" : mediaArray,
         @"appImages" : @{},
         @"sessionId" : session.sessionID? session.sessionID : @"",
         @"displayName" : session.applicationMetadata.applicationName? session.applicationMetadata.applicationName : @"",

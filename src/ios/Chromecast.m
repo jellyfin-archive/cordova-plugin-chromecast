@@ -443,16 +443,6 @@ int scansRunning = 0;
     [self.commandDelegate sendPluginResult:pluginResult callbackId:self.eventCommand.callbackId];
 }
 
-- (void)sendScan:(NSArray *)args{
-    if (self.scanCommand == nil) {
-        return;
-    }
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:args];
-    [pluginResult setKeepCallback:@(YES)];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.scanCommand.callbackId];
-}
-
-
 - (void)sendError:(NSString *)code message:(NSString *)message command:(CDVInvokedUrlCommand*)command{
     
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:[CastUtilities createError:code message:message]];

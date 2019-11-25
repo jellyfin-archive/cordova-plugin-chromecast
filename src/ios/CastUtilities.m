@@ -510,207 +510,51 @@
     };
 }
 
-+ (NSDictionary *)createMediaObjectForQueue:(GCKCastSession *)session {
-    if (session.remoteMediaClient == nil) {
-            return @{};
-        }
-        
-        GCKMediaStatus* mediaStatus = session.remoteMediaClient.mediaStatus;
-        if (mediaStatus == nil) {
-            return @{};
-        }
-        
-        NSMutableArray *qItems = [[NSMutableArray alloc] init];
-        for (int i=0; i<mediaStatus.queueItemCount; i++) {
-            NSDictionary *qItem = [CastUtilities createQueueItem: [mediaStatus queueItemAtIndex:i]];
-            [qItems addObject:qItem];
-        }
-        
-        if ([CastUtilities getIdleReason:mediaStatus.idleReason]) {
-            return @{
-                @"currentItemId" : @(mediaStatus.currentItemID),
-                @"currentTime" : @(mediaStatus.streamPosition),
-                @"customData" : (mediaStatus.customData == nil)? @{} : mediaStatus.customData,
-                @"idleReason" : [CastUtilities getIdleReason:mediaStatus.idleReason],
-                @"loadingItemId" : @(mediaStatus.loadingItemID),
-                @"isAlive" : mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO),
-                @"media" : [CastUtilities createMediaInfoObjectForQueue:mediaStatus.mediaInformation],
-                @"mediaSessionId" : @(mediaStatus.mediaSessionID),
-                @"playbackRate" : @(mediaStatus.playbackRate),
-                @"playerState" : [CastUtilities getPlayerState:mediaStatus.playerState],
-                @"repeatMode" : [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode],
-                @"preloadedItemId" : @(mediaStatus.preloadedItemID),
-                @"items" : qItems,
-                @"queueData" : [CastUtilities createQueueData:mediaStatus] == nil ? NULL : [CastUtilities createQueueData:mediaStatus],
-                
-                @"sessionId" : session.sessionID,
-                @"volume" : @{
-                        @"level" : @(mediaStatus.volume),
-                        @"muted" : @(mediaStatus.isMuted),
-                },
-                @"activeTrackIds" : mediaStatus.activeTrackIDs? mediaStatus.activeTrackIDs : @[]
-            };
-        } else {
-            return @{
-                @"currentItemId" : @(mediaStatus.currentItemID),
-                @"currentTime" : @(mediaStatus.streamPosition),
-                @"customData" : (mediaStatus.customData == nil)? @{} : mediaStatus.customData,
-                @"loadingItemId" : @(mediaStatus.loadingItemID),
-                @"isAlive" : mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO),
-                @"media" : [CastUtilities createMediaInfoObjectForQueue:mediaStatus.mediaInformation],
-                @"mediaSessionId" : @(mediaStatus.mediaSessionID),
-                @"playbackRate" : @(mediaStatus.playbackRate),
-                @"playerState" : [CastUtilities getPlayerState:mediaStatus.playerState],
-                @"preloadedItemId" : @(mediaStatus.preloadedItemID),
-                @"repeatMode" : [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode],
-                @"sessionId" : session.sessionID,
-                @"items" : qItems,
-                @"queueData" : [CastUtilities createQueueData:mediaStatus] == nil ? NULL : [CastUtilities createQueueData:mediaStatus],
-                @"volume" : @{
-                        @"level" : @(mediaStatus.volume),
-                        @"muted" : @(mediaStatus.isMuted),
-                },
-                @"activeTrackIds" : mediaStatus.activeTrackIDs? mediaStatus.activeTrackIDs : @[]
-            };
-        }
-
-}
-
-+ (NSDictionary *)createMediaObjectForQueueJumpToItem:(GCKCastSession *)session {
-    if (session.remoteMediaClient == nil) {
-        return @{};
-    }
-    
-    GCKMediaStatus* mediaStatus = session.remoteMediaClient.mediaStatus;
-    if (mediaStatus == nil) {
-        return @{};
-    }
-    
-//    NSLog(@"stream position: %f", mediaStatus.streamPosition );
-//    NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
-//    NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
-//    if (mediaStatus.streamPosition == 0) {
-////        NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
-////        NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
-//    }
-//    else {
-//        NSLog(@"stream position: %f", mediaStatus.streamPosition );
-//        NSLog(@"medis player state: %@", [CastUtilities getPlayerStateCheck:mediaStatus.playerState]);
-//        NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
-//    }
-    if ([CastUtilities getIdleReason:mediaStatus.idleReason]) {
-        return @{
-            @"currentItemId" : @(mediaStatus.currentItemID),
-            @"currentTime" : @(mediaStatus.streamPosition),
-            @"customData" : (mediaStatus.customData == nil)? @{} : mediaStatus.customData,
-            @"idleReason" : [CastUtilities getIdleReason:mediaStatus.idleReason],
-            @"loadingItemId" : @(mediaStatus.loadingItemID),
-            @"isAlive" : mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO),
-            @"media" : [CastUtilities createMediaInfoObject:mediaStatus.mediaInformation],
-            @"mediaSessionId" : @(mediaStatus.mediaSessionID),
-            @"playbackRate" : @(mediaStatus.playbackRate),
-            @"playerState" : [CastUtilities getPlayerState:mediaStatus.playerState],
-            @"repeatMode" : [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode],
-            @"preloadedItemId" : @(mediaStatus.preloadedItemID),
-            @"sessionId" : session.sessionID,
-            @"volume" : @{
-                    @"level" : @(mediaStatus.volume),
-                    @"muted" : @(mediaStatus.isMuted),
-            },
-            @"activeTrackIds" : mediaStatus.activeTrackIDs? mediaStatus.activeTrackIDs : @[]
-        };
-    } else {
-        return @{
-            @"currentItemId" : @(mediaStatus.currentItemID),
-            @"currentTime" : @(mediaStatus.streamPosition),
-            @"customData" : (mediaStatus.customData == nil)? @{} : mediaStatus.customData,
-            @"loadingItemId" : @(mediaStatus.loadingItemID),
-            @"isAlive" : mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO),
-            @"media" : [CastUtilities createMediaInfoObject:mediaStatus.mediaInformation],
-            @"mediaSessionId" : @(mediaStatus.mediaSessionID),
-            @"playbackRate" : @(mediaStatus.playbackRate),
-            @"playerState" : [CastUtilities getPlayerState:mediaStatus.playerState],
-            @"preloadedItemId" : @(mediaStatus.preloadedItemID),
-//            @"items" : mediaStatus.queueData.items ? mediaStatus.queueData.items : @[],
-            @"repeatMode" : [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode],
-            @"sessionId" : session.sessionID,
-            @"volume" : @{
-                    @"level" : @(mediaStatus.volume),
-                    @"muted" : @(mediaStatus.isMuted),
-            },
-            @"activeTrackIds" : mediaStatus.activeTrackIDs? mediaStatus.activeTrackIDs : @[]
-        };
-    }
-    
-}
-
 + (NSDictionary *)createMediaObject:(GCKCastSession *)session {
     if (session.remoteMediaClient == nil) {
         return @{};
     }
     
-    
     GCKMediaStatus* mediaStatus = session.remoteMediaClient.mediaStatus;
     if (mediaStatus == nil) {
         return @{};
     }
     
 //    NSLog(@"stream position: %f", mediaStatus.streamPosition );
-//    NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
-//    NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
-//    if (mediaStatus.streamPosition == 0) {
-////        NSLog(@"medis player state: %@", [CastUtilities getPlayerState:mediaStatus.playerState]);
-////        NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
-//    }
-//    else {
-//        NSLog(@"stream position: %f", mediaStatus.streamPosition );
-//        NSLog(@"medis player state: %@", [CastUtilities getPlayerStateCheck:mediaStatus.playerState]);
-//        NSLog(@"Idle Reason: %@", [CastUtilities getIdleReason:mediaStatus.idleReason]);
-//    }
-    if ([CastUtilities getIdleReason:mediaStatus.idleReason]) {
-        return @{
-            @"currentItemId" : @(mediaStatus.currentItemID),
-            @"currentTime" : @(mediaStatus.streamPosition),
-            @"customData" : (mediaStatus.customData == nil)? @{} : mediaStatus.customData,
-            @"idleReason" : [CastUtilities getIdleReason:mediaStatus.idleReason],
-            @"loadingItemId" : @(mediaStatus.loadingItemID),
-            @"isAlive" : mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO),
-            @"media" : [CastUtilities createMediaInfoObject:mediaStatus.mediaInformation],
-            @"mediaSessionId" : @(mediaStatus.mediaSessionID),
-            @"playbackRate" : @(mediaStatus.playbackRate),
-            @"playerState" : [CastUtilities getPlayerState:mediaStatus.playerState],
-            @"repeatMode" : [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode],
-            @"preloadedItemId" : @(mediaStatus.preloadedItemID),
-            @"sessionId" : session.sessionID,
-            @"volume" : @{
-                    @"level" : @(mediaStatus.volume),
-                    @"muted" : @(mediaStatus.isMuted),
-            },
-            @"activeTrackIds" : mediaStatus.activeTrackIDs? mediaStatus.activeTrackIDs : @[]
-        };
-    } else {
-        return @{
-            @"currentItemId" : @(mediaStatus.currentItemID),
-            @"currentTime" : @(mediaStatus.streamPosition),
-            @"customData" : (mediaStatus.customData == nil)? @{} : mediaStatus.customData,
-            @"loadingItemId" : @(mediaStatus.loadingItemID),
-            @"isAlive" : mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO),
-            @"media" : [CastUtilities createMediaInfoObject:mediaStatus.mediaInformation],
-            @"mediaSessionId" : @(mediaStatus.mediaSessionID),
-            @"playbackRate" : @(mediaStatus.playbackRate),
-            @"playerState" : [CastUtilities getPlayerState:mediaStatus.playerState],
-            @"preloadedItemId" : @(mediaStatus.preloadedItemID),
-//            @"items" : mediaStatus.queueData.items ? mediaStatus.queueData.items : @[],
-            @"repeatMode" : [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode],
-            @"sessionId" : session.sessionID,
-            @"volume" : @{
-                    @"level" : @(mediaStatus.volume),
-                    @"muted" : @(mediaStatus.isMuted),
-            },
-            @"activeTrackIds" : mediaStatus.activeTrackIDs? mediaStatus.activeTrackIDs : @[]
-        };
+    
+    
+    NSMutableArray *qItems = [[NSMutableArray alloc] init];
+    for (int i=0; i<mediaStatus.queueItemCount; i++) {
+        NSDictionary *qItem = [CastUtilities createQueueItem: [mediaStatus queueItemAtIndex:i]];
+        [qItems addObject:qItem];
     }
     
+    NSMutableDictionary* mediaOut = [[NSMutableDictionary alloc] init];
+    mediaOut[@"activeTrackIds"] = mediaStatus.activeTrackIDs? mediaStatus.activeTrackIDs : @[];
+    mediaOut[@"currentItemId"] = @(mediaStatus.currentItemID);
+    mediaOut[@"currentTime"] = @(mediaStatus.streamPosition);
+    mediaOut[@"customData"] = (mediaStatus.customData == nil)? @{} : mediaStatus.customData;
+    mediaOut[@"isAlive"] = mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO);
+    mediaOut[@"items"] = qItems;
+    mediaOut[@"loadingItemId"] = @(mediaStatus.loadingItemID);
+    mediaOut[@"media"] = [CastUtilities createMediaInfoObject:mediaStatus.mediaInformation];
+    mediaOut[@"mediaSessionId"] = @(mediaStatus.mediaSessionID);
+    mediaOut[@"playbackRate"] = @(mediaStatus.playbackRate);
+    mediaOut[@"playerState"] = [CastUtilities getPlayerState:mediaStatus.playerState];
+    mediaOut[@"preloadedItemId"] = @(mediaStatus.preloadedItemID);
+    mediaOut[@"queueData"] = [CastUtilities createQueueData:mediaStatus] == nil ? NULL : [CastUtilities createQueueData:mediaStatus];
+    mediaOut[@"repeatMode"] = [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode];
+    mediaOut[@"sessionId"] = session.sessionID;
+    mediaOut[@"volume"] = @{
+        @"level" : @(mediaStatus.volume),
+        @"muted" : @(mediaStatus.isMuted),
+    };
+    
+    if ([CastUtilities getIdleReason:mediaStatus.idleReason]) {
+        mediaOut[@"idleReason"] = [CastUtilities getIdleReason:mediaStatus.idleReason];
+    }
+    
+    return [NSDictionary dictionaryWithDictionary:mediaOut];
 }
 
 + (NSDictionary *)createQueueItem:(GCKMediaQueueItem *)queueItem {
@@ -720,23 +564,11 @@
         @"customData": (queueItem.customData == nil)? @{} : queueItem.customData,
         @"itemId": @(queueItem.itemID),//[NSNumber numberWithInteger:queueItem.itemID],
         @"orderId": @(queueItem.itemID),
-        @"media": queueItem.mediaInformation ? [CastUtilities createMediaInfoObjectForQueue:queueItem.mediaInformation] : @"",
         @"startTime": @(queueItem.startTime),//[NSNumber numberWithDouble:0],
         @"preloadTime": @(0)//[NSNumber numberWithDouble:kGCKInvalidTimeInterval]//@(queueItem.preloadTime)//[NSNumber numberWithDouble:queueItem.preloadTime]
+        @"media": queueItem.mediaInformation ? [CastUtilities createMediaInfoObject:queueItem.mediaInformation] : @"",
     };
 }
-
-//+ (NSDictionary*)createQueueData:(GCKMediaQueueData*)queueData {
-//    if (queueData == [NSNull null]) {
-//        return nil;
-//    }
-//    NSMutableDictionary* returnDict = [[NSMutableDictionary alloc] init];
-//    returnDict[@"repeatMode"] = [CastUtilities getRepeatMode:queueData.repeatMode];
-////    returnDict[@"shuffle"] = queueData.repeatMode == GCKMediaRepeatModeAllAndShuffle? @(YES) : @(NO);
-//    returnDict[@"startIndex"] = @(queueData.startIndex);
-//
-//    return returnDict;
-//}
 
 + (NSDictionary*)createQueueData:(GCKMediaStatus*)mediaStatus {
     GCKMediaQueueData* queueData = mediaStatus.queueData;
@@ -749,23 +581,6 @@
     returnDict[@"startIndex"] = @(queueData.startIndex);
 
     return returnDict;
-}
-
-+ (NSDictionary *)createMediaInfoObjectForQueue:(GCKMediaInformation *)mediaInfo {
-    if (mediaInfo == nil) {
-        return @{};
-    }
-    
-    return @{
-        @"contentId": mediaInfo.contentURL == nil ? @"" : mediaInfo.contentURL.absoluteString,
-        @"contentType": mediaInfo.contentType,
-        @"customData": mediaInfo.customData == nil ? @{} : mediaInfo.customData,
-        @"duration": @(mediaInfo.streamDuration),
-        @"metadata" : [CastUtilities createMetadataObject:mediaInfo.metadata],
-        @"streamType": [CastUtilities getStreamType:mediaInfo.streamType],
-        @"tracks": [CastUtilities getMediaTracks:mediaInfo.mediaTracks],
-        @"textTrackSytle": [CastUtilities getTextTrackStyle:mediaInfo.textTrackStyle],
-    };
 }
 
 + (NSDictionary *)createMediaInfoObject:(GCKMediaInformation *)mediaInfo {

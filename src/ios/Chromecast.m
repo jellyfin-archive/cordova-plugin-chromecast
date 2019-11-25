@@ -267,17 +267,11 @@ int scansRunning = 0;
 }
 
 - (void)sessionStop:(CDVInvokedUrlCommand*)command {
-    self.currentSession.sessionStatus = @"stopped";
-    BOOL result = [[GCKCastContext sharedInstance].sessionManager endSessionAndStopCasting:true];
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:result];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    [self.currentSession endSession:command killSession:YES];
 }
 
 - (void)sessionLeave:(CDVInvokedUrlCommand*) command {
-    self.currentSession.sessionStatus = @"disconnected";
-    BOOL result = [[GCKCastContext sharedInstance].sessionManager endSession];
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:result];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    [self.currentSession endSession:command killSession:NO];
 }
 
 - (void)loadMedia:(CDVInvokedUrlCommand*) command {

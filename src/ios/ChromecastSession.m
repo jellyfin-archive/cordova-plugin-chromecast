@@ -71,6 +71,17 @@ CDVInvokedUrlCommand* joinSessionCommand;
     return delegate;
 }
 
+- (void)endSession:(CDVInvokedUrlCommand*)command killSession:(BOOL)killSession {
+    BOOL result = [[GCKCastContext sharedInstance].sessionManager endSessionAndStopCasting:killSession];
+    if (killSession) {
+        self.sessionStatus = @"stopped";
+    } else {
+        self.sessionStatus = @"disconnected";
+    }
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:result];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
 - (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel {
     [self checkFinishDelegates];
     CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{

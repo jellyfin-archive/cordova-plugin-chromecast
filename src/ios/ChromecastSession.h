@@ -27,6 +27,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)tryRejoin;
 - (void)joinDevice:(GCKDevice*)device cdvCommand:(CDVInvokedUrlCommand*)command;
 - (CastRequestDelegate*)createGeneralRequestDelegate:(CDVInvokedUrlCommand*)command;
+- (void)endSession:(CDVInvokedUrlCommand*)command killSession:(BOOL)killSession;
 - (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel;
 - (void)setMediaMutedWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted;
 - (void)setMediaVolumeWithCommand:(CDVInvokedUrlCommand*)withCommand newVolumeLevel:(float)newLevel;

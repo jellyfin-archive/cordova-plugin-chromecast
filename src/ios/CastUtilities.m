@@ -564,9 +564,9 @@
         @"customData": (queueItem.customData == nil)? @{} : queueItem.customData,
         @"itemId": @(queueItem.itemID),//[NSNumber numberWithInteger:queueItem.itemID],
         @"orderId": @(queueItem.itemID),
-        @"startTime": @(queueItem.startTime),//[NSNumber numberWithDouble:0],
-        @"preloadTime": @(0)//[NSNumber numberWithDouble:kGCKInvalidTimeInterval]//@(queueItem.preloadTime)//[NSNumber numberWithDouble:queueItem.preloadTime]
         @"media": queueItem.mediaInformation ? [CastUtilities createMediaInfoObject:queueItem.mediaInformation] : @"",
+        @"startTime": (queueItem.startTime == kGCKInvalidTimeInterval || queueItem.startTime != queueItem.startTime) ? @(0.0) : @(queueItem.startTime),
+        @"preloadTime": (queueItem.preloadTime == kGCKInvalidTimeInterval || queueItem.preloadTime != queueItem.preloadTime) ? @(0.0) : @(queueItem.preloadTime)
     };
 }
 

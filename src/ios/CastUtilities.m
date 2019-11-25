@@ -467,30 +467,6 @@
     return images;
 }
 
-+ (NSDictionary *)createSessionObject:(GCKCastSession *)session {
-    NSDictionary* media = [CastUtilities createMediaObject:session];
-    NSMutableArray<NSDictionary*>* mediaArray = [NSMutableArray new];
-    if ([media count] != 0) {
-        [mediaArray addObject: media];
-    }
-    return @{
-        @"appId" : session.applicationMetadata.applicationID? session.applicationMetadata.applicationID : @"",
-        @"media" : mediaArray,
-        @"appImages" : @{},
-        @"sessionId" : session.sessionID? session.sessionID : @"",
-        @"displayName" : session.applicationMetadata.applicationName? session.applicationMetadata.applicationName : @"",
-        @"receiver" : @{
-                @"friendlyName" : session.device.friendlyName? session.device.friendlyName : @"",
-                @"label" : session.device.uniqueID,
-                @"volume" : @{
-                        @"level" : @(session.currentDeviceVolume),
-                        @"muted" : @(session.currentDeviceMuted)
-                }
-        },
-        
-    };
-}
-
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session status:(NSString*)status {
     return @{
         @"appId" : session.applicationMetadata.applicationID? session.applicationMetadata.applicationID : @"",

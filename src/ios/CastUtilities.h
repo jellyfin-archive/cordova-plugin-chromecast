@@ -17,7 +17,6 @@ NS_ASSUME_NONNULL_BEGIN
 + (GCKMediaTextTrackStyle *)buildTextTrackStyle:(NSDictionary *)data;
 +(GCKMediaMetadata*)buildMediaMetadata:(NSDictionary*)data;
 +(NSArray<GCKImage*>*)getMetadataImages:(NSData*)imagesRaw;
-+(NSDictionary*)createSessionObject:(GCKCastSession*)session;
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session status:(NSString*)status;
 +(NSDictionary*)createMediaObject:(GCKCastSession*)session;
 +(NSDictionary*)createMediaInfoObject:(GCKMediaInformation*)mediaInfo;

@@ -21,9 +21,6 @@
     [super pluginInitialize];
 }
 
-- (void)sendJavascript:(NSString*)jsCommand {
-    [self.webViewEngine evaluateJavaScript:jsCommand completionHandler:nil];
-}
 
 - (void)log:(NSString*)s {
     [self sendJavascript:[NSString stringWithFormat: @"console.log('Chromecast-iOS: ', %@)",s]];

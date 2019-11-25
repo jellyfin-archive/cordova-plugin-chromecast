@@ -17,6 +17,8 @@
 
 @implementation Chromecast
 NSString* appId = nil;
+CDVInvokedUrlCommand* scanCommand = nil;
+int scansRunning = 0;
 
 - (void)pluginInitialize {
     [super pluginInitialize];
@@ -91,15 +93,21 @@ NSString* appId = nil;
 }
 
 - (void)stopRouteScanForSetup {
-    if (self.scanCommand != nil) {
-        [self sendError:@"cancel" message:@"Scan stopped because setup triggered." command:self.scanCommand];
-        self.scanCommand = nil;
+    if (scansRunning > 0) {
+        // Terminate all scans
+        scansRunning = 0;
+        [self sendError:@"cancel" message:@"Scan stopped because setup triggered." command:scanCommand];
+        scanCommand = nil;
+        [self stopRouteScan];
     }
-    [self stopRouteScan];
 }
 
 - (BOOL)stopRouteScan:(CDVInvokedUrlCommand*)command {
-    [self stopRouteScan];
+    if (scanCommand != nil) {
+        [self stopRouteScan];
+        [self sendError:@"cancel" message:@"Scan stopped." command:scanCommand];
+        scanCommand = nil;
+    }
     if (command != nil) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -108,35 +116,37 @@ NSString* appId = nil;
 }
 
 - (void)stopRouteScan {
-    if (self.scanCommand != nil) {
-        [self sendError:@"cancel" message:@"Scan stopped." command:self.scanCommand];
-        self.scanCommand = nil;
+    if (--scansRunning <= 0) {
+        scansRunning = 0;
+        [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
     }
-    [[GCKCastContext sharedInstance].discoveryManager stopDiscovery];
 }
 
 -(BOOL) startRouteScan:(CDVInvokedUrlCommand*)command {
-    if (self.scanCommand != nil) {
-        [self sendError:@"cancel" message:@"Started a new route scan before stopping previous one." command:self.scanCommand];
+    if (scanCommand != nil) {
+        [self sendError:@"cancel" message:@"Started a new route scan before stopping previous one." command:scanCommand];
+    } else {
+        // Only start the scan if the user has not already started one
+        [self startRouteScan];
     }
-    self.scanCommand = command;
+    scanCommand = command;
     [self sendScanUpdate];
-    [self startRouteScan];
     return YES;
 }
 
 -(void) startRouteScan {
+    scansRunning++;
     [[GCKCastContext sharedInstance].discoveryManager startDiscovery];
 }
 
 - (void)sendScanUpdate {
-    if (self.scanCommand == nil) {
+    if (scanCommand == nil) {
         return;
     }
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[CastUtilities createDeviceObject:self.devicesAvailable]];
-    [pluginResult setKeepCallback:@(true)];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.scanCommand.callbackId];
 
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[CastUtilities createDeviceArray]];
+    [pluginResult setKeepCallback:@(true)];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:scanCommand.callbackId];
 }
 
 - (void)requestSession:(CDVInvokedUrlCommand*) command {

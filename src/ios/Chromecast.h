@@ -18,7 +18,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) NSMutableArray* devicesAvailable;
 @property (nonatomic, strong) ChromecastSession* currentSession;
 @property (nonatomic, strong) CDVInvokedUrlCommand* eventCommand;
-@property (nonatomic, strong) CDVInvokedUrlCommand* scanCommand;
 
 - (void)setup:(CDVInvokedUrlCommand*) command;
 - (void)initialize:(CDVInvokedUrlCommand*)command;

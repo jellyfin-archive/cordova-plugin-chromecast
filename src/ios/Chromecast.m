@@ -58,7 +58,6 @@
     
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    [self checkReceiverAvailable];
     
     if ([GCKCastContext sharedInstance].sessionManager.currentCastSession != nil) {
         [self onSessionRejoin:[CastUtilities createSessionObject:[GCKCastContext sharedInstance].sessionManager.currentCastSession]];
@@ -111,14 +110,7 @@
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[CastUtilities createDeviceObject:self.devicesAvailable]];
     [pluginResult setKeepCallback:@(true)];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:self.scanCommand.callbackId];
-}
 
-- (void)checkReceiverAvailable {
-    if ([GCKCastContext sharedInstance].castState != GCKCastStateNoDevicesAvailable) {
-        [self sendEvent:@"RECEIVER_LISTENER" args:@[@(true)]];
-    } else {
-        [self sendEvent:@"RECEIVER_LISTENER" args:@[@(false)]];
-    }
 }
 
 - (void)requestSession:(CDVInvokedUrlCommand*) command {
@@ -360,50 +352,11 @@
 }
 
 #pragma GCKDiscoveryManagerListener
-- (NSString*)deviceToJson:(GCKDevice*) device {
-    NSString* deviceName = @"";
-    if (device.friendlyName != nil) {
-        deviceName = device.friendlyName;
-    } else {
-        deviceName = device.deviceID;
-    }
-    NSDictionary* deviceJson = @{
-                                 @"name" : deviceName,
-                                 @"id" : device.uniqueID
-                                 };
-    return [CastUtilities convertDictToJsonString:deviceJson];
-}
 
 - (void) didUpdateDeviceList {
+    BOOL receiverAvailable = [GCKCastContext.sharedInstance.discoveryManager deviceCount] > 0 ? YES : NO;
+    [self sendReceiverAvailable:receiverAvailable];
     [self sendScanUpdate];
-}
-
-- (void)didInsertDevice:(GCKDevice *)device atIndex:(NSUInteger)index {
-    NSString* deviceName = @"";
-    if (device.friendlyName != nil) {
-        deviceName = device.friendlyName;
-    } else {
-        deviceName = device.deviceID;
-    }
-    
-    [self.devicesAvailable insertObject:device atIndex:index];
-    [self checkReceiverAvailable];
-}
-
-- (void)didUpdateDevice:(GCKDevice *)device atIndex:(NSUInteger)index andMoveToIndex:(NSUInteger)newIndex {
-    if (self.devicesAvailable.count != 0) {
-        [self.devicesAvailable removeObjectAtIndex:index];
-    }
-    [self.devicesAvailable insertObject:device atIndex:newIndex];
-    [self checkReceiverAvailable];
-}
-
-- (void)didRemoveDevice:(GCKDevice *)device atIndex:(NSUInteger)index {
-    if (self.devicesAvailable.count != 0) {
-        [self.devicesAvailable removeObjectAtIndex:index];
-    }
-    
-    [self checkReceiverAvailable];
 }
 
 #pragma CastSessionListener
@@ -434,11 +387,11 @@
 
 - (void)onCastStateChanged:(NSNotification*)notification {
     GCKCastState castState = [notification.userInfo[kGCKNotificationKeyCastState] intValue];
-    if (castState == GCKCastStateNoDevicesAvailable) {
-        [self sendEvent:@"RECEIVER_LISTENER" args:@[@(false)]];
-    } else {
-        [self sendEvent:@"RECEIVER_LISTENER" args:@[@(true)]];
-    }
+    [self sendReceiverAvailable:(castState == GCKCastStateNoDevicesAvailable)];
+}
+
+- (void)sendReceiverAvailable:(BOOL)available {
+    [self sendEvent:@"RECEIVER_LISTENER" args:@[@(available)]];
 }
 
 - (void)sendEvent:(NSString *)eventName args:(NSArray *)args{

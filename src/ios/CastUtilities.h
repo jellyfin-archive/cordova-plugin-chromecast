@@ -21,7 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session status:(NSString*)status;
 +(NSDictionary*)createMediaObject:(GCKCastSession*)session;
 +(NSDictionary*)createMediaInfoObject:(GCKMediaInformation*)mediaInfo;
-+(NSArray*)createDeviceObject:(NSArray<GCKDevice*>*)devices;
++(NSArray*)createDeviceArray;
 +(NSArray<NSDictionary*>*)getMediaTracks:(NSArray<GCKMediaTrack*>*)mediaTracks;
 +(NSDictionary*)getTextTrackStyle:(GCKMediaTextTrackStyle*)textTrackStyle;
 +(NSString*)getEdgeType:(GCKMediaTextTrackStyleEdgeType)edgeType;

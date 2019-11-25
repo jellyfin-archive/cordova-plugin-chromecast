@@ -837,11 +837,11 @@
     return appImages;
 }
 
-+(NSArray*)createDeviceObject:(NSArray<GCKDevice*>*)devices
-{
++(NSArray*)createDeviceArray {
     NSMutableArray* deviceArray = [[NSMutableArray alloc] init];
-    for (int i=0; i < devices.count; i++) {
-        GCKDevice* device = devices[i];
+    GCKDiscoveryManager* discoveryManager = GCKCastContext.sharedInstance.discoveryManager;
+    for (int i = 0; i < [discoveryManager deviceCount]; i++) {
+        GCKDevice* device = [discoveryManager deviceAtIndex:i];
         NSString* deviceName = @"";
         if (device.friendlyName != nil) {
             deviceName = device.friendlyName;

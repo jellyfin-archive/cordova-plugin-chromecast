@@ -256,7 +256,7 @@
                 }, function (err) {
                     assert.isObject(err);
                     assert.equal(err.code, chrome.cast.ErrorCode.TIMEOUT);
-                    assert.match(err.description, new RegExp('^Failed to join route \\(' + routeId + '\\) after 15s and [0-9]* tries\\.$'));
+                    assert.match(err.description, new RegExp('^Failed to join route \\(' + routeId + '\\) after [0-9]+s and [0-9]+ tries\\.$'));
                     done();
                 });
             });

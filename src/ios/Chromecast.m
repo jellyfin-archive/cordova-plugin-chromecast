@@ -347,7 +347,7 @@ int scansRunning = 0;
             return YES;
         }
         return NO;
-    } forTries:1 callback:^(BOOL passed) {
+    } forTries:5 callback:^(BOOL passed) {
         if (!passed) {
             [self sendError:@"timeout" message:[NSString stringWithFormat:@"Failed to join route (%@) after 15s and %d tries.", routeID, 15] command:command];
         }

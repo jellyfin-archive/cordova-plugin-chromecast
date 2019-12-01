@@ -14,8 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 -(void)onSessionRejoin:(NSDictionary*)session;
 -(void)onMediaLoaded:(NSDictionary*)media;
--(void)onMediaUpdated:(NSDictionary*)media isAlive:(BOOL)isAlive;
--(void)onSessionUpdated:(NSDictionary*)session isAlive:(BOOL)isAlive;
+-(void)onMediaUpdated:(NSDictionary*)media;
+-(void)onSessionUpdated:(NSDictionary*)session;
 -(void)onSessionEnd:(NSDictionary*)session;
 -(void)onMessageReceived:(NSDictionary*)session namespace:(NSString*)namespace message:(NSString*)message;
 @end
@@ -24,8 +24,8 @@ NS_ASSUME_NONNULL_BEGIN
 {
     void (^onSessionRejoin)(NSDictionary* session);
     void (^onMediaLoaded)(NSDictionary* media);
-    void (^onMediaUpdated)(NSDictionary* media,BOOL isAlive);
-    void (^onSessionUpdated)(NSDictionary* session, BOOL isAlive);
+    void (^onMediaUpdated)(NSDictionary* media);
+    void (^onSessionUpdated)(NSDictionary* session);
     void (^onSessionEnd)(NSDictionary* session);
     void (^onMessageReceived)(NSDictionary* session,NSString* namespace,NSString* message);
 }
@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy) void (^onReceiverAvailableUpdate)(BOOL available);
 //@property (nonatomic, copy) void (^onSessionRejoin)(NSDictionary* session);
 
-- (instancetype)initWithReceiverAvailableUpdate:(void(^)(BOOL available))onReceiverAvailableUpdate onSessionRejoin:(void(^)(NSDictionary* session))onSessionRejoin onMediaLoaded:(void(^)(NSDictionary* m))onMediaLoaded onMediaUpdated:(void(^)(NSDictionary* media, BOOL isAlive))onMediaUpdated onSessionUpdated:(void(^)(NSDictionary* session, BOOL isAlive))onSessionUpdated onSessionEnd:(void(^)(NSDictionary* session))onSessionEnd onMessageReceived:(void(^)(NSDictionary* session,NSString* namespace,NSString* message))onMessageReceived  ;
+- (instancetype)initWithReceiverAvailableUpdate:(void(^)(BOOL available))onReceiverAvailableUpdate onSessionRejoin:(void(^)(NSDictionary* session))onSessionRejoin onMediaLoaded:(void(^)(NSDictionary* m))onMediaLoaded onMediaUpdated:(void(^)(NSDictionary* media))onMediaUpdated onSessionUpdated:(void(^)(NSDictionary* session))onSessionUpdated onSessionEnd:(void(^)(NSDictionary* session))onSessionEnd onMessageReceived:(void(^)(NSDictionary* session,NSString* namespace,NSString* message))onMessageReceived  ;
 @end
 
 @interface CastRequestDelegate : NSObject<GCKRequestDelegate>

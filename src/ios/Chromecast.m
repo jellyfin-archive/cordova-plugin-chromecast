@@ -396,7 +396,7 @@ int scansRunning = 0;
     [self sendEvent:@"MEDIA_LOAD" args:@[media]];
 }
 
-- (void)onMediaUpdated:(NSDictionary *)media isAlive:(BOOL)isAlive {
+- (void)onMediaUpdated:(NSDictionary *)media {
     [self sendEvent:@"MEDIA_UPDATE" args:@[media]];
 }
 
@@ -404,7 +404,7 @@ int scansRunning = 0;
     [self sendEvent:@"SESSION_LISTENER" args:@[session]];
 }
 
-- (void)onSessionUpdated:(NSDictionary *)session isAlive:(BOOL)isAlive {
+- (void)onSessionUpdated:(NSDictionary *)session {
     [self sendEvent:@"SESSION_UPDATE" args:@[session]];
 }
 
@@ -451,7 +451,7 @@ int scansRunning = 0;
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.sessionCommand.callbackId];
     }
     if ([self.currentSession.sessionStatus  isEqual: @"stopped"]) {
-        [self.currentSession.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:true];
+        [self.currentSession.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"]];
         [self sendError:@"cancel" message:@"Session is stopped." command:self.sessionCommand];
     }
 }

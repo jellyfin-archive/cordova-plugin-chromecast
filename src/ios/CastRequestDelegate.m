@@ -9,7 +9,7 @@
 
 @implementation CastConnectionListener
 
-- (instancetype)initWithReceiverAvailableUpdate:(void(^)(BOOL available))onReceiverAvailableUpdate onSessionRejoin:(void(^)(NSDictionary* session))onSessionRejoin onMediaLoaded:(void(^)(NSDictionary* media))onMediaLoaded onMediaUpdated:(void(^)(NSDictionary* media, BOOL isAlive))onMediaUpdated onSessionUpdated:(void(^)(NSDictionary* session, BOOL isAlive))onSessionUpdated onSessionEnd:(void(^)(NSDictionary* session))onSessionEnd onMessageReceived:(void(^)(NSDictionary* session,NSString* namespace,NSString* message))onMessageReceived  {
+- (instancetype)initWithReceiverAvailableUpdate:(void(^)(BOOL available))onReceiverAvailableUpdate onSessionRejoin:(void(^)(NSDictionary* session))onSessionRejoin onMediaLoaded:(void(^)(NSDictionary* media))onMediaLoaded onMediaUpdated:(void(^)(NSDictionary* media))onMediaUpdated onSessionUpdated:(void(^)(NSDictionary* session))onSessionUpdated onSessionEnd:(void(^)(NSDictionary* session))onSessionEnd onMessageReceived:(void(^)(NSDictionary* session,NSString* namespace,NSString* message))onMessageReceived  {
     
     self = [super init];
     if (self) {
@@ -40,16 +40,16 @@
     }
 }
 
-- (void)onMediaUpdated:(NSDictionary *)media isAlive:(BOOL)isAlive {
-    onMediaUpdated(media,isAlive);
+- (void)onMediaUpdated:(NSDictionary *)media {
+    onMediaUpdated(media);
 }
 
 - (void)onMediaLoaded:(NSDictionary *)media {
     onMediaLoaded(media);
 }
 
-- (void)onSessionUpdated:(NSDictionary *)session isAlive:(BOOL)isAlive {
-    onSessionUpdated(session,isAlive);
+- (void)onSessionUpdated:(NSDictionary *)session {
+    onSessionUpdated(session);
 }
 
 - (void)onSessionEnd:(NSDictionary *)session {

@@ -395,9 +395,9 @@ CDVInvokedUrlCommand* joinSessionCommand;
         joinSessionCommand = nil;
     }
     if ([self.sessionStatus isEqualToString:@""]) {
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"] isAlive:true];
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"]];
     } else {
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:self.sessionStatus] isAlive:true];
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:self.sessionStatus]];
     }
     currentSession = nil;
 }

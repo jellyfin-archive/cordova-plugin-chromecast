@@ -18,13 +18,13 @@
 @implementation ChromecastSession
 GCKCastSession* currentSession;
 CDVInvokedUrlCommand* joinSessionCommand;
+BOOL isDisconnecting = NO;
 
 - (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate
 {
     self = [super init];
     self.sessionListener = listener;
     self.commandDelegate = cordovaDelegate;
-    self.sessionStatus = @"disconnected";
     self.castContext = [GCKCastContext sharedInstance];
     self.sessionManager = self.castContext.sessionManager;
     
@@ -37,12 +37,11 @@ CDVInvokedUrlCommand* joinSessionCommand;
 
 - (void)setSession:(GCKCastSession*)session {
     currentSession = session;
-    self.sessionStatus = @"connected";
 }
 
 - (void)tryRejoin {
     if (currentSession != nil) {
-        [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:currentSession status:self.sessionStatus]];
+            [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:currentSession]];
     }
 }
 
@@ -382,29 +381,42 @@ CDVInvokedUrlCommand* joinSessionCommand;
     self.remoteMediaClient = session.remoteMediaClient;
     [self.remoteMediaClient addListener:self];
     if (joinSessionCommand != nil) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [CastUtilities createSessionObject:session status:self.sessionStatus] ];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [CastUtilities createSessionObject:session] ];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:joinSessionCommand.callbackId];
         joinSessionCommand = nil;
     }
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didEndCastSession:(GCKCastSession *)session withError:(NSError *)error {
+    // Clear the session
+    currentSession = nil;
+    
+    // Did we fail on a join session command?
     if (error != nil && joinSessionCommand != nil) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:joinSessionCommand.callbackId];
         joinSessionCommand = nil;
+        return;
     }
-    if ([self.sessionStatus isEqualToString:@""]) {
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"]];
+    
+    // Else, are we just leaving the session? (leaving results in disconnected status)
+    if (isDisconnecting) {
+        // Clear is isDisconnecting
+        isDisconnecting = NO;
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"disconnected"]];
     } else {
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:self.sessionStatus]];
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session]];
     }
-    currentSession = nil;
+    
+    // Do we have any additional endSessionCallbacks?
+    if (endSessionCallback) {
+        endSessionCallback(YES);
+    }
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didResumeCastSession:(GCKCastSession *)session {
     [self setSession:session];
-    [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session status:self.sessionStatus]];
+    [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session]];
 }
 
 #pragma -- GCKRemoteMediaClientListener
@@ -464,7 +476,7 @@ CDVInvokedUrlCommand* joinSessionCommand;
 
 #pragma -- GCKGenericChannelDelegate
 - (void)castChannel:(GCKGenericChannel *)channel didReceiveTextMessage:(NSString *)message withNamespace:(NSString *)protocolNamespace {
-    NSDictionary* session = [CastUtilities createSessionObject:currentSession status:self.sessionStatus];
+    NSDictionary* session = [CastUtilities createSessionObject:currentSession];
     [self.sessionListener onMessageReceived:session namespace:protocolNamespace message:message];
 }
 @end

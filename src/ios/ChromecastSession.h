@@ -21,7 +21,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, retain) NSMutableArray<CastRequestDelegate*>* requestDelegates;
 @property (nonatomic, retain) id<CastSessionListener> sessionListener;
 @property (nonatomic, retain) NSMutableDictionary* genericChannels;
-@property (nonatomic, retain) NSString* sessionStatus;
 
 - (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate;
 - (void)tryRejoin;

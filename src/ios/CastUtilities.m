@@ -467,6 +467,10 @@
     return images;
 }
 
++ (NSDictionary*)createSessionObject:(GCKCastSession *)session {
+    return [CastUtilities createSessionObject:session status:@""];
+}
+
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session status:(NSString*)status {
     return @{
         @"appId" : session.applicationMetadata.applicationID? session.applicationMetadata.applicationID : @"",
@@ -482,7 +486,7 @@
                         @"muted" : @(session.currentDeviceMuted)
                 }
         },
-        @"status":status
+        @"status":![status isEqual: @""]? status : [CastUtilities getConnectionStatus:session.connectionState]
     };
 }
 
@@ -819,6 +823,19 @@
             return @"REPEAT_OFF";
     }
 }
+
++ (NSString *)getConnectionStatus:(GCKConnectionState)connectionState {
+    switch (connectionState) {
+        case GCKConnectionStateConnecting:
+        case GCKConnectionStateConnected:
+            return @"connected";
+        case GCKConnectionStateDisconnected:
+        case GCKConnectionStateDisconnecting:
+        default:
+            return @"stopped";
+    }
+}
+
 + (NSString *)getPlayerState:(GCKMediaPlayerState)playerState {
     switch (playerState) {
         case GCKMediaPlayerStateBuffering:

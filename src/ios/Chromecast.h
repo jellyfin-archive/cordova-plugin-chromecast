@@ -19,6 +19,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) ChromecastSession* currentSession;
 @property (nonatomic, strong) CDVInvokedUrlCommand* eventCommand;
 
+- (void)onReset;
 - (void)setup:(CDVInvokedUrlCommand*) command;
 - (void)initialize:(CDVInvokedUrlCommand*)command;
 - (BOOL)startRouteScan:(CDVInvokedUrlCommand*)command;

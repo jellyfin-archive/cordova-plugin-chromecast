@@ -56,6 +56,13 @@ int scansRunning = 0;
     self.currentSession = [self.currentSession initWithListener:self cordovaDelegate:self.commandDelegate];
 }
 
+// Override CDVPlugin onReset
+// Called when the webview navigates to a new page or refreshes
+// Clean up any running process
+- (void)onReset {
+    [self stopRouteScanForSetup];
+}
+
 - (void)setup:(CDVInvokedUrlCommand*) command {
     self.eventCommand = command;
     [self stopRouteScanForSetup];

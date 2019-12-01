@@ -280,6 +280,38 @@
         });
 
         describe('chrome.cast.requestSession', function () {
+            before('ensure initialized', function (done) {
+                this.timeout(15000);
+                utils.setAction('Initializing...');
+
+                var finished = false; // Need this so we stop testing after being finished
+                var unavailable = 'unavailable';
+                var available = 'available';
+                var called = utils.callOrder([
+                    { id: success, repeats: false },
+                    { id: unavailable, repeats: true },
+                    { id: available, repeats: true }
+                ], function () {
+                    finished = true;
+                    done();
+                });
+                var apiConfig = new chrome.cast.ApiConfig(
+                    new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
+                    function (sess) {
+                        failed = true;
+                        session = sess;
+                        assert.fail('Should not receive session on initialize.  We should only call this initialize when there is no existing session.');
+                    }, function receiverListener (availability) {
+                        if (!finished) {
+                            called(availability);
+                        }
+                    }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+                chrome.cast.initialize(apiConfig, function () {
+                    called(success);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
+            });
             it('dismiss should return error', function (done) {
                 utils.setAction('1. Click "Open Dialog".<br>2. Click outside of the chromecast chooser dialog to <b>dismiss</b> it.', 'Open Dialog', function () {
                     chrome.cast.requestSession(function (sess) {
@@ -353,8 +385,39 @@
         });
 
         describe('External Sender Sends Commands', function () {
-            before(function () {
-                assert.equal(session.status, chrome.cast.SessionStatus.STOPPED);
+            before('ensure initialized', function (done) {
+                this.timeout(15000);
+                utils.setAction('Initializing...');
+
+                var finished = false; // Need this so we stop testing after being finished
+                var unavailable = 'unavailable';
+                var available = 'available';
+                var called = utils.callOrder([
+                    { id: success, repeats: false },
+                    { id: unavailable, repeats: true },
+                    { id: available, repeats: true }
+                ], function () {
+                    finished = true;
+                    if (session) {
+                        assert.equal(session.status, chrome.cast.SessionStatus.STOPPED);
+                    }
+                    done();
+                });
+                var apiConfig = new chrome.cast.ApiConfig(
+                    new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
+                    function (sess) {
+                        session = sess;
+                        assert.fail('Should not receive session on initialize.  We should only call this initialize when there is no existing session.');
+                    }, function receiverListener (availability) {
+                        if (!finished) {
+                            called(availability);
+                        }
+                    }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+                chrome.cast.initialize(apiConfig, function () {
+                    called(success);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
             });
             it('Join external session', function (done) {
                 if (isDesktop) {

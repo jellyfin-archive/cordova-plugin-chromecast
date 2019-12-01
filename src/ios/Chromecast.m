@@ -158,7 +158,9 @@ int scansRunning = 0;
 
 - (void)requestSession:(CDVInvokedUrlCommand*) command {
     UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Cast to" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
-    for (GCKDevice* device in self.devicesAvailable) {
+    GCKDiscoveryManager* discoveryManager = GCKCastContext.sharedInstance.discoveryManager;
+    for (int i = 0; i < [discoveryManager deviceCount]; i++) {
+        GCKDevice* device = [discoveryManager deviceAtIndex:i];
         [alert addAction:[UIAlertAction actionWithTitle:device.friendlyName style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
             [self.currentSession joinDevice:device cdvCommand:command];
         }]];

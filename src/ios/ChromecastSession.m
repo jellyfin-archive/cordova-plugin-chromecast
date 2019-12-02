@@ -329,6 +329,10 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)sessionManager:(GCKSessionManager *)sessionManager didResumeCastSession:(GCKCastSession *)session {
+    if (currentSession && currentSession.sessionID == session.sessionID) {
+        // ios randomly resumes current session, don't trigger SESSION_LISTENER in this case
+        return;
+    }
     [self setSession:session];
     [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session]];
 }

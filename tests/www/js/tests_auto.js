@@ -583,13 +583,7 @@
                     { id: success, repeats: false },
                     { id: update, repeats: true }
                 ], done);
-                media.addUpdateListener(function listener (isAlive) {
-                    assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
-                    if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
-                        media.removeUpdateListener(listener);
-                        called(update);
-                    }
-                });
+
                 // Ensure we select a different volume
                 var vol = media.volume.level;
                 if (vol) {
@@ -621,13 +615,7 @@
                     { id: success, repeats: false },
                     { id: update, repeats: true }
                 ], done);
-                media.addUpdateListener(function listener (isAlive) {
-                    assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
-                    if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
-                        media.removeUpdateListener(listener);
-                        called(update);
-                    }
-                });
+
                 var muted = true;
                 var request = new chrome.cast.media.VolumeRequest(new chrome.cast.Volume(null, muted));
 
@@ -653,13 +641,7 @@
                     { id: success, repeats: false },
                     { id: update, repeats: true }
                 ], done);
-                media.addUpdateListener(function listener (isAlive) {
-                    assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
-                    if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
-                        media.removeUpdateListener(listener);
-                        called(update);
-                    }
-                });
+
                 // Ensure we select a different volume
                 var vol = media.volume.level;
                 if (vol) {

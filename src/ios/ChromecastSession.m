@@ -15,12 +15,14 @@ NSDictionary* lastMedia = nil;
 void (^loadMediaCallback)(NSString*) = nil;
 BOOL isQueueJumping = NO;
 BOOL isDisconnecting = NO;
+NSMutableArray<void (^)(void)>* endSessionCallbacks;
 NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
 - (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate
 {
     self = [super init];
     requestDelegates = [NSMutableArray new];
+    endSessionCallbacks = [NSMutableArray new];
     self.sessionListener = listener;
     self.commandDelegate = cordovaDelegate;
     self.castContext = [GCKCastContext sharedInstance];
@@ -132,13 +134,13 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
 - (void)endSessionWithCallback:(void(^)(void))callback killSession:(BOOL)killSession {
     NSLog(@"kk endSessionWithCallback");
+    [endSessionCallbacks addObject:callback];
     if (killSession) {
         [currentSession endWithAction:GCKSessionEndActionStopCasting];
     } else {
         isDisconnecting = YES;
         [currentSession endWithAction:GCKSessionEndActionLeave];
     }
-    callback();
 }
 
 - (void)setMediaMutedAndVolumeWithCommand:(CDVInvokedUrlCommand*)command {
@@ -308,18 +310,20 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
         return;
     }
     
-    // Else, are we just leaving the session? (leaving results in disconnected status)
+    // Call all callbacks that are waiting for session end
+    for (void (^endSessionCallback)(void) in endSessionCallbacks) {
+        endSessionCallback();
+    }
+    // And remove the callbacks
+    endSessionCallbacks = [NSMutableArray new];
+    
+    // Are we just leaving the session? (leaving results in disconnected status)
     if (isDisconnecting) {
-        // Clear is isDisconnecting
+        // Clear isDisconnecting
         isDisconnecting = NO;
         [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"disconnected"]];
     } else {
         [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session]];
-    }
-    
-    // Do we have any additional endSessionCallbacks?
-    if (endSessionCallback) {
-        endSessionCallback(YES);
     }
 }
 

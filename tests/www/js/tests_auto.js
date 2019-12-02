@@ -146,6 +146,33 @@
             });
         });
 
+        describe('post initialize functions', function () {
+            before('Must be initialized', function (done) {
+                var unavailable = 'unavailable';
+                var available = 'available';
+                var called = utils.callOrder([
+                    { id: success, repeats: false },
+                    { id: unavailable, repeats: true },
+                    { id: available, repeats: true }
+                ], function () {
+                    finished = true;
+                    done();
+                });
+                var finished = false; // Need this so we stop testing after being finished
+                var apiConfig = new chrome.cast.ApiConfig(new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID), function sessionListener (session) {
+                    assert.fail('should not receive a session (make sure there is no active cast session when starting the tests)');
+                }, function receiverListener (availability) {
+                    if (!finished) {
+                        called(availability);
+                    }
+                });
+                chrome.cast.initialize(apiConfig, function () {
+                    called(success);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
+            });
+
         describe('chrome.cast.cordova functions and session.leave', function () {
             var _route;
             it('should have definitions', function () {
@@ -1268,6 +1295,8 @@
                     called(stopped);
                 });
             });
+        });
+
         });
 
     });

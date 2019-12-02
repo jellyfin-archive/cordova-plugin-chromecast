@@ -11,6 +11,7 @@
 @implementation ChromecastSession
 GCKCastSession* currentSession;
 CDVInvokedUrlCommand* joinSessionCommand;
+NSDictionary* lastMedia = nil;
 void (^loadMediaCallback)(NSString*) = nil;
 BOOL isDisconnecting = NO;
 NSMutableArray<CastRequestDelegate*>* requestDelegates;
@@ -337,36 +338,32 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
-    if (currentSession == nil) {
-        [self.sessionListener onMediaUpdated:@{} isAlive:false];
-        return;
-    }
-    
-    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"jump"]) {
-        NSDictionary* media = [CastUtilities createMediaObject:currentSession];
-        [self.sessionListener onMediaUpdated:media isAlive:true];
-        if (!self.isRequesting) {
-            if (mediaStatus.streamPosition > 0) {
-                
-                if (mediaStatus.queueItemCount > 1) {
-                    [self.sessionListener onMediaLoaded:[CastUtilities createMediaObject:currentSession]];
-                    isRequesting = YES;
-                }
-                else {
-                    [self.sessionListener onMediaLoaded:media];
-                }
-            }
+    // The following code block is dedicated to catching when the next video in a queue loads so that we can let the user know the video ended.
 
-        }
-    }
-    else {
-        NSDictionary* media = [CastUtilities createMediaObject:currentSession];
-        [self.sessionListener onMediaUpdated:media isAlive:false];
+    // If last media is part of the same/current mediaSession
+    // and it is a different media itemId than the current one
+    // and there is no idle reason (if there is a reason, that means the status update will probably handle the situation correctly anyways)
+    if (lastMedia != nil
+        && mediaStatus.mediaSessionID == [lastMedia gck_integerForKey:@"mediaSessionId" withDefaultValue:0]
+        && mediaStatus.currentItemID != [lastMedia gck_integerForKey:@"currentItemId" withDefaultValue:-1]
+        && mediaStatus.idleReason == GCKMediaPlayerIdleReasonNone) {
+        
+        // send out out a media update indicated the previous media has finished
+        NSMutableDictionary* lastMediaMutable = [lastMedia mutableCopy];
+        lastMediaMutable[@"playerState"] = @"IDLE";
+            lastMediaMutable[@"idleReason"] = @"FINISHED";
+        [self.sessionListener onMediaUpdated:lastMediaMutable];
     }
     
+    // update the last media now
+    lastMedia = [CastUtilities createMediaObject:currentSession];
+    [self.sessionListener onMediaUpdated:lastMedia];
 }
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didReceiveQueueItemIDs:(NSArray<NSNumber *> *)queueItemIDs {
+    // New media has been loaded, wipe any lastMedia reference
+    lastMedia = nil;
+    
     // If we do not have a loadMediaCallback that means this was an external media load
     if (!loadMediaCallback) {
         // So set the callback to trigger the MEDIA_LOAD event

@@ -298,7 +298,6 @@
                 var apiConfig = new chrome.cast.ApiConfig(
                     new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
                     function (sess) {
-                        failed = true;
                         session = sess;
                         assert.fail('Should not receive session on initialize.  We should only call this initialize when there is no existing session.');
                     }, function receiverListener (availability) {

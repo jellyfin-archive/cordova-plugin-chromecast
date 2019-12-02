@@ -507,9 +507,6 @@
         return @{};
     }
     
-//    NSLog(@"stream position: %f", mediaStatus.streamPosition );
-    
-    
     NSMutableArray *qItems = [[NSMutableArray alloc] init];
     for (int i=0; i<mediaStatus.queueItemCount; i++) {
         NSDictionary *qItem = [CastUtilities createQueueItem: [mediaStatus queueItemAtIndex:i]];
@@ -856,23 +853,6 @@
         case GCKMediaPlayerStateIdle:
         default:
             return @"IDLE";
-    }
-}
-
-+ (NSString *)getPlayerStateCheck:(GCKMediaPlayerState)playerState {
-    switch (playerState) {
-        case GCKMediaPlayerStateBuffering:
-            return @"BUFFERING";
-        case GCKMediaPlayerStateIdle:
-            return @"IDLE";
-        case GCKMediaPlayerStatePaused:
-            return @"PAUSED";
-        case GCKMediaPlayerStatePlaying:
-            return @"PLAYING";
-        case GCKMediaPlayerStateUnknown:
-            return @"IDLE";
-        default:
-            return @"LOADING";
     }
 }
 

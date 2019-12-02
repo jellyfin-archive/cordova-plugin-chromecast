@@ -13,6 +13,7 @@ GCKCastSession* currentSession;
 CDVInvokedUrlCommand* joinSessionCommand;
 NSDictionary* lastMedia = nil;
 void (^loadMediaCallback)(NSString*) = nil;
+BOOL isQueueJumping = NO;
 BOOL isDisconnecting = NO;
 NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
@@ -44,9 +45,6 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
 - (void)joinDevice:(GCKDevice*)device cdvCommand:(CDVInvokedUrlCommand*)command {
     joinSessionCommand = command;
-    
-    [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
-    [NSUserDefaults.standardUserDefaults synchronize];
     [self.sessionManager startSessionWithDevice:device];
 }
 
@@ -232,16 +230,17 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)queueJumpToItemWithCommand:(CDVInvokedUrlCommand *)command itemId:(NSUInteger)itemId {
+    isQueueJumping = YES;
     GCKRequest* request = [self.remoteMediaClient queueJumpToItemWithID:itemId];
     request.delegate = [self createRequestDelegate:command success:nil failure:^(GCKError * error) {
+        isQueueJumping = NO;
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } abortion:^(GCKRequestAbortReason abortReason) {
+        isQueueJumping = NO;
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
-    [NSUserDefaults.standardUserDefaults setBool:true forKey:@"jump"];
-    [NSUserDefaults.standardUserDefaults synchronize];
 }
 
 - (void)mediaPlayWithCommand:(CDVInvokedUrlCommand*)command {
@@ -271,8 +270,6 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     options.repeatMode = repeatMode;
     options.startIndex = startIndex;
     options.playPosition = item.startTime;
-    [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
-    [NSUserDefaults.standardUserDefaults synchronize];
     GCKRequest* request = [self.remoteMediaClient queueLoadItems:queueItems withOptions:options];
     request.delegate = [self createLoadMediaRequestDelegate:command];
 }
@@ -351,7 +348,13 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
         // send out out a media update indicated the previous media has finished
         NSMutableDictionary* lastMediaMutable = [lastMedia mutableCopy];
         lastMediaMutable[@"playerState"] = @"IDLE";
+        if (isQueueJumping) {
+            lastMediaMutable[@"idleReason"] = @"INTERRUPTED";
+            // reset isQueueJumping
+            isQueueJumping = NO;
+        } else {
             lastMediaMutable[@"idleReason"] = @"FINISHED";
+        }
         [self.sessionListener onMediaUpdated:lastMediaMutable];
     }
     

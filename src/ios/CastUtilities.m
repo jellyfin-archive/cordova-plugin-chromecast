@@ -790,11 +790,6 @@
 }
 
 + (NSString *)getIdleReason:(GCKMediaPlayerIdleReason)reason {
-    BOOL jump = [NSUserDefaults.standardUserDefaults boolForKey:@"jump"];
-    NSString *idleReason = @"FINISHED";
-    if (jump) {
-        idleReason = @"INTERRUPTED";
-    }
     switch (reason) {
         case GCKMediaPlayerIdleReasonCancelled:
             return @"CANCELLED";

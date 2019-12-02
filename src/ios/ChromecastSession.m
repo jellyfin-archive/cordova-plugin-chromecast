@@ -8,21 +8,16 @@
 #import "ChromecastSession.h"
 #import "CastUtilities.h"
 
-@interface ChromecastSession()
-{
-    BOOL isRequesting;
-}
-@property (nonatomic, assign) BOOL isRequesting;
-@end
-
 @implementation ChromecastSession
 GCKCastSession* currentSession;
 CDVInvokedUrlCommand* joinSessionCommand;
 BOOL isDisconnecting = NO;
+NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
 - (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate
 {
     self = [super init];
+    requestDelegates = [NSMutableArray new];
     self.sessionListener = listener;
     self.commandDelegate = cordovaDelegate;
     self.castContext = [GCKCastContext sharedInstance];
@@ -53,20 +48,55 @@ BOOL isDisconnecting = NO;
     [self.sessionManager startSessionWithDevice:device];
 }
 
--(CastRequestDelegate*)createGeneralRequestDelegate:(CDVInvokedUrlCommand*)command {
-    [self checkFinishDelegates];
-    CastRequestDelegate* delegate = [[CastRequestDelegate alloc] initWithSuccess:^{
+-(CastRequestDelegate*)createSessionUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
+    return [self createRequestDelegate:command success:^{
+        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:currentSession]];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:currentSession status:self.sessionStatus] isAlive:NO];
+    } failure:nil abortion:nil];
+}
+
+-(CastRequestDelegate*)createMediaUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
+    return [self createRequestDelegate:command success:^{
+        NSLog(@"%@", [NSString stringWithFormat:@"kk requestDelegate(MediaUpdate) finished"]);
+        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession]];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    } failure:nil abortion:nil];
+}
+
+-(CastRequestDelegate*)createRequestDelegate:(CDVInvokedUrlCommand*)command success:(void(^)(void))success failure:(void(^)(GCKError*))failure abortion:(void(^)(GCKRequestAbortReason))abortion {
+    // set up any required defaults
+    if (success == nil) {
+        success = ^{
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        };
+    }
+    if (failure == nil) {
+        failure = ^(GCKError * error) {
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        };
+    }
+    if (abortion == nil) {
+        abortion = ^(GCKRequestAbortReason abortReason) {
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        };
+    }
+    CastRequestDelegate* delegate = [[CastRequestDelegate alloc] initWithSuccess:^{
+        [self checkFinishDelegates];
+        success();
     } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        [self checkFinishDelegates];
+        failure(error);
     } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        [self checkFinishDelegates];
+        abortion(abortReason);
     }];
-    [self.requestDelegates addObject:delegate];
+    
+    [requestDelegates addObject:delegate];
     return delegate;
 }
 
@@ -90,81 +120,27 @@ BOOL isDisconnecting = NO;
 }
 
 - (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
     
-    [self.requestDelegates addObject:requestDelegate];
-    [self.remoteMediaClient setStreamMuted:muted customData:nil];
-    self.isRequesting = YES;
-    GCKRequest* request = [self.remoteMediaClient setStreamVolume:newLevel customData:nil];
-    request.delegate = requestDelegate;
 }
 
 - (void)setMediaMutedWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
     
-    [self.requestDelegates addObject:requestDelegate];
-    self.isRequesting = YES;
-    GCKRequest* request = [self.remoteMediaClient setStreamMuted:muted customData:nil];
-    request.delegate = requestDelegate;
 }
 
 - (void)setMediaVolumeWithCommand:(CDVInvokedUrlCommand*)withCommand newVolumeLevel:(float)newLevel {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:withCommand.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:withCommand.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:withCommand.callbackId];
-    }];
     
-    [self.requestDelegates addObject:requestDelegate];
-    self.isRequesting = YES;
-    GCKRequest* request = [self.remoteMediaClient setStreamVolume:newLevel customData:nil];
-    request.delegate = requestDelegate;
+        GCKRequest* request = [self.remoteMediaClient setStreamVolume:newLevel customData:nil];
+        request.delegate = [self createRequestDelegate:command success:setMuted failure:nil abortion:nil];
 }
 
 - (void)setReceiverVolumeLevelWithCommand:(CDVInvokedUrlCommand*)withCommand newLevel:(float)newLevel {
-    CastRequestDelegate* delegate = [self createGeneralRequestDelegate:withCommand];
-    self.isRequesting = YES;
     GCKRequest* request = [currentSession setDeviceVolume:newLevel];
-    request.delegate = delegate;
+    request.delegate = [self createSessionUpdateRequestDelegate:command];
 }
 
 - (void)setReceiverMutedWithCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted {
-    CastRequestDelegate* delegate = [self createGeneralRequestDelegate:command];
-    self.isRequesting = YES;
     GCKRequest* request = [currentSession setDeviceMuted:muted];
-    request.delegate = delegate;
+    request.delegate = [self createSessionUpdateRequestDelegate:command];
 }
 
 - (void)loadMediaWithCommand:(CDVInvokedUrlCommand*)command mediaInfo:(GCKMediaInformation*)mediaInfo autoPlay:(BOOL)autoPlay currentTime : (double)currentTime {
@@ -184,7 +160,6 @@ BOOL isDisconnecting = NO;
     GCKMediaLoadOptions* options = [[GCKMediaLoadOptions alloc] init];
     options.autoplay = autoPlay;
     options.playPosition = currentTime;
-    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient loadMedia:mediaInfo withOptions:options];
     request.delegate = requestDelegate;
 }
@@ -216,134 +191,44 @@ BOOL isDisconnecting = NO;
 }
 
 - (void)mediaSeekWithCommand:(CDVInvokedUrlCommand*)command position:(NSTimeInterval)position resumeState:(GCKMediaResumeState)resumeState {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-    [self.requestDelegates addObject:requestDelegate];
-    
     GCKMediaSeekOptions* options = [[GCKMediaSeekOptions alloc] init];
     options.interval = position;
     options.resumeState = resumeState;
-    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient seekWithOptions:options];
-    request.delegate = requestDelegate;
+    request.delegate = [self createMediaUpdateRequestDelegate:command];
 }
 
 - (void)queueJumpToItemWithCommand:(CDVInvokedUrlCommand *)command itemId:(NSUInteger)itemId {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
+    GCKRequest* request = [self.remoteMediaClient queueJumpToItemWithID:itemId];
+    request.delegate = [self createRequestDelegate:command success:nil failure:^(GCKError * error) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } abortion:^(GCKRequestAbortReason abortReason) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
-    
-    [self.requestDelegates addObject:requestDelegate];
     [NSUserDefaults.standardUserDefaults setBool:true forKey:@"jump"];
     [NSUserDefaults.standardUserDefaults synchronize];
-    self.isRequesting = YES;
-    GCKRequest* request = [self.remoteMediaClient queueJumpToItemWithID:itemId];
-    request.delegate = requestDelegate;
 }
 
 - (void)mediaPlayWithCommand:(CDVInvokedUrlCommand*)command {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-    [self.requestDelegates addObject:requestDelegate];
-    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient play];
-    request.delegate = requestDelegate;
+    request.delegate = [self createMediaUpdateRequestDelegate:command];
 }
 
 - (void)mediaPauseWithCommand:(CDVInvokedUrlCommand*)command {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-    [self.requestDelegates addObject:requestDelegate];
-    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient pause];
-    request.delegate = requestDelegate;
+    request.delegate = [self createMediaUpdateRequestDelegate:command];
 }
 
 - (void)mediaStopWithCommand:(CDVInvokedUrlCommand*)command {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-    [self.requestDelegates addObject:requestDelegate];
-    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient stop];
-    request.delegate = requestDelegate;
+    request.delegate = [self createMediaUpdateRequestDelegate:command];
 }
 
 - (void)setActiveTracksWithCommand:(CDVInvokedUrlCommand*)command activeTrackIds:(NSArray<NSNumber*>*)activeTrackIds textTrackStyle:(GCKMediaTextTrackStyle*)textTrackStyle {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession] isAlive:NO];
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-    [self.requestDelegates addObject:requestDelegate];
-    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient setActiveTrackIDs:activeTrackIds];
-    request.delegate = requestDelegate;
+    request.delegate = [self createMediaUpdateRequestDelegate:command];
     request = [self.remoteMediaClient setTextTrackStyle:textTrackStyle];
 }
 
@@ -368,19 +253,18 @@ BOOL isDisconnecting = NO;
     options.playPosition = item.startTime;
     [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
     [NSUserDefaults.standardUserDefaults synchronize];
-    self.isRequesting = YES;
     GCKRequest* request = [self.remoteMediaClient queueLoadItems:queueItems withOptions:options];
     request.delegate = requestDelegate;
 }
 
-- (void) checkFinishDelegates{
+- (void) checkFinishDelegates {
     NSMutableArray<CastRequestDelegate*>* tempArray = [NSMutableArray new];
-    for (CastRequestDelegate* delegate in self.requestDelegates) {
+    for (CastRequestDelegate* delegate in requestDelegates) {
         if (!delegate.finished ) {
             [tempArray addObject:delegate];
         }
     }
-    self.requestDelegates = tempArray;
+    requestDelegates = tempArray;
 }
 
 #pragma -- GCKSessionManagerListener

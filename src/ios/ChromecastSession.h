@@ -18,14 +18,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, retain) GCKSessionManager* sessionManager;
 @property (nonatomic, retain) GCKRemoteMediaClient* remoteMediaClient;
 @property (nonatomic, retain) GCKCastContext* castContext;
-@property (nonatomic, retain) NSMutableArray<CastRequestDelegate*>* requestDelegates;
 @property (nonatomic, retain) id<CastSessionListener> sessionListener;
 @property (nonatomic, retain) NSMutableDictionary* genericChannels;
 
 - (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate;
 - (void)tryRejoin;
 - (void)joinDevice:(GCKDevice*)device cdvCommand:(CDVInvokedUrlCommand*)command;
-- (CastRequestDelegate*)createGeneralRequestDelegate:(CDVInvokedUrlCommand*)command;
 - (void)endSession:(CDVInvokedUrlCommand*)command killSession:(BOOL)killSession;
 - (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel;
 - (void)setMediaMutedWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted;

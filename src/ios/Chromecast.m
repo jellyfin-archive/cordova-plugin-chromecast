@@ -227,30 +227,7 @@ int scansRunning = 0;
 }
 
 - (void)setMediaVolume:(CDVInvokedUrlCommand*) command {
-    if (command.arguments[1] == [NSNull null]) {
-        double newLevel = 1.0;
-        if (command.arguments[0]) {
-            newLevel = [command.arguments[0] doubleValue];
-        } else {
-            newLevel = 1.0;
-        }
-        [self.currentSession setMediaVolumeWithCommand:command newVolumeLevel:newLevel];
-    }
-    else if (command.arguments[0] == [NSNull null]) {
-        BOOL muted = [command.arguments[1] boolValue];
-        [self.currentSession setMediaMutedWIthCommand:command muted:muted];
-    }
-    else {
-        double newLevel = 1.0;
-        if (command.arguments[0]) {
-            newLevel = [command.arguments[0] doubleValue];
-        } else {
-            newLevel = 1.0;
-        }
-        BOOL muted = [command.arguments[1] boolValue];
-        [self.currentSession setMediaMutedAndVolumeWIthCommand:command muted:muted nvewLevel:newLevel];
-    }
-    //    [self.currentSession setReceiverVolumeLevelWithCommand:command newLevel:newLevel];
+    [self.currentSession setMediaMutedAndVolumeWithCommand:command];
 }
 
 - (void)setReceiverVolumeLevel:(CDVInvokedUrlCommand*) command {

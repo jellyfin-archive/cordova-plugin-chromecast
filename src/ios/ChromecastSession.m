@@ -119,18 +119,40 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     callback();
 }
 
-- (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel {
+- (void)setMediaMutedAndVolumeWithCommand:(CDVInvokedUrlCommand*)command {
     
-}
-
-- (void)setMediaMutedWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted {
     
-}
-
-- (void)setMediaVolumeWithCommand:(CDVInvokedUrlCommand*)withCommand newVolumeLevel:(float)newLevel {
+    // set muted to the current state
+    BOOL muted = mediaStatus.isMuted;
+    // If we have the muted argument
+    if (command.arguments[1] != [NSNull null]) {
+        // Update muted
+        muted = [command.arguments[1] boolValue];
+    }
     
+    __weak ChromecastSession* weakSelf = self;
+    
+    void (^setMuted)(void) = ^{
+        // Now set the volume
+        GCKRequest* request = [weakSelf.remoteMediaClient setStreamMuted:muted customData:nil];
+        request.delegate = [weakSelf createMediaUpdateRequestDelegate:command];
+    };
+    
+    // Set an invalid newLevel for default
+    double newLevel = -1;
+    // Get the newLevel argument if possible
+    if (command.arguments[0] != [NSNull null]) {
+        newLevel = [command.arguments[0] doubleValue];
+    }
+    
+    if (newLevel == -1) {
+        // We have no newLevel, so only set muted state
+        setMuted();
+    } else {
+        // We have both muted and newLevel, so set volume, then muted
         GCKRequest* request = [self.remoteMediaClient setStreamVolume:newLevel customData:nil];
         request.delegate = [self createRequestDelegate:command success:setMuted failure:nil abortion:nil];
+    }
 }
 
 - (void)setReceiverVolumeLevelWithCommand:(CDVInvokedUrlCommand*)withCommand newLevel:(float)newLevel {

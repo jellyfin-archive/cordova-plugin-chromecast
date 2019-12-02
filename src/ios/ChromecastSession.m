@@ -144,8 +144,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)setMediaMutedAndVolumeWithCommand:(CDVInvokedUrlCommand*)command {
-    
-    
+    GCKMediaStatus* mediaStatus = currentSession.remoteMediaClient.mediaStatus;
     // set muted to the current state
     BOOL muted = mediaStatus.isMuted;
     // If we have the muted argument
@@ -179,7 +178,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     }
 }
 
-- (void)setReceiverVolumeLevelWithCommand:(CDVInvokedUrlCommand*)withCommand newLevel:(float)newLevel {
+- (void)setReceiverVolumeLevelWithCommand:(CDVInvokedUrlCommand*)command newLevel:(float)newLevel {
     GCKRequest* request = [currentSession setDeviceVolume:newLevel];
     request.delegate = [self createSessionUpdateRequestDelegate:command];
 }

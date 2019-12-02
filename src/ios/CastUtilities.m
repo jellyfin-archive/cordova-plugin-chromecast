@@ -552,7 +552,7 @@
 
 + (NSDictionary*)createQueueData:(GCKMediaStatus*)mediaStatus {
     GCKMediaQueueData* queueData = mediaStatus.queueData;
-    if (queueData == [NSNull null]) {
+    if (queueData == nil) {
         return nil;
     }
     NSMutableDictionary* returnDict = [[NSMutableDictionary alloc] init];

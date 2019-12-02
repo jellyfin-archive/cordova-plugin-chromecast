@@ -11,6 +11,7 @@
 @implementation ChromecastSession
 GCKCastSession* currentSession;
 CDVInvokedUrlCommand* joinSessionCommand;
+void (^loadMediaCallback)(NSString*) = nil;
 BOOL isDisconnecting = NO;
 NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
@@ -46,6 +47,28 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
     [NSUserDefaults.standardUserDefaults synchronize];
     [self.sessionManager startSessionWithDevice:device];
+}
+
+-(CastRequestDelegate*)createLoadMediaRequestDelegate:(CDVInvokedUrlCommand*)command {
+    loadMediaCallback = ^(NSString* error) {
+        if (error) {
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        } else {
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        }
+    };
+    return [self createRequestDelegate:command success:^{
+    } failure:^(GCKError * error) {
+        loadMediaCallback = nil;
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    } abortion:^(GCKRequestAbortReason abortReason) {
+        loadMediaCallback = nil;
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
 }
 
 -(CastRequestDelegate*)createSessionUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
@@ -166,24 +189,11 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)loadMediaWithCommand:(CDVInvokedUrlCommand*)command mediaInfo:(GCKMediaInformation*)mediaInfo autoPlay:(BOOL)autoPlay currentTime : (double)currentTime {
-    [self checkFinishDelegates];
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-    [self.requestDelegates addObject:requestDelegate];
     GCKMediaLoadOptions* options = [[GCKMediaLoadOptions alloc] init];
     options.autoplay = autoPlay;
     options.playPosition = currentTime;
     GCKRequest* request = [self.remoteMediaClient loadMedia:mediaInfo withOptions:options];
-    request.delegate = requestDelegate;
+    request.delegate = [self createLoadMediaRequestDelegate:command];
 }
 
 - (void)createMessageChannelWithCommand:(CDVInvokedUrlCommand*)command namespace:(NSString*)namespace{
@@ -255,19 +265,6 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)queueLoadItemsWithCommand:(CDVInvokedUrlCommand *)command queueItems:(NSArray *)queueItems startIndex:(NSInteger)startIndex repeatMode:(GCKMediaRepeatMode)repeatMode {
-    CastRequestDelegate* requestDelegate = [[CastRequestDelegate alloc] initWithSuccess:^{
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        
-    } failure:^(GCKError * error) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    } abortion:^(GCKRequestAbortReason abortReason) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-    [self.requestDelegates addObject:requestDelegate];
     GCKMediaQueueItem *item = queueItems[startIndex];
     GCKMediaQueueLoadOptions *options = [[GCKMediaQueueLoadOptions alloc] init];
     options.repeatMode = repeatMode;
@@ -276,7 +273,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     [NSUserDefaults.standardUserDefaults setBool:false forKey:@"jump"];
     [NSUserDefaults.standardUserDefaults synchronize];
     GCKRequest* request = [self.remoteMediaClient queueLoadItems:queueItems withOptions:options];
-    request.delegate = requestDelegate;
+    request.delegate = [self createLoadMediaRequestDelegate:command];
 }
 
 - (void) checkFinishDelegates {
@@ -336,6 +333,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 #pragma -- GCKRemoteMediaClientListener
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didStartMediaSessionWithID:(NSInteger)sessionID {
+    // This is not triggered by external loads, so use didReceiveQueueItemIDs instead
 }
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
@@ -368,23 +366,33 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     
 }
 
-- (void)remoteMediaClientDidUpdatePreloadStatus:(GCKRemoteMediaClient *)client {
-    [self remoteMediaClient:client didUpdateMediaStatus:nil];
-}
-
-- (void)remoteMediaClientDidUpdateQueue:(GCKRemoteMediaClient *)client{
-    
-}
-- (void)remoteMediaClient:(GCKRemoteMediaClient *)client didInsertQueueItemsWithIDs:(NSArray<NSNumber *> *)queueItemIDs beforeItemWithID:(GCKMediaQueueItemID)beforeItemID {
-    
-}
-
-- (void)remoteMediaClient:(GCKRemoteMediaClient *)client didReceiveQueueItems:(NSArray<GCKMediaQueueItem *> *)queueItems {
-    
-}
-
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didReceiveQueueItemIDs:(NSArray<NSNumber *> *)queueItemIDs {
+    // If we do not have a loadMediaCallback that means this was an external media load
+    if (!loadMediaCallback) {
+        // So set the callback to trigger the MEDIA_LOAD event
+        loadMediaCallback = ^(NSString* error) {
+            if (!error) {
+                [self.sessionListener onMediaLoaded:[CastUtilities createMediaObject:currentSession]];
+            }
+        };
+    }
     
+    // When internally loading a queue the media itmes are not always available at this point, so request the items
+    GCKRequest* request = [self.remoteMediaClient queueFetchItemsForIDs:queueItemIDs];
+    request.delegate = [self createRequestDelegate:nil success:^{
+        NSLog(@"%@", [NSString stringWithFormat:@"kk qFetchItemsForIds finished: %lu", (unsigned long)currentSession.remoteMediaClient.mediaStatus.queueItemCount]);
+        loadMediaCallback(nil);
+        loadMediaCallback = nil;
+        NSLog(@"%@", [NSString stringWithFormat:@"kk isLoadingMedia = NO success"]);
+    } failure:^(GCKError * error) {
+        NSLog(@"%@", [NSString stringWithFormat:@"Failed to retrieve queue items with error: %@", error.description]);
+        loadMediaCallback = nil;
+        NSLog(@"%@", [NSString stringWithFormat:@"kk isLoadingMedia = NO error2"]);
+    } abortion:^(GCKRequestAbortReason abortReason) {
+        NSLog(@"%@", [NSString stringWithFormat:@"Failed to retrieve queue items with error: %ld", (long)abortReason]);
+        loadMediaCallback = nil;
+        NSLog(@"%@", [NSString stringWithFormat:@"kk isLoadingMedia = NO abour2"]);
+    }];
 }
 
 

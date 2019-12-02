@@ -430,7 +430,7 @@
             });
             it('session.stop should stop the session', function (done) {
                 // Set up the expected calls
-                var called = utils.waitForAllCalls([
+                var called = utils.callOrder([
                         { id: success, repeats: false },
                         { id: update, repeats: true }
                 ], done);

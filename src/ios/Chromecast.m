@@ -311,9 +311,8 @@ int scansRunning = 0;
 
 - (void)selectRoute:(CDVInvokedUrlCommand*)command {
     GCKCastSession* currentSession = [GCKCastContext sharedInstance].sessionManager.currentCastSession;
-    if (currentSession != nil
-        || [currentSession connectionState] == GCKConnectionStateConnected
-        || [currentSession connectionState] == GCKConnectionStateConnecting) {
+    if (currentSession != nil &&
+        (currentSession.connectionState == GCKConnectionStateConnected || currentSession.connectionState == GCKConnectionStateConnecting)) {
         [self sendError:@"session_error" message:@"Leave or stop current session before attempting to join new session." command:command];
         return;
     }

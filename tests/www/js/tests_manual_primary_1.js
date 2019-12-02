@@ -346,8 +346,8 @@
                 });
             });
             it('(stop casting) clicking "Stop Casting" should stop the session', function (done) {
-                var called = utils.callOrder([
-                    { id: stopped, repeats: false },
+                var called = utils.waitForAllCalls([
+                    { id: stopped, repeats: true },
                     { id: success, repeats: false }
                 ], done);
                 session.addUpdateListener(function listener (isAlive) {

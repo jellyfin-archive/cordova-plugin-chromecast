@@ -569,7 +569,7 @@
     }
     
     return @{
-        @"contentId": mediaInfo.contentURL == nil ? @"" : mediaInfo.contentURL.absoluteString,
+        @"contentId": mediaInfo.contentID? mediaInfo.contentID : mediaInfo.contentURL.absoluteString,
         @"contentType": mediaInfo.contentType,
         @"customData": mediaInfo.customData == nil ? @{} : mediaInfo.customData,
         @"duration": @(mediaInfo.streamDuration),

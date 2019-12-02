@@ -563,6 +563,7 @@
                     assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
                     assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
                     assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                    assert.notExists(media.idleReason);
                     media.addUpdateListener(function listener (isAlive) {
                         assert.isTrue(isAlive);
                         utils.testMediaProperties(media);

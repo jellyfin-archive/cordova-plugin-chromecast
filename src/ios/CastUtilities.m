@@ -804,8 +804,9 @@
             return @"FINISHED";
         case GCKMediaPlayerIdleReasonInterrupted:
             return @"INTERRUPTED";
+        case GCKMediaPlayerIdleReasonNone:
         default:
-            return idleReason;
+            return nil;
     }
 }
 
@@ -838,14 +839,15 @@
 
 + (NSString *)getPlayerState:(GCKMediaPlayerState)playerState {
     switch (playerState) {
+        case GCKMediaPlayerStateLoading:
         case GCKMediaPlayerStateBuffering:
             return @"BUFFERING";
-        case GCKMediaPlayerStateIdle:
-            return @"IDLE";
         case GCKMediaPlayerStatePaused:
             return @"PAUSED";
         case GCKMediaPlayerStatePlaying:
             return @"PLAYING";
+        case GCKMediaPlayerStateUnknown:
+        case GCKMediaPlayerStateIdle:
         default:
             return @"IDLE";
     }

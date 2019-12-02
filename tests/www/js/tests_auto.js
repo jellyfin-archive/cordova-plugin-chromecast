@@ -1103,17 +1103,16 @@
                     var request = new chrome.cast.media.SeekRequest();
                     request.currentTime = media.media.duration - 1;
 
-                    var i = utils.getCurrentItemIndex(media);
                     // Listen for current media end
+                    var prevId = media.currentItemId;
                     media.addUpdateListener(function listener (isAlive) {
                         if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
                             assert.equal(media.idleReason, chrome.cast.media.IdleReason.FINISHED);
                             assert.isTrue(isAlive);
                             called(stopped);
                         }
-                        if (media.currentItemId !== media.items[i].itemId) {
-                            i = utils.getCurrentItemIndex(media);
-                            media.removeUpdateListener(listener);
+                        if (media.currentItemId !== prevId) {
+                            var i = utils.getCurrentItemIndex(media);
                             utils.testMediaProperties(media);
                             assert.equal(media.repeatMode, chrome.cast.media.RepeatMode.ALL);
                             assert.equal(media.media.contentId, videoUrl);
@@ -1131,8 +1130,9 @@
                             assert.equal(media.items[i].media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
                             assert.equal(media.items[i].media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
                             called(newMedia);
-                            if (media.getEstimatedTime() > startTime - 5
-                                    && media.getEstimatedTime() < startTime + 5) {
+                            if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                                media.removeUpdateListener(listener);
+                                assert.closeTo(media.getEstimatedTime(), startTime, 5);
                                 called(update);
                             }
                         }

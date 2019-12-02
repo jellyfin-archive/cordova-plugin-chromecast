@@ -472,22 +472,29 @@
 }
 
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session status:(NSString*)status {
-    return @{
-        @"appId" : session.applicationMetadata.applicationID? session.applicationMetadata.applicationID : @"",
-        @"media" : [CastUtilities createMediaObject:session],
-        @"appImages" : @{},
-        @"sessionId" : session.sessionID? session.sessionID : @"",
-        @"displayName" : session.applicationMetadata.applicationName? session.applicationMetadata.applicationName : @"",
-        @"receiver" : @{
-                @"friendlyName" : session.device.friendlyName? session.device.friendlyName : @"",
-                @"label" : session.device.uniqueID,
-                @"volume" : @{
-                        @"level" : @(session.currentDeviceVolume),
-                        @"muted" : @(session.currentDeviceMuted)
-                }
-        },
-        @"status":![status isEqual: @""]? status : [CastUtilities getConnectionStatus:session.connectionState]
+    NSMutableDictionary* sessionOut = [[NSMutableDictionary alloc] init];
+    sessionOut[@"appId"] = session.applicationMetadata.applicationID? session.applicationMetadata.applicationID : @"";
+    sessionOut[@"appImages"] = @{};
+    sessionOut[@"sessionId"] = session.sessionID? session.sessionID : @"";
+    sessionOut[@"displayName"] = session.applicationMetadata.applicationName? session.applicationMetadata.applicationName : @"";
+    sessionOut[@"receiver"] = @{
+        @"friendlyName" : session.device.friendlyName? session.device.friendlyName : @"",
+        @"label" : session.device.uniqueID,
+        @"volume" : @{
+            @"level" : @(session.currentDeviceVolume),
+            @"muted" : @(session.currentDeviceMuted)
+        }
     };
+    sessionOut[@"status"] = ![status isEqual: @""]? status : [CastUtilities getConnectionStatus:session.connectionState];
+    
+    NSMutableArray<NSDictionary*>* mediaArray = [[NSMutableArray alloc] init];
+    NSDictionary* mediaObj = [CastUtilities createMediaObject:session];
+    if (![mediaObj  isEqual: @{}]) {
+        [mediaArray addObject:mediaObj];
+    }
+    sessionOut[@"media"] = mediaArray;
+    
+    return sessionOut;
 }
 
 + (NSDictionary *)createMediaObject:(GCKCastSession *)session {

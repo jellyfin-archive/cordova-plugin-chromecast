@@ -27,6 +27,7 @@
     });
 
     describe('Manual Tests - Primary Device - Part 1', function () {
+        var imageUrl = 'https://ia800705.us.archive.org/1/items/GoodHousekeeping193810/Good%20Housekeeping%201938-10.jpg';
         var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
         var audioUrl = 'https://ia600304.us.archive.org/20/items/OTRR_Gunsmoke_Singles/Gunsmoke_52-10-03_024_Cain.mp3';
 
@@ -53,6 +54,22 @@
         describe('App restart and reload/change page simulation', function () {
             var cookieName = 'primary-p1_restart-reload';
             var runningNum = parseInt(utils.getValue(cookieName) || '0');
+            var mediaInfo;
+            before(function () {
+                mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
+                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+                mediaInfo.metadata.title = 'DaTitle';
+                mediaInfo.metadata.subtitle = 'DaSubtitle';
+                mediaInfo.metadata.releaseDate = new Date(2019, 10, 24).valueOf();
+                mediaInfo.metadata.someTrueBoolean = true;
+                mediaInfo.metadata.someFalseBoolean = false;
+                mediaInfo.metadata.someSmallNumber = 15;
+                mediaInfo.metadata.someLargeNumber = 1234567890123456;
+                mediaInfo.metadata.someSmallDecimal = 15.15;
+                mediaInfo.metadata.someLargeDecimal = 1234567.123456789;
+                mediaInfo.metadata.someString = 'SomeString';
+                mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+            });
             it('Create session', function (done) {
                 this.timeout(15000);
                 if (runningNum > 0) {
@@ -78,7 +95,6 @@
                     utils.startSession(function (sess) {
                         session = sess;
                         utils.testSessionProperties(sess);
-                        utils.storeValue(cookieName, ++runningNum);
                         if (failed) {
                             // Ensure the session has stopped on failure because
                             // we might not hit this point until after the "after" has already run
@@ -100,6 +116,46 @@
                     }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
                 chrome.cast.initialize(apiConfig, function () {
                     called(success);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
+            });
+            it('session.loadMedia should be able to load a remote video and handle GenericMediaMetadata', function (done) {
+                if (runningNum > 0) {
+                    // Just pass the test because we need to skip ahead
+                    return done();
+                }
+                session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
+                    media = m;
+                    utils.testMediaProperties(media);
+                    assert.isUndefined(media.queueData);
+                    assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                    assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
+                    assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
+                    // TODO figure out how to maintain the data types for custom params on the native side
+                    // so that we don't have to do turn each actual and expected into a string
+                    assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
+                    assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
+                    assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
+                    assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
+                    assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
+                    assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
+                    assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
+                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
+                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                    media.addUpdateListener(function listener (isAlive) {
+                        assert.isTrue(isAlive);
+                        utils.testMediaProperties(media);
+                        assert.oneOf(media.playerState, [
+                            chrome.cast.media.PlayerState.PLAYING,
+                            chrome.cast.media.PlayerState.BUFFERING]);
+                        if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                            media.removeUpdateListener(listener);
+                            utils.storeValue(cookieName, ++runningNum);
+                            done();
+                        }
+                    });
                 }, function (err) {
                     assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
@@ -134,16 +190,36 @@
                         done();
                     });
                     var apiConfig = new chrome.cast.ApiConfig(
-                            new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
-                            function (sess) {
-                                session = sess;
-                                utils.testSessionProperties(sess);
-                                called(session_listener);
-                            }, function receiverListener (availability) {
-                                if (!finished) {
-                                    called(availability);
-                                }
-                            }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+                        new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
+                        function (sess) {
+                            session = sess;
+                            utils.testSessionProperties(sess);
+                            // Ensure the media is maintained
+                            assert.isAbove(sess.media.length, 0);
+                            var media = sess.media[0];
+                            assert.isUndefined(media.queueData);
+                            assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                            assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
+                            assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
+                            // TODO figure out how to maintain the data types for custom params on the native side
+                            // so that we don't have to do turn each actual and expected into a string
+                            assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
+                            assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
+                            assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
+                            assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
+                            assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
+                            assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
+                            assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
+                            assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                            assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
+                            assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                            assert.equal(media.playerState, chrome.cast.media.PlayerState.PLAYING);
+                            called(session_listener);
+                        }, function receiverListener (availability) {
+                            if (!finished) {
+                                called(availability);
+                            }
+                        }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
                     chrome.cast.initialize(apiConfig, function () {
                         called(success);
                     }, function (err) {
@@ -195,6 +271,26 @@
                             function (sess) {
                                 session = sess;
                                 utils.testSessionProperties(sess);
+                                // // Ensure the media is maintained
+                                assert.isAbove(sess.media.length, 0);
+                                var media = sess.media[0];
+                                assert.isUndefined(media.queueData);
+                                assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                                assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
+                                assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
+                                // TODO figure out how to maintain the data types for custom params on the native side
+                                // so that we don't have to do turn each actual and expected into a string
+                                assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
+                                assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
+                                assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
+                                assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
+                                assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
+                                assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
+                                assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
+                                assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                                assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
+                                assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                                assert.equal(media.playerState, chrome.cast.media.PlayerState.PLAYING);
                                 called(session_listener);
                             }, function receiverListener (availability) {
                                 if (!finished) {

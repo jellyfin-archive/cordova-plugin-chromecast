@@ -40,6 +40,8 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)tryRejoin {
+    // Make sure we are looking at the actual current session, sometimes it doesn't get removed
+    [self setSession:self.sessionManager.currentCastSession];
     if (currentSession != nil) {
             [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:currentSession]];
     }

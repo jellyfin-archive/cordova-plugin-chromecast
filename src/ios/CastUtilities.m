@@ -683,20 +683,24 @@
     if (textTrackStyle == nil) {
         return @{};
     }
-    return @{
-        @"backgroundColor": textTrackStyle.backgroundColor.CSSString,
-        @"customData": textTrackStyle.customData == nil? @{} : textTrackStyle.customData,
-        @"edgeColor": textTrackStyle.edgeColor.CSSString == nil? @"" : textTrackStyle.edgeColor.CSSString,
-        @"edgeType": [CastUtilities getEdgeType:textTrackStyle.edgeType],
-        @"fontFamily": textTrackStyle.fontFamily,
-        @"fontGenericFamily": [CastUtilities getFontGenericFamily:textTrackStyle.fontGenericFamily],
-        @"fontScale": @(textTrackStyle.fontScale),
-        @"fontStyle": [CastUtilities getFontStyle:textTrackStyle.fontStyle],
-        @"foregroundColor": textTrackStyle.foregroundColor.CSSString,
-        @"windowColor": textTrackStyle.windowColor.CSSString,
-        @"windowRoundedCornerRadius": @(textTrackStyle.windowRoundedCornerRadius),
-        @"windowType": [CastUtilities getWindowType:textTrackStyle.windowType]
-    };
+    
+    NSMutableDictionary* textTrackStyleOut = [[NSMutableDictionary alloc] init];
+    if (textTrackStyle.backgroundColor) {
+        textTrackStyleOut[@"backgroundColor"] = textTrackStyle.backgroundColor.CSSString;
+    }
+    textTrackStyleOut[@"customData"] = textTrackStyle.customData == nil? @{} : textTrackStyle.customData;
+    textTrackStyleOut[@"edgeColor"] = textTrackStyle.edgeColor.CSSString == nil? @"" : textTrackStyle.edgeColor.CSSString;
+    textTrackStyleOut[@"edgeType"] = [CastUtilities getEdgeType:textTrackStyle.edgeType];
+    textTrackStyleOut[@"fontFamily"] = textTrackStyle.fontFamily;
+    textTrackStyleOut[@"fontGenericFamily"] = [CastUtilities getFontGenericFamily:textTrackStyle.fontGenericFamily];
+    textTrackStyleOut[@"fontScale"] = @(textTrackStyle.fontScale);
+    textTrackStyleOut[@"fontStyle"] = [CastUtilities getFontStyle:textTrackStyle.fontStyle];
+    textTrackStyleOut[@"foregroundColor"] = textTrackStyle.foregroundColor.CSSString;
+    textTrackStyleOut[@"windowColor"] = textTrackStyle.windowColor.CSSString;
+    textTrackStyleOut[@"windowRoundedCornerRadius"] = @(textTrackStyle.windowRoundedCornerRadius);
+    textTrackStyleOut[@"windowType"] = [CastUtilities getWindowType:textTrackStyle.windowType];
+
+    return textTrackStyleOut;
 }
 
 + (NSString *)getEdgeType:(GCKMediaTextTrackStyleEdgeType)edgeType {

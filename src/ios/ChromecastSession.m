@@ -49,7 +49,11 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
 - (void)joinDevice:(GCKDevice*)device cdvCommand:(CDVInvokedUrlCommand*)command {
     joinSessionCommand = command;
-    [self.sessionManager startSessionWithDevice:device];
+    BOOL startedSuccessfully = [self.sessionManager startSessionWithDevice:device];
+    if (!startedSuccessfully) {
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Failed to join the selected route"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
 }
 
 -(CastRequestDelegate*)createLoadMediaRequestDelegate:(CDVInvokedUrlCommand*)command {

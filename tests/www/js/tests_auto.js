@@ -557,6 +557,7 @@
             afterEach(function () {
                 session.removeMediaListener(mediaListener);
             });
+            describe('Media (non-queues)', function () {
             it('session.loadMedia should be able to load a remote video and handle GenericMediaMetadata', function (done) {
                 var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
                 mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
@@ -1014,6 +1015,7 @@
                 }, function (err) {
                     assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
+            });
             });
             describe('Queues', function () {
                 var videoItem;

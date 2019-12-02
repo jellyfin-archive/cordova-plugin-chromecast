@@ -14,7 +14,7 @@
 (function () {
     'use strict';
     /* eslint-env mocha */
-    /* global chrome */
+    /* global chrome localStorage */
     var assert = window.chai.assert;
 
     var utils = {};
@@ -28,7 +28,7 @@
     };
 
     utils.clearStoredValues = function () {
-       localStorage.clear();
+        localStorage.clear();
     };
 
     /**
@@ -149,6 +149,7 @@
             for (var i = 0; i < calls.length; i++) {
                 if (calls[i].id === callId) {
                     callDetails = calls[i];
+                    break;
                 }
             }
             // Is it a valid call?
@@ -215,6 +216,7 @@
             for (var i = 0; i < calls.length; i++) {
                 if (calls[i].id === callId) {
                     callDetails = calls[i];
+                    break;
                 }
             }
             // Is it a valid call?

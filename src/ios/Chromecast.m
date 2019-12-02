@@ -12,7 +12,6 @@
 #define IPAD     UIUserInterfaceIdiomPad
 
 @interface Chromecast()
-@property (nonatomic, strong) CDVInvokedUrlCommand *sessionCommand;
 @end
 
 @implementation Chromecast
@@ -166,16 +165,13 @@ int scansRunning = 0;
         }]];
     }
     [alert addAction:[UIAlertAction actionWithTitle:@"Stop Casting" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        NSLog(@"Stop Casting");
-        self.sessionCommand = command;
-        self.currentSession.sessionStatus = @"stopped";
-        [[GCKCastContext sharedInstance].sessionManager endSession];
-        
+        [self.currentSession endSessionWithCallback:^{
+            [self sendError:@"cancel" message:@"" command:command];
+        } killSession:YES];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
-        NSLog(@"Canceld");
         [self.currentSession.remoteMediaClient stop];
-        [self sendError:@"cancel" message:@"Casting is stopped." command:command];
+        [self sendError:@"cancel" message:@"" command:command];
     }]];
     if (IDIOM == IPAD) {
         alert.popoverPresentationController.sourceView = self.webView;
@@ -452,18 +448,5 @@ int scansRunning = 0;
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
-
-- (void)sessionManager:(GCKSessionManager *)sessionManager didEndSession:(GCKSession *)session withError:(NSError *)error {
-    
-    if (error != nil) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.debugDescription];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.sessionCommand.callbackId];
-    }
-    if ([self.currentSession.sessionStatus  isEqual: @"stopped"]) {
-        [self.currentSession.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"stopped"]];
-        [self sendError:@"cancel" message:@"Session is stopped." command:self.sessionCommand];
-    }
-}
-
 
 @end

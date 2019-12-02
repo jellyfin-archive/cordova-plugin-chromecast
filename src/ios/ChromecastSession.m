@@ -71,14 +71,22 @@ BOOL isDisconnecting = NO;
 }
 
 - (void)endSession:(CDVInvokedUrlCommand*)command killSession:(BOOL)killSession {
-    BOOL result = [[GCKCastContext sharedInstance].sessionManager endSessionAndStopCasting:killSession];
+    NSLog(@"kk endSession");
+    [self endSessionWithCallback:^{
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    } killSession:killSession];
+}
+
+- (void)endSessionWithCallback:(void(^)(void))callback killSession:(BOOL)killSession {
+    NSLog(@"kk endSessionWithCallback");
     if (killSession) {
-        self.sessionStatus = @"stopped";
+        [currentSession endWithAction:GCKSessionEndActionStopCasting];
     } else {
-        self.sessionStatus = @"disconnected";
+        isDisconnecting = YES;
+        [currentSession endWithAction:GCKSessionEndActionLeave];
     }
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:result];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    callback();
 }
 
 - (void)setMediaMutedAndVolumeWIthCommand:(CDVInvokedUrlCommand*)command muted:(BOOL)muted nvewLevel:(float)newLevel {

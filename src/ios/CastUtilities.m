@@ -9,12 +9,14 @@
 
 @implementation CastUtilities
 
-+ (GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType textTrackStyle:(NSDictionary *)textTrackStyle metaData:(NSDictionary *)metaData {
++ (GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle {
     NSURL* url = [NSURL URLWithString:contentUrl];
+    
     GCKMediaInformationBuilder* mediaInfoBuilder = [[GCKMediaInformationBuilder alloc] initWithContentURL:url];
+    mediaInfoBuilder.contentID = contentUrl;
     mediaInfoBuilder.customData = customData;
     mediaInfoBuilder.contentType = contentType;
-    mediaInfoBuilder.streamDuration = round(duration);
+    mediaInfoBuilder.streamDuration = duration;
     if ([streamType isEqualToString:@"buffered"]) {
         mediaInfoBuilder.streamType = GCKMediaStreamTypeBuffered;
     } else if ([streamType isEqualToString:@"live"]) {
@@ -22,29 +24,28 @@
     } else {
         mediaInfoBuilder.streamType = GCKMediaStreamTypeNone;
     }
-    
-    mediaInfoBuilder.textTrackStyle = [CastUtilities buildTextTrackStyle:textTrackStyle];
+    mediaInfoBuilder.startAbsoluteTime = startTime;
     mediaInfoBuilder.metadata = [CastUtilities buildMediaMetadata:metaData];
+    mediaInfoBuilder.textTrackStyle = [CastUtilities buildTextTrackStyle:textTrackStyle];
+    
     return [mediaInfoBuilder build];
 }
 
-+ (GCKMediaInformation *)buildMediaInformationForQueueItem:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration startTime:(double)startTime streamType:(NSString *)streamType  metaData:(NSDictionary *)metaData {
-    NSURL* url = [NSURL URLWithString:contentUrl];
-    GCKMediaInformationBuilder* mediaInfoBuilder = [[GCKMediaInformationBuilder alloc] initWithContentURL:url];
-    mediaInfoBuilder.customData = customData;
-    mediaInfoBuilder.contentType = contentType;
-    mediaInfoBuilder.streamDuration = round(duration);
-    //mediaInfoBuilder.startAbsoluteTime = round(startTime);
-    if ([streamType isEqualToString:@"buffered"]) {
-        mediaInfoBuilder.streamType = GCKMediaStreamTypeBuffered;
-    } else if ([streamType isEqualToString:@"live"]) {
-        mediaInfoBuilder.streamType = GCKMediaStreamTypeLive;
-    } else {
-        mediaInfoBuilder.streamType = GCKMediaStreamTypeNone;
-    }
++ (GCKMediaQueueItem *)buildMediaQueueItem:(NSDictionary *)item {
+    NSDictionary *media = item[@"media"];
+    double startTime = [item[@"startTime"] doubleValue];
+    double duration = media[@"duration"] == [NSNull null] ? 0 : [media[@"duration"] doubleValue];
     
-    mediaInfoBuilder.metadata = [CastUtilities buildMediaMetadata:metaData];
-    return [mediaInfoBuilder build];
+    GCKMediaQueueItemBuilder *queueItemBuilder = [[GCKMediaQueueItemBuilder alloc] init];
+    queueItemBuilder.activeTrackIDs = item[@"activeTrackIds"];
+    queueItemBuilder.autoplay = [item[@"autoplay"] boolValue];
+    queueItemBuilder.customData = item[@"customData"];
+    queueItemBuilder.startTime = startTime;
+    queueItemBuilder.preloadTime = [item[@"preloadTime"] doubleValue];
+    
+    queueItemBuilder.mediaInformation = [CastUtilities buildMediaInformation:media[@"contentId"] customData:media[@"customData"] contentType:media[@"contentType"] duration:duration streamType:media[@"streamType"] startTime:startTime metaData:media[@"metadata"] textTrackStyle:item[@"textTrackStyle"]];
+    
+    return [queueItemBuilder build];
 }
 
 + (GCKMediaTextTrackStyle *)buildTextTrackStyle:(NSDictionary *)data {

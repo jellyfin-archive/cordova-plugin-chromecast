@@ -199,24 +199,10 @@ int scansRunning = 0;
     else if ([repeadModeString isEqualToString:@"REPEAT_ALL_AND_SHUFFLE"]) {
         repeatMode = GCKMediaRepeatModeAllAndShuffle;
     }
-    
-    //GCKMediaInformation* mediaInfo = [CastUtilities buildMediaInformation:contentId customData:customData contentType:contentType duration:duration streamType:streamType textTrackStyle:textTrackStyle metaData:metadata];
-    
+
     NSMutableArray *queueItems = [[NSMutableArray alloc] init];
-    
     for (NSDictionary *item in items) {
-        GCKMediaQueueItemBuilder *queueItemBuilder = [[GCKMediaQueueItemBuilder alloc] init];
-        queueItemBuilder.activeTrackIDs = item[@"activeTrackIds"];
-        queueItemBuilder.autoplay = [item[@"autoplay"] boolValue];
-        queueItemBuilder.customData = item[@"customData"];
-        NSDictionary *media = item[@"media"];
-        queueItemBuilder.startTime = [item[@"startTime"] doubleValue];
-        queueItemBuilder.preloadTime = [item[@"preloadTime"] doubleValue];
-        double duration = media[@"duration"] == [NSNull null] ? 0 : [media[@"duration"] doubleValue];
-        
-        GCKMediaInformation *mediaInformation = [CastUtilities buildMediaInformationForQueueItem:media[@"contentId"] customData:media[@"customData"] contentType:media[@"contentType"] duration:duration startTime:0 streamType:media[@"streamType"] metaData:media[@"metadata"]];
-        queueItemBuilder.mediaInformation = mediaInformation;
-        [queueItems addObject: [queueItemBuilder build]];
+        [queueItems addObject: [CastUtilities buildMediaQueueItem:item]];
     }
     [self.currentSession queueLoadItemsWithCommand:command queueItems:queueItems startIndex:startIndex repeatMode:repeatMode];
 }
@@ -266,7 +252,8 @@ int scansRunning = 0;
     double currentTime = [command.arguments[6] doubleValue];
     NSDictionary* metadata = command.arguments[7];
     NSDictionary* textTrackStyle = command.arguments[8];
-    GCKMediaInformation* mediaInfo = [CastUtilities buildMediaInformation:contentId customData:customData contentType:contentType duration:duration streamType:streamType textTrackStyle:textTrackStyle metaData:metadata];
+    GCKMediaInformation* mediaInfo = [CastUtilities buildMediaInformation:contentId customData:customData contentType:contentType duration:duration streamType:streamType startTime:currentTime metaData:metadata textTrackStyle:textTrackStyle];
+    
     [self.currentSession loadMediaWithCommand:command mediaInfo:mediaInfo autoPlay:autoplay currentTime:currentTime];
 }
 

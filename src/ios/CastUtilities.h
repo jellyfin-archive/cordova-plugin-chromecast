@@ -12,8 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CastUtilities : NSObject
 
-+ (GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType textTrackStyle:(NSDictionary *)textTrackStyle metaData:(NSDictionary *)metaData;
-
++(GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle;
++(GCKMediaQueueItem *)buildMediaQueueItem:(NSDictionary *)item;
 + (GCKMediaTextTrackStyle *)buildTextTrackStyle:(NSDictionary *)data;
 +(GCKMediaMetadata*)buildMediaMetadata:(NSDictionary*)data;
 +(NSArray<GCKImage*>*)getMetadataImages:(NSData*)imagesRaw;
@@ -41,7 +41,6 @@ NS_ASSUME_NONNULL_BEGIN
 +(GCKMediaMetadataType)parseMediaMetadataType:(NSInteger)metadataType;
 +(NSString*)convertDictToJsonString:(NSDictionary*)dict;
 + (NSDictionary*)createError:(NSString*)code message:(NSString*)message;
-+ (GCKMediaInformation *)buildMediaInformationForQueueItem:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration startTime:(double)startTime streamType:(NSString *)streamType  metaData:(NSDictionary *)metaData;
 @end
 
 NS_ASSUME_NONNULL_END

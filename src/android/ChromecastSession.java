@@ -73,7 +73,7 @@ public class ChromecastSession {
                     return;
                 }
                 session = castSession;
-                 client = session.getRemoteMediaClient();
+                client = session.getRemoteMediaClient();
                 if (client == null) {
                     return;
                 }
@@ -440,7 +440,6 @@ public class ChromecastSession {
         queueReloadCallback = null;
         // Set up the queue listener
         queue.registerCallback(new MediaQueue.Callback() {
-            private boolean isQueueFinishedLoading = false;
             private ArrayList<Integer> lookingForIndexes = new ArrayList<Integer>();
 
             private void queueItemsPutAt(int index, JSONObject item) {
@@ -451,24 +450,24 @@ public class ChromecastSession {
                     throw new RuntimeException("See above stack trace for error: " + e.getMessage());
                 }
             }
-            private void lookForItems(ArrayList<Integer> indexes) {
-                synchronized (queue) {
-                    // Merge the two arrays
-                    lookingForIndexes.addAll(indexes);
-                    checkItems();
-                }
-            }
-            private void checkItems() {
+            /**
+             * Works to get all items listed in lookingForIndexes.
+             * After all have been found, send out an update.
+             */
+            private void updateItems() {
                 MediaQueueItem item;
                 int index;
-                while (lookingForIndexes.size() > 0) {
-                    index = lookingForIndexes.get(0);
+                int i = 0;
+                while (i < lookingForIndexes.size()) {
+                    index = lookingForIndexes.get(i);
                     item = queue.getItemAtIndex(index, true);
+                    // If this returns null that means the item is not in the cache, which will
+                    // trigger itemsUpdatedAtIndexes, which will trigger updateItems again
                     if (item != null) {
                         queueItemsPutAt(index, ChromecastUtilities.createQueueItem(item, index));
                         lookingForIndexes.remove(0);
                     } else {
-                        break;
+                        i++;
                     }
                 }
                 if (lookingForIndexes.size() == 0) {
@@ -478,12 +477,9 @@ public class ChromecastSession {
             private void updateFinished() {
                 // Update the queueItems
                 ChromecastUtilities.setQueueItems(queueItems);
-                if (!isQueueFinishedLoading) {
-                    isQueueFinishedLoading = true;
-                    if (queueReloadCallback != null && queue.getItemCount() > 0) {
-                        queueReloadCallback.run();
-                        setQueueReloadCallback(null);
-                    }
+                if (queueReloadCallback != null && queue.getItemCount() > 0) {
+                    queueReloadCallback.run();
+                    setQueueReloadCallback(null);
                 }
                 clientListener.onMediaUpdate(createMediaObject());
             }
@@ -491,7 +487,6 @@ public class ChromecastSession {
             @Override
             public void itemsReloaded() {
                 synchronized (queue) {
-                    isQueueFinishedLoading = false;
                     int itemCount = queue.getItemCount();
                     if (queueReloadCallback == null) {
                         setQueueReloadCallback(new Runnable() {
@@ -502,39 +497,42 @@ public class ChromecastSession {
                             }
                         });
                     }
-                    // init the arrays
-                    ArrayList<Integer> findIndexes = new ArrayList<>();
+                    // Reset and init the arrays
+                    lookingForIndexes = new ArrayList<>();
                     queueItems = new JSONArray();
                     for (int i = 0; i < itemCount; i++) {
-                        findIndexes.add(i);
+                        lookingForIndexes.add(i);
                         queueItems.put(null);
                     }
                     // Start loading the items
-                    lookForItems(findIndexes);
+                    updateItems();
                 }
             }
             @Override
             public void itemsUpdatedAtIndexes(int[] ints) {
                 synchronized (queue) {
-                    ArrayList<Integer> unread = new ArrayList<>();
+                    // Ensure all updated indexes are in lookingForIndexes (but that there are no duplicates)
+                    int index;
                     for (int i : ints) {
-                        if (queue.getItemAtIndex(i) == null) {
-                            unread.add(i);
+                        index = lookingForIndexes.lastIndexOf(i);
+                        if (index == -1) {
+                            lookingForIndexes.add(i);
                         }
                     }
-                    lookForItems(unread);
+                    // Trigger the update
+                    updateItems();
                 }
             }
             @Override
             public void itemsInsertedInRange(int startIndex, int insertCount) {
                 synchronized (queue) {
-                    // Make room for inserts
+                    // Make room in queueItems for inserts
                     for (int i = 0; i < insertCount; i++) {
                         queueItems.put(new JSONObject());
                     }
                     // Shift existing entries
                     for (int i = startIndex; i < startIndex + insertCount; i++) {
-                        JSONObject movingObj = new JSONObject();
+                        JSONObject movingObj;
                         try {
                             movingObj = queueItems.getJSONObject(i);
                         } catch (JSONException e) {
@@ -544,8 +542,10 @@ public class ChromecastSession {
                                     + "\nSee above stack trace for error: " + e.getMessage());
                         }
                         queueItemsPutAt(i + insertCount, movingObj);
+                        // null the old location to make room for the new item
+                        queueItemsPutAt(i, null);
                     }
-                    // Shift the lookingForIndexes
+                    // Increment the affected indexes in lookingForIndexes by insertCount
                     int index;
                     for (int i = 0; i < lookingForIndexes.size(); i++) {
                         index = lookingForIndexes.get(i);
@@ -553,37 +553,25 @@ public class ChromecastSession {
                             lookingForIndexes.set(i, index + insertCount);
                         }
                     }
-                    // null new entries and build indexes array to update
-                    ArrayList<Integer> updateIndexes = new ArrayList<>();
-                    for (int i = startIndex; i < startIndex + insertCount; i++) {
-                        updateIndexes.add(startIndex + i);
-                        queueItemsPutAt(startIndex + i, null);
-                    }
-                    // Trigger the media update
-                    lookForItems(updateIndexes);
+                    // Trigger the update
+                    updateItems();
                 }
             }
             @Override
             public void itemsRemovedAtIndexes(int[] ints) {
                 synchronized (queue) {
-                    ArrayList<Integer> lookingForInts = new ArrayList<Integer>();
                     // Remove the required indexes
                     int index;
                     for (int i : ints) {
                         queueItems.remove(i);
                         // Also, update/remove any references to look for these indexes
-                        for (int j = 0; j < lookingForIndexes.size(); j++) {
-                            index = lookingForIndexes.get(j);
-                            if (index > i) {
-                                lookingForInts.add(j, index - 1);
-                            } else if (index < i) {
-                                lookingForInts.add(index);
-                            }
+                        index = lookingForIndexes.lastIndexOf(i);
+                        if (index >= 0) {
+                            lookingForIndexes.remove(index);
                         }
-                        lookingForIndexes = lookingForInts;
                     }
                     // Trigger the media update
-                    itemsUpdatedAtIndexes(new int[0]);
+                    updateItems();
                 }
             }
         });

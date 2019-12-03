@@ -213,7 +213,9 @@
                             assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
                             assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
                             assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
-                            assert.equal(media.playerState, chrome.cast.media.PlayerState.PLAYING);
+                            assert.oneOf(media.playerState, [
+                                chrome.cast.media.PlayerState.PLAYING,
+                                chrome.cast.media.PlayerState.BUFFERING]);
                             called(session_listener);
                         }, function receiverListener (availability) {
                             if (!finished) {

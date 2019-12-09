@@ -31,50 +31,61 @@ public final class Chromecast extends CordovaPlugin {
     private CallbackContext scanCallback;
     /** Client's event listener callback. */
     private CallbackContext eventCallback;
+    /** In the case that chromecast can't be used. **/
+    private String noChromecastError;
 
     @Override
     protected void pluginInitialize() {
         super.pluginInitialize();
 
-        this.connection = new ChromecastConnection(cordova.getActivity(), new ChromecastConnection.Listener() {
-            @Override
-            public void onSessionRejoin(JSONObject jsonSession) {
-                sendEvent("SESSION_LISTENER", new JSONArray().put(jsonSession));
-            }
-            @Override
-            public void onSessionUpdate(JSONObject jsonSession) {
-                sendEvent("SESSION_UPDATE", new JSONArray().put(jsonSession));
-            }
-            @Override
-            public void onSessionEnd(JSONObject jsonSession) {
-                onSessionUpdate(jsonSession);
-            }
-            @Override
-            public void onReceiverAvailableUpdate(boolean available) {
-                sendEvent("RECEIVER_LISTENER", new JSONArray().put(available));
-            }
-            @Override
-            public void onMediaLoaded(JSONObject jsonMedia) {
-                sendEvent("MEDIA_LOAD", new JSONArray().put(jsonMedia));
-            }
-            @Override
-            public void onMediaUpdate(JSONObject jsonMedia) {
-                JSONArray out = new JSONArray();
-                if (jsonMedia != null) {
-                    out.put(jsonMedia);
+        try {
+            this.connection = new ChromecastConnection(cordova.getActivity(), new ChromecastConnection.Listener() {
+                @Override
+                public void onSessionRejoin(JSONObject jsonSession) {
+                    sendEvent("SESSION_LISTENER", new JSONArray().put(jsonSession));
                 }
-                sendEvent("MEDIA_UPDATE", out);
-            }
-            @Override
-            public void onMessageReceived(CastDevice device, String namespace, String message) {
-                sendEvent("RECEIVER_MESSAGE", new JSONArray().put(namespace).put(message));
-            }
-        });
-        this.media = connection.getChromecastSession();
+                @Override
+                public void onSessionUpdate(JSONObject jsonSession) {
+                    sendEvent("SESSION_UPDATE", new JSONArray().put(jsonSession));
+                }
+                @Override
+                public void onSessionEnd(JSONObject jsonSession) {
+                    onSessionUpdate(jsonSession);
+                }
+                @Override
+                public void onReceiverAvailableUpdate(boolean available) {
+                    sendEvent("RECEIVER_LISTENER", new JSONArray().put(available));
+                }
+                @Override
+                public void onMediaLoaded(JSONObject jsonMedia) {
+                    sendEvent("MEDIA_LOAD", new JSONArray().put(jsonMedia));
+                }
+                @Override
+                public void onMediaUpdate(JSONObject jsonMedia) {
+                    JSONArray out = new JSONArray();
+                    if (jsonMedia != null) {
+                        out.put(jsonMedia);
+                    }
+                    sendEvent("MEDIA_UPDATE", out);
+                }
+                @Override
+                public void onMessageReceived(CastDevice device, String namespace, String message) {
+                    sendEvent("RECEIVER_MESSAGE", new JSONArray().put(namespace).put(message));
+                }
+            });
+            this.media = connection.getChromecastSession();
+        } catch (RuntimeException e) {
+            noChromecastError = "Could not initialize chromecast: " + e.getMessage();
+            e.printStackTrace();
+        }
     }
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext cbContext) throws JSONException {
+        if (noChromecastError != null) {
+            cbContext.error(ChromecastUtilities.createError("api_not_initialized", noChromecastError));
+            return true;
+        }
         try {
             Method[] list = this.getClass().getMethods();
             Method methodToExecute = null;

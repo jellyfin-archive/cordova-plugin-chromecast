@@ -168,7 +168,7 @@ Requirements:
 
 How to run the tests:
 * Follow [setup](#setup)
-* Change `config.xml`'s content tag to `<content src="plugins/cordova-plugin-chromecast-tests/www/tests.html" />`
+* Change `config.xml`'s content tag to `<content src="plugins/cordova-plugin-chromecast-tests/www/html/tests.html" />`
 
 Auto tests:
 * Run the app, select auto tests, let it do its thing
@@ -188,7 +188,7 @@ The auto tests also run in desktop chrome.
 They use the google provided cast_sender.js.  
 These are particularly useful for ensuring we are following the [official Google Cast API for Chrome](https://developers.google.com/cast/docs/reference/chrome#chrome.cast) correctly.  
 To run the tests:
-* run: `npm run host-chrome-tests [<port default=8432>]`
+* run: `npm run host-chrome-tests [port default=8432]`
 * Navigate to: `http://localhost:8432/chrome/tests_chrome.html`
 
 ## Contributing

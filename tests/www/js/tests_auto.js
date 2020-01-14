@@ -32,7 +32,7 @@
     describe('cordova-plugin-chromecast', function () {
         var imageUrl = 'https://ia800705.us.archive.org/1/items/GoodHousekeeping193810/Good%20Housekeeping%201938-10.jpg';
         var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
-        var audioUrl = 'https://ia600304.us.archive.org/20/items/OTRR_Gunsmoke_Singles/Gunsmoke_52-10-03_024_Cain.mp3';
+        var audioUrl = 'https://ia800306.us.archive.org/26/items/1939RadioNews/1939-10-24-CBS-Elmer-Davis-Reports-City-Of-Flint-Still-Missing.mp3';
 
         // callOrder constants that are re-used frequently
         var success = 'success';

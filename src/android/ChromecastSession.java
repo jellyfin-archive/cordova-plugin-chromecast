@@ -237,6 +237,7 @@ public class ChromecastSession {
                         requestingMedia = false;
                         if (!result.getStatus().isSuccess()) {
                             callback.error("session_error");
+                            setQueueReloadCallback(null);
                         }
                     }
                 });
@@ -437,7 +438,7 @@ public class ChromecastSession {
         MediaQueue queue = client.getMediaQueue();
         queueItems = null;
         ChromecastUtilities.setQueueItems(queueItems);
-        queueReloadCallback = null;
+        setQueueReloadCallback(null);
         // Set up the queue listener
         queue.registerCallback(new MediaQueue.Callback() {
             private ArrayList<Integer> lookingForIndexes = new ArrayList<Integer>();
@@ -488,7 +489,7 @@ public class ChromecastSession {
             public void itemsReloaded() {
                 synchronized (queue) {
                     int itemCount = queue.getItemCount();
-                    if (queueReloadCallback == null) {
+                    if (queueReloadCallback == null && itemCount != 0) {
                         setQueueReloadCallback(new Runnable() {
                             @Override
                             public void run() {

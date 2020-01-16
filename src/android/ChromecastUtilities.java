@@ -832,42 +832,33 @@ final class ChromecastUtilities {
         JSONObject textTrackStyle = new JSONObject();
 
         // Try to get the actual values
-
-        // Try to get the actual values
         try {
             contentId = mediaInfo.getString("contentId");
         } catch (JSONException e) {
-            e.printStackTrace();
         }
         try {
             customData = mediaInfo.getJSONObject("customData");
         } catch (JSONException e) {
-            e.printStackTrace();
         }
         try {
             contentType = mediaInfo.getString("contentType");
         } catch (JSONException e) {
-            e.printStackTrace();
         }
         try {
             duration = mediaInfo.getLong("duration");
         } catch (JSONException e) {
-            e.printStackTrace();
         }
         try {
             streamType = mediaInfo.getString("streamType");
         } catch (JSONException e) {
-            e.printStackTrace();
         }
         try {
             metadata = mediaInfo.getJSONObject("metadata");
         } catch (JSONException e) {
-            e.printStackTrace();
         }
         try {
             textTrackStyle = mediaInfo.getJSONObject("textTrackStyle");
         } catch (JSONException e) {
-            e.printStackTrace();
         }
 
         return createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);

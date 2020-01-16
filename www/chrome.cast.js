@@ -520,7 +520,6 @@ var _sessionListener;
 var _receiverListener;
 
 var _session;
-var _currentMedia = null;
 
 /**
  * Initializes the API. Note that either successCallback and errorCallback will be invoked once the API has finished initialization.
@@ -731,11 +730,10 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
     var mediaInfo = loadRequest.media;
     execute('loadMedia', mediaInfo.contentId, mediaInfo.customData || {}, mediaInfo.contentType, mediaInfo.duration || 0.0, mediaInfo.streamType, loadRequest.autoplay || false, loadRequest.currentTime || 0, mediaInfo.metadata || {}, mediaInfo.textTrackSytle || {}, function (err, obj) {
         if (!err) {
-            _currentMedia = new chrome.cast.media.Media(self.sessionId, obj.mediaSessionId);
-            _currentMedia._update(obj);
-            successCallback(_currentMedia);
+            self._loadNewMedia(obj);
+            successCallback(self._getMedia());
             // Also trigger the update notification
-            _currentMedia.emit('_mediaUpdated', _currentMedia.playerState !== 'IDLE');
+            self._emitMediaUpdated(obj.playerState !== 'IDLE');
         } else {
             handleError(err, errorCallback);
         }
@@ -763,11 +761,10 @@ chrome.cast.Session.prototype.queueLoad = function (loadRequest, successCallback
 
     execute('queueLoad', loadRequest, function (err, obj) {
         if (!err) {
-            _currentMedia = new chrome.cast.media.Media(self.sessionId, obj.mediaSessionId);
-            _currentMedia._update(obj);
-            successCallback(_currentMedia);
+            self._loadNewMedia(obj);
+            successCallback(self._getMedia());
             // Also trigger the update notification
-            _currentMedia.emit('_mediaUpdated', _currentMedia.playerState !== 'IDLE');
+            self._emitMediaUpdated(obj.playerState !== 'IDLE');
         } else {
             handleError(err, errorCallback);
         }
@@ -834,6 +831,9 @@ chrome.cast.Session.prototype.removeMediaListener = function (listener) {
     this.removeListener('_mediaListener', listener);
 };
 
+/**
+ * Updates the session with the new session information in obj.
+ */
 chrome.cast.Session.prototype._update = function (obj) {
     var i;
     for (var attr in obj) {
@@ -852,20 +852,10 @@ chrome.cast.Session.prototype._update = function (obj) {
     }
 
     // Empty media
-    this.media.splice(0, this.media.length);
     if (obj.media && obj.media.length > 0) {
-        // refill media
-        var m;
-        for (i = 0; i < obj.media.length; i++) {
-            m = new chrome.cast.media.Media();
-            m._update(obj.media[i]);
-            this.media.push(m);
-        }
-        if (_currentMedia) {
-            _currentMedia._update(obj.media[0]);
-        }
+        this._updateMedia(obj.media[0]);
     } else {
-        _currentMedia = null;
+        this._updateMedia(null);
     }
 
     // Empty appImages
@@ -877,6 +867,52 @@ chrome.cast.Session.prototype._update = function (obj) {
             this.appImages.push(new chrome.cast.Image(obj.appImages[i].url));
         }
     }
+};
+
+/**
+ * Updates the session's media array's 1st Media element with the
+ * new Media information in obj.
+ */
+chrome.cast.Session.prototype._updateMedia = function (obj) {
+    if (!obj) {
+        this.media.splice(0, _session.media.length);
+        return;
+    }
+
+    if (this.media.length === 0) {
+        // Create the base media object because one doesn't exist
+        this.media.push(new chrome.cast.media.Media(obj.sessionId, obj.mediaSessionId));
+    }
+    this._getMedia()._update(obj);
+};
+
+/**
+ * Empties the session's media array, and
+ * adds the new Media object described by media.
+ */
+chrome.cast.Session.prototype._loadNewMedia = function (media) {
+    // Invalidate and remove previous
+    this._getMedia().mediaSessionId = 'invalidated';
+    this._updateMedia(null);
+    // Add the new media object
+    this._updateMedia(media);
+};
+
+chrome.cast.Session.prototype._emitMediaUpdated = function (isAlive) {
+    var media = this._getMedia();
+    if (media) {
+        media.emit('_mediaUpdated', isAlive);
+    }
+};
+
+chrome.cast.Session.prototype._emitMediaListener = function () {
+    if (this._getMedia()) {
+        this.emit('_mediaListener', this._getMedia());
+    }
+};
+
+chrome.cast.Session.prototype._getMedia = function () {
+    return this.media[0];
 };
 
 /**
@@ -1033,8 +1069,10 @@ function mediaPreCheck (media) {
     if (err) {
         return err;
     }
-    if (!_currentMedia ||
-        media.sessionId !== _currentMedia.sessionId ||
+    var currentMedia = _session._getMedia();
+    if (!currentMedia ||
+        media.sessionId !== currentMedia.sessionId ||
+        media.mediaSessionId !== currentMedia.mediaSessionId ||
         media.playerState === chrome.cast.media.PlayerState.IDLE) {
         return new chrome.cast.Error(
             chrome.cast.ErrorCode.SESSION_ERROR, 'INVALID_MEDIA_SESSION_ID',
@@ -1205,8 +1243,8 @@ chrome.cast.media.Media.prototype.editTracksInfo = function (editTracksInfoReque
 chrome.cast.media.Media.prototype.queueJumpToItem = function (itemId, successCallback, errorCallback) {
     if (this._preCheck(errorCallback)) { return; }
     var isValidItemId = false;
-    for (var i = 0; i < _currentMedia.items.length; i++) {
-        if (_currentMedia.items[i].itemId === itemId) {
+    for (var i = 0; i < this.items.length; i++) {
+        if (this.items[i].itemId === itemId) {
             isValidItemId = true;
             break;
         }
@@ -1381,30 +1419,14 @@ execute('setup', function (err, args) {
             }
         },
         MEDIA_UPDATE: function (media) {
-            if (!media) {
-                _currentMedia = null;
-                if (_session) {
-                    _session.media = [];
-                }
-                return;
-            }
-            if (!_currentMedia) {
-                _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
-            } else {
-                _currentMedia._update(media);
-            }
-            if (_session) {
-                _session.media[0] = _currentMedia;
-            }
-            _currentMedia.emit('_mediaUpdated', !!media.isAlive);
+            _session._updateMedia(media);
+            _session._emitMediaUpdated(media ? !!media.isAlive : false);
         },
         MEDIA_LOAD: function (media) {
             if (_session) {
-                if (!_currentMedia) {
-                    _currentMedia = new chrome.cast.media.Media(media.sessionId, media.mediaSessionId);
-                }
-                _currentMedia._update(media);
-                _session.emit('_mediaListener', _currentMedia);
+                // Add new media
+                _session._loadNewMedia(media);
+                _session._emitMediaListener();
             }
         },
         SESSION_LISTENER: function (javaSession) {

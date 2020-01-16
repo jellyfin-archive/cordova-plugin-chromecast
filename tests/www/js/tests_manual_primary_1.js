@@ -186,7 +186,6 @@
                             { id: session_listener, repeats: false }
                     ], function () {
                         finished = true;
-                        utils.storeValue(cookieName, ++runningNum);
                         done();
                     });
                     var apiConfig = new chrome.cast.ApiConfig(
@@ -196,7 +195,7 @@
                             utils.testSessionProperties(sess);
                             // Ensure the media is maintained
                             assert.isAbove(sess.media.length, 0);
-                            var media = sess.media[0];
+                            media = sess.media[0];
                             assert.isUndefined(media.queueData);
                             assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
                             assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
@@ -233,6 +232,38 @@
                     // We must be looking to run a test further down the line
                     return done();
                 }
+            });
+            it('media.pause should pause playback', function (done) {
+                this.timeout(15000);
+                var testNum = 2;
+                assert.isAtLeast(runningNum, testNum, 'Should not be running this test yet');
+                if (runningNum > testNum) {
+                    // We must be looking to run a test further down the line
+                    return done();
+                }
+                // Else, run the test
+
+                var called = utils.waitForAllCalls([
+                    { id: success, repeats: false },
+                    { id: update, repeats: true }
+                ], function () {
+                    utils.storeValue(cookieName, ++runningNum);
+                    done();
+                });
+                media.addUpdateListener(function listener (isAlive) {
+                    assert.isTrue(isAlive);
+                    assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
+                    if (media.playerState === chrome.cast.media.PlayerState.PAUSED) {
+                        media.removeUpdateListener(listener);
+                        called(update);
+                    }
+                });
+                media.pause(null, function () {
+                    assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
+                    called(success);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
             });
             it('Restart app with active session, should receive session on initialize', function (done) {
                 var instructionNum = 3;
@@ -275,7 +306,7 @@
                                 utils.testSessionProperties(sess);
                                 // // Ensure the media is maintained
                                 assert.isAbove(sess.media.length, 0);
-                                var media = sess.media[0];
+                                media = sess.media[0];
                                 assert.isUndefined(media.queueData);
                                 assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
                                 assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
@@ -292,7 +323,7 @@
                                 assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
                                 assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
                                 assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
-                                assert.equal(media.playerState, chrome.cast.media.PlayerState.PLAYING);
+                                assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
                                 called(session_listener);
                             }, function receiverListener (availability) {
                                 if (!finished) {
@@ -310,6 +341,40 @@
                     // We must be looking to run a test further down the line
                     return done();
                 }
+            });
+            it('media.play should resume playback', function (done) {
+                this.timeout(15000);
+                var testNum = 4;
+                assert.isAtLeast(runningNum, testNum, 'Should not be running this test yet');
+                if (runningNum > testNum) {
+                    // We must be looking to run a test further down the line
+                    return done();
+                }
+                // Else, run the test
+
+                var called = utils.waitForAllCalls([
+                    { id: success, repeats: false },
+                    { id: update, repeats: true }
+                ], function () {
+                    utils.storeValue(cookieName, ++runningNum);
+                    done();
+                });
+                media.addUpdateListener(function listener (isAlive) {
+                    assert.isTrue(isAlive);
+                    assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
+                    if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                        media.removeUpdateListener(listener);
+                        called(update);
+                    }
+                });
+                media.play(null, function () {
+                    assert.oneOf(media.playerState, [
+                        chrome.cast.media.PlayerState.PLAYING,
+                        chrome.cast.media.PlayerState.BUFFERING]);
+                    called(success);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
             });
             it('Reload after app restart, should receive session on initialize', function (done) {
                 this.timeout(15000);
@@ -544,7 +609,6 @@
                             callback();
                         });
                 }
-
             });
             it('External loadMedia should trigger mediaListener', function (done) {
                 utils.setAction('On <u>secondary</u> click "<b>Load Media</b>"');

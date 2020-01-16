@@ -828,7 +828,8 @@
                             done();
                         });
                     });
-                    it('session.loadMedia should be able to load videos twice in a row and handle MovieMediaMetadata and TvShowMediaMetadata correctly', function (done) {
+                    it('session.loadMedia should be able to load videos twice in a row and handle MovieMediaMetadata and TvShowMediaMetadata correctly, and first media should be invalidated', function (done) {
+                        var firstMedia;
                         var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
                         mediaInfo.metadata = new chrome.cast.media.MovieMediaMetadata();
                         mediaInfo.metadata.title = 'DaTitle';
@@ -838,6 +839,7 @@
                         mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
                         session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                             media = m;
+                            firstMedia = m;
                             utils.testMediaProperties(media);
                             assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
                             assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
@@ -873,26 +875,38 @@
                             mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
                             session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                                 media = m;
-                                utils.testMediaProperties(media);
-                                assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                                assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                                assert.equal(media.media.metadata.originalAirDate, mediaInfo.metadata.originalAirDate);
-                                assert.equal(media.media.metadata.episode, mediaInfo.metadata.episode);
-                                assert.equal(media.media.metadata.season, mediaInfo.metadata.season);
-                                assert.equal(media.media.metadata.seriesTitle, mediaInfo.metadata.seriesTitle);
-                                assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                                assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
-                                assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
-                                media.addUpdateListener(function listener (isAlive) {
-                                    assert.isTrue(isAlive);
+                                // Test old media is invalid (should not equal new media and should give error on pause)
+                                assert.notEqual(firstMedia, m);
+                                firstMedia.pause(null, function () {
+                                    assert.fail('should not hit success');
+                                }, function (err) {
+                                    assert.isObject(err);
+                                    assert.equal(err.code, chrome.cast.ErrorCode.SESSION_ERROR);
+                                    assert.equal(err.description, 'INVALID_MEDIA_SESSION_ID');
+                                    assert.deepEqual(err.details, { reason: 'INVALID_MEDIA_SESSION_ID', type: 'INVALID_REQUEST' });
+
+                                    // Now verify the new media
                                     utils.testMediaProperties(media);
-                                    assert.oneOf(media.playerState, [
-                                        chrome.cast.media.PlayerState.PLAYING,
-                                        chrome.cast.media.PlayerState.BUFFERING]);
-                                    if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
-                                        media.removeUpdateListener(listener);
-                                        done();
-                                    }
+                                    assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                                    assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
+                                    assert.equal(media.media.metadata.originalAirDate, mediaInfo.metadata.originalAirDate);
+                                    assert.equal(media.media.metadata.episode, mediaInfo.metadata.episode);
+                                    assert.equal(media.media.metadata.season, mediaInfo.metadata.season);
+                                    assert.equal(media.media.metadata.seriesTitle, mediaInfo.metadata.seriesTitle);
+                                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
+                                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
+                                    media.addUpdateListener(function listener (isAlive) {
+                                        assert.isTrue(isAlive);
+                                        utils.testMediaProperties(media);
+                                        assert.oneOf(media.playerState, [
+                                            chrome.cast.media.PlayerState.PLAYING,
+                                            chrome.cast.media.PlayerState.BUFFERING]);
+                                        if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                                            media.removeUpdateListener(listener);
+                                            done();
+                                        }
+                                    });
                                 });
                             }, function (err) {
                                 assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);

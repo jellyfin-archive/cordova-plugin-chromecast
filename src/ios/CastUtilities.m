@@ -543,16 +543,16 @@
 }
 
 + (NSDictionary *)createQueueItem:(GCKMediaQueueItem *)queueItem {
-    return @{
-        @"activeTrackIds" : queueItem.activeTrackIDs ? queueItem.activeTrackIDs : @[],
-        @"autoplay": [NSNumber numberWithBool:queueItem.autoplay],
-        @"customData": (queueItem.customData == nil)? @{} : queueItem.customData,
-        @"itemId": @(queueItem.itemID),//[NSNumber numberWithInteger:queueItem.itemID],
-        @"orderId": @(queueItem.itemID),
-        @"media": queueItem.mediaInformation ? [CastUtilities createMediaInfoObject:queueItem.mediaInformation] : @"",
-        @"startTime": (queueItem.startTime == kGCKInvalidTimeInterval || queueItem.startTime != queueItem.startTime) ? @(0.0) : @(queueItem.startTime),
-        @"preloadTime": (queueItem.preloadTime == kGCKInvalidTimeInterval || queueItem.preloadTime != queueItem.preloadTime) ? @(0.0) : @(queueItem.preloadTime)
-    };
+    NSMutableDictionary* returnDict = [[NSMutableDictionary alloc] init];
+    returnDict[@"activeTrackIds"] = queueItem.activeTrackIDs ? queueItem.activeTrackIDs : @[];
+    returnDict[@"autoplay"] = [NSNumber numberWithBool:queueItem.autoplay];
+    returnDict[@"customData"] = (queueItem.customData == nil)? @{} : queueItem.customData;
+    returnDict[@"itemId"] = @(queueItem.itemID); //[NSNumber numberWithInteger:queueItem.itemID];
+    returnDict[@"orderId" ] = @(queueItem.itemID);
+    returnDict[@"media"] = queueItem.mediaInformation ? [CastUtilities createMediaInfoObject:queueItem.mediaInformation] : @"";
+    returnDict[@"startTime"] = (queueItem.startTime == kGCKInvalidTimeInterval || queueItem.startTime != queueItem.startTime) ? @(0.0) : @(queueItem.startTime);
+    returnDict[@"preloadTime"] = (queueItem.preloadTime == kGCKInvalidTimeInterval || queueItem.preloadTime != queueItem.preloadTime) ? @(0.0) : @(queueItem.preloadTime);
+    return returnDict;
 }
 
 + (NSDictionary*)createQueueData:(GCKMediaStatus*)mediaStatus {
@@ -573,16 +573,16 @@
         return @{};
     }
     
-    return @{
-        @"contentId": mediaInfo.contentID? mediaInfo.contentID : mediaInfo.contentURL.absoluteString,
-        @"contentType": mediaInfo.contentType,
-        @"customData": mediaInfo.customData == nil ? @{} : mediaInfo.customData,
-        @"duration": @(mediaInfo.streamDuration),
-        @"metadata" : [CastUtilities createMetadataObject:mediaInfo.metadata],
-        @"streamType": [CastUtilities getStreamType:mediaInfo.streamType],
-        @"tracks": [CastUtilities getMediaTracks:mediaInfo.mediaTracks],
-        @"textTrackSytle": [CastUtilities getTextTrackStyle:mediaInfo.textTrackStyle],
-    };
+    NSMutableDictionary* returnDict = [[NSMutableDictionary alloc] init];
+    returnDict[@"contentId"] = mediaInfo.contentID? mediaInfo.contentID : mediaInfo.contentURL.absoluteString;
+    returnDict[@"contentType"] = mediaInfo.contentType;
+    returnDict[@"customData"] = mediaInfo.customData == nil ? @{} : mediaInfo.customData;
+    returnDict[@"duration"] = @(mediaInfo.streamDuration);
+    returnDict[@"metadata" ] = [CastUtilities createMetadataObject:mediaInfo.metadata];
+    returnDict[@"streamType"] = [CastUtilities getStreamType:mediaInfo.streamType];
+    returnDict[@"tracks"] = [CastUtilities getMediaTracks:mediaInfo.mediaTracks];
+    returnDict[@"textTrackSytle"] = [CastUtilities getTextTrackStyle:mediaInfo.textTrackStyle];
+    return returnDict;
 }
 
 + (NSDictionary*)createMetadataObject:(GCKMediaMetadata*)metadata {

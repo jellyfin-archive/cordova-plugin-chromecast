@@ -146,6 +146,40 @@
             });
         });
 
+        it('chrome.cast.initialize should return and not get receiver available for appID == undefined', function (done) {
+            var apiConfig = new chrome.cast.ApiConfig(
+                new chrome.cast.SessionRequest(undefined),
+                function sessionListener (session) {
+                    assert.fail('should not receive a session (expecting error)');
+                },
+                function receiverListener (availability) {
+                    assert.equal(availability, 'unavailable');
+                }
+            );
+            chrome.cast.initialize(apiConfig, function () {
+                done();
+            }, function (err) {
+                assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+            });
+        });
+
+        it('chrome.cast.initialize should return and not get receiver available for appID == ""', function (done) {
+            var apiConfig = new chrome.cast.ApiConfig(
+                new chrome.cast.SessionRequest(''),
+                function sessionListener (session) {
+                    assert.fail('should not receive a session (expecting error)');
+                },
+                function receiverListener (availability) {
+                    assert.equal(availability, 'unavailable');
+                }
+            );
+            chrome.cast.initialize(apiConfig, function () {
+                done();
+            }, function (err) {
+                assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+            });
+        });
+
         describe('post initialize functions', function () {
             before('Must be initialized', function (done) {
                 var apiConfig = new chrome.cast.ApiConfig(new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID), function sessionListener (session) {

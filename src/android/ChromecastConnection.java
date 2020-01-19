@@ -82,10 +82,17 @@ public class ChromecastConnection {
     public void initialize(String applicationId, CallbackContext callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
-
-                // If the app Id changed, set it again
-                if (!applicationId.equals(appId)) {
-                    setAppId(applicationId);
+                // If the app Id changed
+                if (applicationId == null || !applicationId.equals(appId)) {
+                    // If app Id is valid
+                    if (isValidAppId(applicationId)) {
+                        // Set the new app Id
+                        setAppId(applicationId);
+                    } else {
+                        // Else, just return
+                        callback.success();
+                        return;
+                    }
                 }
 
                 // Tell the client that initialization was a success
@@ -137,6 +144,32 @@ public class ChromecastConnection {
         this.appId = applicationId;
         this.settings.edit().putString("appId", appId).apply();
         getContext().setReceiverApplicationId(appId);
+    }
+
+    /**
+     * Tests if an application receiver id is valid.
+     * @param applicationId - application receiver id
+     * @return true if valid
+     */
+    private boolean isValidAppId(String applicationId) {
+        try {
+            ScanCallback cb = new ScanCallback() {
+                @Override
+                void onRouteUpdate(List<RouteInfo> routes) { }
+            };
+            // This will throw if the applicationId is invalid
+            getMediaRouter().addCallback(new MediaRouteSelector.Builder()
+                            .addControlCategory(CastMediaControlIntent.categoryForCast(applicationId))
+                            .build(),
+                    cb,
+                    MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+            // If no exception we passed, so remove the callback
+            getMediaRouter().removeCallback(cb);
+            return true;
+        } catch (IllegalArgumentException e) {
+            // Don't set the appId if it is not a valid receiverApplicationID
+            return false;
+        }
     }
 
     /**

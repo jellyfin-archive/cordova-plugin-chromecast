@@ -31,12 +31,11 @@ int scansRunning = 0;
 }
 
 - (void)setAppId:(NSString*)applicationId {
-    if ([applicationId isEqualToString:appId]) {
+    // If the applicationId is invalid or has not changed, don't do anything
+    if ([self isValidAppId:applicationId] && [applicationId isEqualToString:appId]) {
         return;
     }
     appId = applicationId;
-    [NSUserDefaults.standardUserDefaults setObject:appId forKey:@"appId"];
-    [[NSUserDefaults standardUserDefaults] synchronize];
     
     GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc]
                                       initWithApplicationID:appId];
@@ -52,7 +51,17 @@ int scansRunning = 0;
     [GCKCastContext.sharedInstance.discoveryManager removeListener:self];
     [GCKCastContext.sharedInstance.discoveryManager addListener:self];
     
+    [GCKCastContext.sharedInstance.sessionManager removeListener: self];
+    [GCKCastContext.sharedInstance.sessionManager addListener: self];
+    
     self.currentSession = [self.currentSession initWithListener:self cordovaDelegate:self.commandDelegate];
+}
+
+- (BOOL)isValidAppId:(NSString*)applicationId {
+    if (applicationId == (id)[NSNull null] || applicationId.length == 0) {
+        return NO;
+    }
+    return YES;
 }
 
 // Override CDVPlugin onReset
@@ -69,7 +78,16 @@ int scansRunning = 0;
 }
 
 -(void) initialize:(CDVInvokedUrlCommand*)command {
-    [self setAppId:command.arguments[0]];
+    NSString* applicationId = command.arguments[0];
+    
+    // If the app id is invalid just send success and return
+    if (![self isValidAppId:applicationId]) {
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        return;
+    }
+
+    [self setAppId:applicationId];
 
     // Initialize success
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
@@ -356,6 +374,14 @@ int scansRunning = 0;
     BOOL receiverAvailable = [GCKCastContext.sharedInstance.discoveryManager deviceCount] > 0 ? YES : NO;
     [self sendReceiverAvailable:receiverAvailable];
     [self sendScanUpdate];
+}
+
+#pragma GCKSessionManagerListener
+
+- (void)sessionManager:(GCKSessionManager *)sessionManager didStartSession:(GCKSession *)session {
+    // Only save the app Id after a session for that appId has been successfully created/joined
+    [NSUserDefaults.standardUserDefaults setObject:appId forKey:@"appId"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
 #pragma CastSessionListener

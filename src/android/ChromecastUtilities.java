@@ -36,15 +36,12 @@ final class ChromecastUtilities {
     }
 
     /**
-     * Sets the queueItems to be returned with the media object.
-     * @param arr queueItems
+     * Sets the queueItems to be returned with the media object so they don't have to be calculated
+     * every time we need to send an update.
+     * @param items queueItems
      */
-    static void setQueueItems(JSONArray arr) {
-        // For some reason the desktop chrome behavior is that the queue items is never wiped out
-        // once they are in existence
-        if (arr == null || arr.length() > 0) {
-            queueItems = arr;
-        }
+    static void setQueueItems(JSONArray items) {
+        queueItems = items;
     }
 
     static String getMediaIdleReason(int idleReason) {

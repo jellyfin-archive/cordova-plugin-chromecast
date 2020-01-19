@@ -340,6 +340,8 @@
 
     utils.testQueueItems = function (items) {
         assert.isArray(items);
+        assert.isAtLeast(items.length, 2);
+        assert.isAtMost(items.length, 3);
         var item;
         for (var i = 0; i < items.length; i++) {
             item = items[i];

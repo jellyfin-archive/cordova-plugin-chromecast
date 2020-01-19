@@ -40,8 +40,8 @@ public class ChromecastSession {
     private RemoteMediaClient client;
     /** Indicates whether we are requesting media or not. **/
     private boolean requestingMedia = false;
-    /** Keeps track of the queueItems. **/
-    private JSONArray queueItems;
+    /** Handles and used to trigger queue updates. **/
+    private MediaQueueController mediaQueueCallback;
     /** Stores a callback that should be called when the queue is loaded. **/
     private Runnable queueReloadCallback;
     /** Stores a callback that should be called when the queue status is updated. **/
@@ -77,17 +77,12 @@ public class ChromecastSession {
                 if (client == null) {
                     return;
                 }
+                setupQueue();
                 client.registerCallback(new RemoteMediaClient.Callback() {
-                    private int prevState = MediaStatus.PLAYER_STATE_IDLE;
-                    private MediaInfo lastMedia;
+                    private Integer prevItemId;
                     @Override
                     public void onStatusUpdated() {
                         MediaStatus status = client.getMediaStatus();
-                        if (status != null
-                                && status.getPlayerState() != MediaStatus.PLAYER_STATE_IDLE
-                                && status.getPlayerState() != MediaStatus.PLAYER_STATE_LOADING) {
-                            lastMedia = client.getMediaInfo();
-                        }
                         if (requestingMedia
                                 || queueStatusUpdatedCallback != null
                                 || queueReloadCallback != null) {
@@ -95,15 +90,30 @@ public class ChromecastSession {
                         }
 
                         if (status != null) {
-                            int state = status.getPlayerState();
-                            if (lastMedia != null
-                                    && state != prevState
-                                    && state == MediaStatus.PLAYER_STATE_LOADING) {
+                            if (prevItemId == null) {
+                                prevItemId = status.getCurrentItemId();
+                            }
+                            boolean shouldSkipUpdate = false;
+                            if (status.getPlayerState() == MediaStatus.PLAYER_STATE_LOADING) {
                                 // It appears the queue has advanced to the next item
                                 // So send an update to indicate the previous has finished
                                 clientListener.onMediaUpdate(createMediaObject(MediaStatus.IDLE_REASON_FINISHED));
+                                shouldSkipUpdate = true;
                             }
-                            prevState = status.getPlayerState();
+                            if (prevItemId != null && prevItemId != status.getCurrentItemId() && mediaQueueCallback.getCurrentItemIndex() != -1) {
+                                // The currentItem has changed, so update the current queue items
+                                setQueueReloadCallback(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        prevItemId = status.getCurrentItemId();
+                                    }
+                                });
+                                mediaQueueCallback.refreshQueueItems();
+                                shouldSkipUpdate = true;
+                            }
+                            if (shouldSkipUpdate) {
+                                return;
+                            }
                         }
                         // Send update
                         clientListener.onMediaUpdate(createMediaObject());
@@ -143,7 +153,6 @@ public class ChromecastSession {
                         clientListener.onSessionUpdate(createSessionObject());
                     }
                 });
-                setupQueue();
             }
         });
     }
@@ -434,149 +443,138 @@ public class ChromecastSession {
     /**
      * Sets up the objects and listeners required for queue functionality.
      */
-    public void setupQueue() {
+    private void setupQueue() {
         MediaQueue queue = client.getMediaQueue();
-        queueItems = null;
-        ChromecastUtilities.setQueueItems(queueItems);
         setQueueReloadCallback(null);
-        // Set up the queue listener
-        queue.registerCallback(new MediaQueue.Callback() {
-            private ArrayList<Integer> lookingForIndexes = new ArrayList<Integer>();
-
-            private void queueItemsPutAt(int index, JSONObject item) {
-                try {
-                    queueItems.put(index, item);
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                    throw new RuntimeException("See above stack trace for error: " + e.getMessage());
-                }
-            }
-            /**
-             * Works to get all items listed in lookingForIndexes.
-             * After all have been found, send out an update.
-             */
-            private void updateItems() {
-                MediaQueueItem item;
-                int index;
-                int i = 0;
-                while (i < lookingForIndexes.size()) {
-                    index = lookingForIndexes.get(i);
-                    item = queue.getItemAtIndex(index, true);
-                    // If this returns null that means the item is not in the cache, which will
-                    // trigger itemsUpdatedAtIndexes, which will trigger updateItems again
-                    if (item != null) {
-                        queueItemsPutAt(index, ChromecastUtilities.createQueueItem(item, index));
-                        lookingForIndexes.remove(0);
-                    } else {
-                        i++;
-                    }
-                }
-                if (lookingForIndexes.size() == 0) {
-                    updateFinished();
-                }
-            }
-            private void updateFinished() {
-                // Update the queueItems
-                ChromecastUtilities.setQueueItems(queueItems);
-                if (queueReloadCallback != null && queue.getItemCount() > 0) {
-                    queueReloadCallback.run();
-                    setQueueReloadCallback(null);
-                }
-                clientListener.onMediaUpdate(createMediaObject());
-            }
-
-            @Override
-            public void itemsReloaded() {
-                synchronized (queue) {
-                    int itemCount = queue.getItemCount();
-                    if (queueReloadCallback == null && itemCount != 0) {
-                        setQueueReloadCallback(new Runnable() {
-                            @Override
-                            public void run() {
-                                // This was externally loaded
-                                clientListener.onMediaLoaded(createMediaObject());
-                            }
-                        });
-                    }
-                    // Reset and init the arrays
-                    lookingForIndexes = new ArrayList<>();
-                    queueItems = new JSONArray();
-                    for (int i = 0; i < itemCount; i++) {
-                        lookingForIndexes.add(i);
-                        queueItems.put(null);
-                    }
-                    // Start loading the items
-                    updateItems();
-                }
-            }
-            @Override
-            public void itemsUpdatedAtIndexes(int[] ints) {
-                synchronized (queue) {
-                    // Ensure all updated indexes are in lookingForIndexes (but that there are no duplicates)
-                    int index;
-                    for (int i : ints) {
-                        index = lookingForIndexes.lastIndexOf(i);
-                        if (index == -1) {
-                            lookingForIndexes.add(i);
-                        }
-                    }
-                    // Trigger the update
-                    updateItems();
-                }
-            }
-            @Override
-            public void itemsInsertedInRange(int startIndex, int insertCount) {
-                synchronized (queue) {
-                    // Make room in queueItems for inserts
-                    for (int i = 0; i < insertCount; i++) {
-                        queueItems.put(new JSONObject());
-                    }
-                    // Shift existing entries
-                    for (int i = startIndex; i < startIndex + insertCount; i++) {
-                        JSONObject movingObj;
-                        try {
-                            movingObj = queueItems.getJSONObject(i);
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            throw new RuntimeException("Expected queueItems to contain index: "
-                                    + i + " queueItems.length: " + queueItems.length()
-                                    + "\nSee above stack trace for error: " + e.getMessage());
-                        }
-                        queueItemsPutAt(i + insertCount, movingObj);
-                        // null the old location to make room for the new item
-                        queueItemsPutAt(i, null);
-                    }
-                    // Increment the affected indexes in lookingForIndexes by insertCount
-                    int index;
-                    for (int i = 0; i < lookingForIndexes.size(); i++) {
-                        index = lookingForIndexes.get(i);
-                        if (index >= startIndex) {
-                            lookingForIndexes.set(i, index + insertCount);
-                        }
-                    }
-                    // Trigger the update
-                    updateItems();
-                }
-            }
-            @Override
-            public void itemsRemovedAtIndexes(int[] ints) {
-                synchronized (queue) {
-                    // Remove the required indexes
-                    int index;
-                    for (int i : ints) {
-                        queueItems.remove(i);
-                        // Also, update/remove any references to look for these indexes
-                        index = lookingForIndexes.lastIndexOf(i);
-                        if (index >= 0) {
-                            lookingForIndexes.remove(index);
-                        }
-                    }
-                    // Trigger the media update
-                    updateItems();
-                }
-            }
-        });
+        mediaQueueCallback = new MediaQueueController(queue);
+        queue.registerCallback(mediaQueueCallback);
     }
+
+    private class MediaQueueController extends MediaQueue.Callback {
+        /** The MediaQueue object. **/
+        private MediaQueue queue;
+        /** Contains the item indexes that we need before sending out an update. **/
+        private ArrayList<Integer> lookingForIndexes = new ArrayList<Integer>();
+        /** Keeps track of the queueItems. **/
+        private JSONArray queueItems;
+
+        MediaQueueController(MediaQueue q) {
+            this.queue = q;
+        }
+
+        /**
+         * Given i == currentItemId, get items [i-1, i, i+1].
+         * Note: Exclude items out of range, eg. < 0 and > queue.length.
+         * Therefore, it is always 2-3 items (matches chrome desktop implementation).
+         */
+        void refreshQueueItems() {
+            int len = queue.getItemIds().length;
+            int index = getCurrentItemIndex();
+
+            // Reset lookingForIndexes
+            lookingForIndexes = new ArrayList<>();
+
+            // Only add indexes to look for it the currentItemIndex is valid
+            if (index != -1) {
+                // init i-1, i, i+1 (exclude items out of range), so always 2-3 items
+                for (int i = index - 1; i <= index + 1; i++) {
+                    if (i >= 0 && i < len) {
+                        lookingForIndexes.add(i);
+                    }
+                }
+            }
+            checkLookingForIndexes();
+        }
+        private int getCurrentItemIndex() {
+            return queue.indexOfItemWithId(client.getMediaStatus().getCurrentItemId());
+        }
+        /**
+         * Works to get all items listed in lookingForIndexes.
+         * After all have been found, send out an update.
+         */
+        private void checkLookingForIndexes() {
+            // reset queueItems
+            queueItems = new JSONArray();
+
+            // Can we get all items in lookingForIndex?
+            MediaQueueItem item;
+            boolean foundAllIndexes = true;
+            for (int index : lookingForIndexes) {
+                item = queue.getItemAtIndex(index, true);
+                // If this returns null that means the item is not in the cache, which will
+                // trigger itemsUpdatedAtIndexes, which will trigger checkLookingForIndexes again
+                if (item != null) {
+                    queueItems.put(ChromecastUtilities.createQueueItem(item, index));
+                } else {
+                    foundAllIndexes = false;
+                }
+            }
+            if (foundAllIndexes) {
+                lookingForIndexes.clear();
+                updateFinished();
+            }
+        }
+        private void updateFinished() {
+            // Update the queueItems
+            ChromecastUtilities.setQueueItems(queueItems);
+            if (queueReloadCallback != null && queue.getItemCount() > 0) {
+                queueReloadCallback.run();
+                setQueueReloadCallback(null);
+            }
+            clientListener.onMediaUpdate(createMediaObject());
+        }
+
+        @Override
+        public void itemsReloaded() {
+            synchronized (queue) {
+                int itemCount = queue.getItemCount();
+                if (itemCount == 0) {
+                    return;
+                }
+                if (queueReloadCallback == null) {
+                    setQueueReloadCallback(new Runnable() {
+                        @Override
+                        public void run() {
+                            // This was externally loaded
+                            clientListener.onMediaLoaded(createMediaObject());
+                        }
+                    });
+                }
+                refreshQueueItems();
+            }
+        }
+        @Override
+        public void itemsUpdatedAtIndexes(int[] ints) {
+            synchronized (queue) {
+                // Check if we were looking for all the ints
+                for (int i = 0; i < ints.length; i++) {
+                    // If we weren't looking for an ints, that means it was changed
+                    // (rather than just retrieved from the cache)
+                    if (lookingForIndexes.indexOf(ints[i]) == -1) {
+                        // So refresh the queue (the changed item might not be part
+                        // of the items we want to output anyways, so let refresh
+                        // handle it.
+                        refreshQueueItems();
+                        return;
+                    }
+                }
+                // Else, we got new items from the cache
+                checkLookingForIndexes();
+            }
+        }
+        @Override
+        public void itemsInsertedInRange(int startIndex, int insertCount) {
+            synchronized (queue) {
+                refreshQueueItems();
+            }
+        }
+        @Override
+        public void itemsRemovedAtIndexes(int[] ints) {
+            synchronized (queue) {
+                refreshQueueItems();
+            }
+        }
+    };
 
     /**
      * Loads a queue of media to the Chromecast.

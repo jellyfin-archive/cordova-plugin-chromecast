@@ -296,12 +296,14 @@
     };
 
     utils.testMediaInfoProperties = function (mediaInfo) {
-        assert.isObject(mediaInfo);
-        assert.isString(mediaInfo.contentId);
-        assert.isString(mediaInfo.contentType);
+        // queue items contain a subset of identical properties
+        utils.testQueueItemMediaInfoProperties(mediaInfo);
+        // properties that are exclusive (or mandatory) to media.media
         assert.isNumber(mediaInfo.duration);
-        utils.testMediaMetadata(mediaInfo.metadata);
-        assert.isString(mediaInfo.streamType);
+        if (mediaInfo.contentType.toLowerCase().indexOf('video') > -1
+        || mediaInfo.contentType.toLowerCase().indexOf('audio') > -1) {
+            assert.isAbove(mediaInfo.duration, 0);
+        }
         assert.isArray(mediaInfo.tracks);
     };
 
@@ -356,6 +358,10 @@
         assert.isString(mediaInfo.contentType);
         if (mediaInfo.duration) {
             assert.isNumber(mediaInfo.duration);
+            if (mediaInfo.contentType.toLowerCase().indexOf('video') > -1
+                || mediaInfo.contentType.toLowerCase().indexOf('audio') > -1) {
+                assert.isAbove(mediaInfo.duration, 0);
+            }
         }
         utils.testMediaMetadata(mediaInfo.metadata);
         assert.isString(mediaInfo.streamType);

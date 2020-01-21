@@ -337,7 +337,9 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
         // ios randomly resumes current session, don't trigger SESSION_LISTENER in this case
         return;
     }
-    [self setSession:session];
+    // Do all the setup/configuration required when we get a session
+    [self sessionManager:sessionManager didStartCastSession:session];
+    // trigger the SESSION_LISTENER event
     [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session]];
 }
 

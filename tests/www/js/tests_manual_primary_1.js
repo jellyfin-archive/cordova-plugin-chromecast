@@ -296,7 +296,6 @@
                             { id: session_listener, repeats: false }
                     ], function () {
                         finished = true;
-                        utils.storeValue(cookieName, ++runningNum);
                         done();
                     });
                     var apiConfig = new chrome.cast.ApiConfig(

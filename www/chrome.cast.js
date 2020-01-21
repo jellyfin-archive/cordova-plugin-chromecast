@@ -1414,6 +1414,9 @@ execute('setup', function (err, args) {
             }
         },
         MEDIA_UPDATE: function (media) {
+            if (!_session) {
+                return;
+            }
             _session._updateMedia(media);
             _session._emitMediaUpdated(media ? !!media.isAlive : false);
         },

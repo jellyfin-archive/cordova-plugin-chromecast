@@ -203,13 +203,12 @@
      * call.
      */
     utils.waitForAllCalls = function (calls, callback) {
+        var called = [];
         var timeout = setTimeout(function () {
             console.error('Did not receive all expected calls before 10s.\n'
-            + 'Call state (look for "called" parameter): ');
-            console.error(calls);
+            + '\n Expected calls: ' + JSON.stringify(calls)
+            + '\n Received calls: ' + JSON.stringify(called));
         }, 10000);
-
-        var called = [];
 
         return function (callId) {
             var callDetails;

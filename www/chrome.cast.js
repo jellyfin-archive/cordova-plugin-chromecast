@@ -599,7 +599,6 @@ chrome.cast.Session = function Session (sessionId, appId, displayName, appImages
 chrome.cast.Session.prototype = Object.create(EventEmitter.prototype);
 
 function sessionPreCheck (sessionId) {
-    // if (this.status !== chrome.cast.SessionStatus.CONNECTED) {
     if (!_session || _session.status !== chrome.cast.SessionStatus.CONNECTED) {
         return new chrome.cast.Error(
             chrome.cast.ErrorCode.INVALID_PARAMETER, 'No active session');
@@ -608,16 +607,14 @@ function sessionPreCheck (sessionId) {
         return new chrome.cast.Error(
             chrome.cast.ErrorCode.INVALID_PARAMETER, 'Unknown session ID');
     }
-    return false;
 }
 
 chrome.cast.Session.prototype._preCheck = function (errorCallback) {
     var err = sessionPreCheck(this.sessionId);
     if (err) {
         errorCallback && errorCallback(err);
-        return true;
+        return err;
     }
-    return err;
 };
 
 /**
@@ -1078,16 +1075,14 @@ function mediaPreCheck (media) {
             chrome.cast.ErrorCode.SESSION_ERROR, 'INVALID_MEDIA_SESSION_ID',
             { reason: 'INVALID_MEDIA_SESSION_ID', type: 'INVALID_REQUEST' });
     }
-    return false;
 }
 
 chrome.cast.media.Media.prototype._preCheck = function (errorCallback) {
     var err = mediaPreCheck(this);
     if (err) {
         errorCallback && errorCallback(err);
-        return true;
+        return err;
     }
-    return err;
 };
 
 /**

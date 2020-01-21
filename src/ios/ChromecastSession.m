@@ -350,15 +350,16 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
     // The following code block is dedicated to catching when the next video in a queue loads so that we can let the user know the video ended.
 
-    // If last media is part of the same/current mediaSession
-    // and it is a different media itemId than the current one
-    // and there is no idle reason (if there is a reason, that means the status update will probably handle the situation correctly anyways)
+    
+    // If lastMedia and current media are part of the same mediaSession
+    // AND if the currentItemID has changed
+    // AND if there is no idle reason, that means that video just moved onto to the next video naturally (eg. next video in a queue).  We have to handle this case manually. Other ways resulting in currentItemID changing are handled without additional assistance
     if (lastMedia != nil
         && mediaStatus.mediaSessionID == [lastMedia gck_integerForKey:@"mediaSessionId" withDefaultValue:0]
         && mediaStatus.currentItemID != [lastMedia gck_integerForKey:@"currentItemId" withDefaultValue:-1]
         && mediaStatus.idleReason == GCKMediaPlayerIdleReasonNone) {
         
-        // send out out a media update indicated the previous media has finished
+        // send out a media update to indicate that the previous media has finished
         NSMutableDictionary* lastMediaMutable = [lastMedia mutableCopy];
         lastMediaMutable[@"playerState"] = @"IDLE";
         if (isQueueJumping) {
@@ -373,12 +374,17 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     
     // update the last media now
     lastMedia = [CastUtilities createMediaObject:currentSession];
-    [self.sessionListener onMediaUpdated:lastMedia];
+    // Only send updates if we aren't loading media
+    if (!loadMediaCallback) {
+        [self.sessionListener onMediaUpdated:lastMedia];
+    }
 }
 
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didReceiveQueueItemIDs:(NSArray<NSNumber *> *)queueItemIDs {
     // New media has been loaded, wipe any lastMedia reference
     lastMedia = nil;
+    // Save the queueItemIDs in cast utilities so it can be used when building queue items
+    [CastUtilities setQueueItemIDs:queueItemIDs];
     
     // If we do not have a loadMediaCallback that means this was an external media load
     if (!loadMediaCallback) {

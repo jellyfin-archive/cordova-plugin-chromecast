@@ -19,6 +19,7 @@ NS_ASSUME_NONNULL_BEGIN
 +(NSArray<GCKImage*>*)getMetadataImages:(NSData*)imagesRaw;
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session;
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session status:(NSString*)status;
++(void)setQueueItemIDs:(NSArray<NSNumber *> *)queueItemIDs;
 +(NSDictionary*)createMediaObject:(GCKCastSession*)session;
 +(NSDictionary*)createMediaInfoObject:(GCKMediaInformation*)mediaInfo;
 +(NSArray*)createDeviceArray;

@@ -9,6 +9,8 @@
 
 @implementation CastUtilities
 
+NSDictionary* queueOrderIDsByItemId = nil;
+
 + (GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle {
     NSURL* url = [NSURL URLWithString:contentUrl];
     
@@ -498,6 +500,14 @@
     return sessionOut;
 }
 
+// Sets the queueOrderIDsByItemId
++ (void) setQueueItemIDs:(NSArray<NSNumber *> *)queueItemIDs {
+    queueOrderIDsByItemId = [[NSMutableDictionary alloc] init];
+    for (int i = 0; i < [queueItemIDs count]; i++) {
+        [queueOrderIDsByItemId setValue:[NSNumber numberWithInt:i] forKey:[NSString stringWithFormat:@"%@", queueItemIDs[i]]];
+    }
+}
+
 + (NSDictionary *)createMediaObject:(GCKCastSession *)session {
     if (session.remoteMediaClient == nil) {
         return @{};
@@ -509,8 +519,12 @@
     }
     
     NSMutableArray *qItems = [[NSMutableArray alloc] init];
+    GCKMediaQueueItem* item;
+    int orderID;
     for (int i=0; i<mediaStatus.queueItemCount; i++) {
-        NSDictionary *qItem = [CastUtilities createQueueItem: [mediaStatus queueItemAtIndex:i]];
+        item = [mediaStatus queueItemAtIndex:i];
+        orderID = [[queueOrderIDsByItemId valueForKey:[NSString stringWithFormat:@"%d", item.itemID]] integerValue];
+        NSDictionary *qItem = [CastUtilities createQueueItem: item orderID:orderID];
         [qItems addObject:qItem];
     }
     
@@ -542,13 +556,13 @@
     return [NSDictionary dictionaryWithDictionary:mediaOut];
 }
 
-+ (NSDictionary *)createQueueItem:(GCKMediaQueueItem *)queueItem {
++ (NSDictionary *)createQueueItem:(GCKMediaQueueItem *)queueItem orderID:(int)orderID {
     NSMutableDictionary* returnDict = [[NSMutableDictionary alloc] init];
     returnDict[@"activeTrackIds"] = queueItem.activeTrackIDs ? queueItem.activeTrackIDs : @[];
     returnDict[@"autoplay"] = [NSNumber numberWithBool:queueItem.autoplay];
     returnDict[@"customData"] = (queueItem.customData == nil)? @{} : queueItem.customData;
     returnDict[@"itemId"] = @(queueItem.itemID); //[NSNumber numberWithInteger:queueItem.itemID];
-    returnDict[@"orderId" ] = @(queueItem.itemID);
+    returnDict[@"orderId" ] = @(orderID);
     returnDict[@"media"] = queueItem.mediaInformation ? [CastUtilities createMediaInfoObject:queueItem.mediaInformation] : @"";
     returnDict[@"startTime"] = (queueItem.startTime == kGCKInvalidTimeInterval || queueItem.startTime != queueItem.startTime) ? @(0.0) : @(queueItem.startTime);
     returnDict[@"preloadTime"] = (queueItem.preloadTime == kGCKInvalidTimeInterval || queueItem.preloadTime != queueItem.preloadTime) ? @(0.0) : @(queueItem.preloadTime);

@@ -1163,10 +1163,12 @@
                             var i = utils.getCurrentItemIndex(media);
 
                             assertAudioItem(media.items[i - 1].media);
+                            assert.equal(media.items[i - 1].orderId, request.startIndex - 1);
                             assert.isTrue(media.items[i - 1].autoplay);
                             assert.equal(media.items[i - 1].startTime, startTime * 2);
 
                             assertAudioItem(media.items[i].media);
+                            assert.equal(media.items[i].orderId, request.startIndex);
                             assert.isTrue(media.items[i].autoplay);
                             assert.equal(media.items[i].startTime, startTime * 2);
 
@@ -1220,10 +1222,12 @@
                                 var i = utils.getCurrentItemIndex(media);
 
                                 assertVideoItem(media.items[i].media);
+                                assert.equal(media.items[i].orderId, 0);
                                 assert.isTrue(media.items[i].autoplay);
                                 assert.equal(media.items[i].startTime, startTime);
 
                                 assertVideoItem(media.items[i + 1].media);
+                                assert.equal(media.items[i + 1].orderId, 1);
                                 assert.isTrue(media.items[i + 1].autoplay);
                                 assert.equal(media.items[i + 1].startTime, startTime);
 
@@ -1296,14 +1300,17 @@
                                 var i = utils.getCurrentItemIndex(media);
 
                                 assertVideoItem(media.items[i - 1].media);
+                                assert.equal(media.items[i - 1].orderId, 0);
                                 assert.isTrue(media.items[i - 1].autoplay);
                                 assert.equal(media.items[i - 1].startTime, startTime);
 
                                 assertVideoItem(media.items[i].media);
+                                assert.equal(media.items[i].orderId, 1);
                                 assert.isTrue(media.items[i].autoplay);
                                 assert.equal(media.items[i].startTime, startTime);
 
                                 assertAudioItem(media.items[i + 1].media);
+                                assert.equal(media.items[i + 1].orderId, 2);
                                 assert.isTrue(media.items[i + 1].autoplay);
                                 assert.equal(media.items[i + 1].startTime, startTime * 2);
                                 calledOrder(newMedia);

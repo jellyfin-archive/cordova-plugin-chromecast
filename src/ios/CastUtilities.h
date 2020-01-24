@@ -41,7 +41,8 @@ NS_ASSUME_NONNULL_BEGIN
 +(GCKMediaResumeState)parseResumeState:(NSString*)resumeState;
 +(GCKMediaMetadataType)parseMediaMetadataType:(NSInteger)metadataType;
 +(NSString*)convertDictToJsonString:(NSDictionary*)dict;
-+ (NSDictionary*)createError:(NSString*)code message:(NSString*)message;
++(NSDictionary*)createError:(NSString*)code message:(NSString*)message;
++(void)retry:(BOOL(^)(void))condition forTries:(int)remainTries callback:(void(^)(BOOL))callback;
 @end
 
 NS_ASSUME_NONNULL_END

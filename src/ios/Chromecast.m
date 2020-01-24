@@ -102,7 +102,7 @@ int scansRunning = 0;
 - (void)findAvailableReceiver:(void(^)(void))successCallback {
     // Ensure the scan is running
     [self startRouteScan];
-    [self retry:^BOOL{
+    [CastUtilities retry:^BOOL{
         // Did we find any devices?
         if ([GCKCastContext.sharedInstance.discoveryManager hasDiscoveredDevices]) {
             [self sendReceiverAvailable:YES];
@@ -326,7 +326,7 @@ int scansRunning = 0;
     // Ensure the scan is running
     [self startRouteScan];
     
-    [self retry:^BOOL{
+    [CastUtilities retry:^BOOL{
         GCKDevice* device = [[GCKCastContext sharedInstance].discoveryManager deviceWithUniqueID:routeID];
         if (device != nil) {
             [self.currentSession joinDevice:device cdvCommand:command];
@@ -339,28 +339,6 @@ int scansRunning = 0;
         }
         [self stopRouteScan];
     }];
-}
-
-// retries every 1 second forTries times
-// pass -1 to forTries to try infinitely
-- (void)retry:(BOOL(^)(void))condition forTries:(int)remainTries callback:(void(^)(BOOL))callback {
-    BOOL passed = condition();
-    if (passed || remainTries == 0) {
-        callback(passed);
-        return;
-    }
-
-    remainTries--;
-    
-    // check again in 1 second
-    NSMethodSignature *signature  = [self methodSignatureForSelector:@selector(retry:forTries:callback:)];
-    NSInvocation      *invocation = [NSInvocation invocationWithMethodSignature:signature];
-    [invocation setTarget:self];
-    [invocation setSelector:_cmd];
-    [invocation setArgument:&condition atIndex:2];
-    [invocation setArgument:&remainTries atIndex:3];
-    [invocation setArgument:&callback atIndex:4];
-    [NSTimer scheduledTimerWithTimeInterval:1 invocation:invocation repeats:NO];
 }
 
 #pragma GCKLoggerDelegate

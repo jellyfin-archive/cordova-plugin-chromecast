@@ -13,6 +13,7 @@ GCKCastSession* currentSession;
 CDVInvokedUrlCommand* joinSessionCommand;
 NSDictionary* lastMedia = nil;
 void (^loadMediaCallback)(NSString*) = nil;
+BOOL isResumingSession = NO;
 BOOL isQueueJumping = NO;
 BOOL isDisconnecting = NO;
 NSMutableArray<void (^)(void)>* endSessionCallbacks;
@@ -40,10 +41,16 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)tryRejoin {
+    if (currentSession == nil) {
+        // if the currentSession is null we should handle any potential resuming in didResumeCastSession
+        return;
+    }
     // Make sure we are looking at the actual current session, sometimes it doesn't get removed
     [self setSession:self.sessionManager.currentCastSession];
-    if (currentSession != nil) {
-            [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:currentSession]];
+    // Only if the session exists, is connected, and we are not already resuming the session
+    if (currentSession != nil && currentSession.connectionState != GCKConnectionStateDisconnected && isResumingSession == NO) {
+        // Trigger the SESSION_LISTENER
+        [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:currentSession]];
     }
 }
 
@@ -337,21 +344,34 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
         // ios randomly resumes current session, don't trigger SESSION_LISTENER in this case
         return;
     }
+    
+    isResumingSession = YES;
     // Do all the setup/configuration required when we get a session
     [self sessionManager:sessionManager didStartCastSession:session];
-    // trigger the SESSION_LISTENER event
-    [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session]];
+    
+    // Delay returning the resumed session, so that ios has a chance to get any media first
+    // If we return immediately, the session may be sent out without media even though there should be
+    // The case where a session is resumed that has no media will have to wait the full 2s before being sent
+    [CastUtilities retry:^BOOL{
+        // Did we find any media?
+        if (session.remoteMediaClient.mediaStatus != nil) {
+            // No need to wait any longer
+            return YES;
+        }
+        return NO;
+    } forTries:2 callback:^(BOOL passed){
+        // trigger the SESSION_LISTENER event
+        [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session]];
+        // We are done resuming
+        isResumingSession = NO;
+    }];
+    
 }
 
 #pragma -- GCKRemoteMediaClientListener
 
-- (void)remoteMediaClient:(GCKRemoteMediaClient *)client didStartMediaSessionWithID:(NSInteger)sessionID {
-    // This is not triggered by external loads, so use didReceiveQueueItemIDs instead
-}
-
 - (void)remoteMediaClient:(GCKRemoteMediaClient *)client didUpdateMediaStatus:(GCKMediaStatus *)mediaStatus {
     // The following code block is dedicated to catching when the next video in a queue loads so that we can let the user know the video ended.
-
     
     // If lastMedia and current media are part of the same mediaSession
     // AND if the currentItemID has changed
@@ -377,7 +397,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     // update the last media now
     lastMedia = [CastUtilities createMediaObject:currentSession];
     // Only send updates if we aren't loading media
-    if (!loadMediaCallback) {
+    if (!loadMediaCallback && !isResumingSession) {
         [self.sessionListener onMediaUpdated:lastMedia];
     }
 }

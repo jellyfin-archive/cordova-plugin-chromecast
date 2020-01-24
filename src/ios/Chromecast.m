@@ -398,7 +398,6 @@ int scansRunning = 0;
 }
 
 - (void)sendEvent:(NSString *)eventName args:(NSArray *)args{
-    //    NSLog(@"Event Name: %@", eventName);
     if (self.eventCommand == nil) {
         return;
     }

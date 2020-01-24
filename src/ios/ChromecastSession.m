@@ -95,7 +95,6 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
 -(CastRequestDelegate*)createMediaUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
     return [self createRequestDelegate:command success:^{
-        NSLog(@"%@", [NSString stringWithFormat:@"kk requestDelegate(MediaUpdate) finished"]);
         [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession]];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -138,7 +137,6 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)endSession:(CDVInvokedUrlCommand*)command killSession:(BOOL)killSession {
-    NSLog(@"kk endSession");
     [self endSessionWithCallback:^{
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -146,7 +144,6 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void)endSessionWithCallback:(void(^)(void))callback killSession:(BOOL)killSession {
-    NSLog(@"kk endSessionWithCallback");
     [endSessionCallbacks addObject:callback];
     if (killSession) {
         [currentSession endWithAction:GCKSessionEndActionStopCasting];
@@ -421,18 +418,12 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     // When internally loading a queue the media itmes are not always available at this point, so request the items
     GCKRequest* request = [self.remoteMediaClient queueFetchItemsForIDs:queueItemIDs];
     request.delegate = [self createRequestDelegate:nil success:^{
-        NSLog(@"%@", [NSString stringWithFormat:@"kk qFetchItemsForIds finished: %lu", (unsigned long)currentSession.remoteMediaClient.mediaStatus.queueItemCount]);
         loadMediaCallback(nil);
         loadMediaCallback = nil;
-        NSLog(@"%@", [NSString stringWithFormat:@"kk isLoadingMedia = NO success"]);
     } failure:^(GCKError * error) {
-        NSLog(@"%@", [NSString stringWithFormat:@"Failed to retrieve queue items with error: %@", error.description]);
         loadMediaCallback = nil;
-        NSLog(@"%@", [NSString stringWithFormat:@"kk isLoadingMedia = NO error2"]);
     } abortion:^(GCKRequestAbortReason abortReason) {
-        NSLog(@"%@", [NSString stringWithFormat:@"Failed to retrieve queue items with error: %ld", (long)abortReason]);
         loadMediaCallback = nil;
-        NSLog(@"%@", [NSString stringWithFormat:@"kk isLoadingMedia = NO abour2"]);
     }];
 }
 

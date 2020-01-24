@@ -121,6 +121,7 @@
                 });
             });
             it('session.loadMedia should be able to load a remote video and handle GenericMediaMetadata', function (done) {
+                this.timeout(15000);
                 if (runningNum > 0) {
                     // Just pass the test because we need to skip ahead
                     return done();

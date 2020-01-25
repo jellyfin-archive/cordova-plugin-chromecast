@@ -72,13 +72,15 @@ NSMutableArray<MLPCastRequestDelegate*>* requestDelegates;
     };
     return [self createRequestDelegate:command success:^{
     } failure:^(GCKError * error) {
+        loadMediaCallback(error.description);
         loadMediaCallback = nil;
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } abortion:^(GCKRequestAbortReason abortReason) {
+        if (abortReason == GCKRequestAbortReasonReplaced) {
+            loadMediaCallback(@"aborted loadMedia/queueLoad request reason: GCKRequestAbortReasonReplaced");
+        } else if (abortReason == GCKRequestAbortReasonCancelled) {
+            loadMediaCallback(@"aborted loadMedia/queueLoad request reason: GCKRequestAbortReasonCancelled");
+        }
         loadMediaCallback = nil;
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsNSInteger:abortReason];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
 }
 
@@ -406,7 +408,9 @@ NSMutableArray<MLPCastRequestDelegate*>* requestDelegates;
     if (!loadMediaCallback) {
         // So set the callback to trigger the MEDIA_LOAD event
         loadMediaCallback = ^(NSString* error) {
-            if (!error) {
+            if (error) {
+                NSLog(@"%@%@", @"Chromecast Error: ", error);
+            } else {
                 [self.sessionListener onMediaLoaded:[MLPCastUtilities createMediaObject:currentSession]];
             }
         };
@@ -418,8 +422,14 @@ NSMutableArray<MLPCastRequestDelegate*>* requestDelegates;
         loadMediaCallback(nil);
         loadMediaCallback = nil;
     } failure:^(GCKError * error) {
+        loadMediaCallback([GCKError enumDescriptionForCode:error.code]);
         loadMediaCallback = nil;
     } abortion:^(GCKRequestAbortReason abortReason) {
+        if (abortReason == GCKRequestAbortReasonReplaced) {
+            loadMediaCallback(@"aborted loadMedia/queueLoad fetch request reason: GCKRequestAbortReasonReplaced");
+        } else if (abortReason == GCKRequestAbortReasonCancelled) {
+            loadMediaCallback(@"aborted loadMedia/queueLoad fetch request reason: GCKRequestAbortReasonCancelled");
+        }
         loadMediaCallback = nil;
     }];
 }

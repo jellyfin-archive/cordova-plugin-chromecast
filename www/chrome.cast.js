@@ -848,7 +848,6 @@ chrome.cast.Session.prototype._update = function (obj) {
         this.receiver = null;
     }
 
-    // Empty media
     if (obj.media && obj.media.length > 0) {
         this._updateMedia(obj.media[0]);
     } else {
@@ -871,7 +870,7 @@ chrome.cast.Session.prototype._update = function (obj) {
  * new Media information in obj.
  */
 chrome.cast.Session.prototype._updateMedia = function (obj) {
-    if (!obj) {
+    if (this.media && (!obj || JSON.stringify(obj) === '{}')) {
         this.media.splice(0, _session.media.length);
         return;
     }
@@ -888,8 +887,7 @@ chrome.cast.Session.prototype._updateMedia = function (obj) {
  * adds the new Media object described by media.
  */
 chrome.cast.Session.prototype._loadNewMedia = function (media) {
-    // Invalidate and remove previous
-    this._getMedia().mediaSessionId = 'invalidated';
+    // Remove previous media
     this._updateMedia(null);
     // Add the new media object
     this._updateMedia(media);
@@ -909,7 +907,7 @@ chrome.cast.Session.prototype._emitMediaListener = function () {
 };
 
 chrome.cast.Session.prototype._getMedia = function () {
-    return this.media[0];
+    return this.media && this.media[0];
 };
 
 /**

@@ -49,7 +49,7 @@
   <platform name="ios">
     <config-file target="config.xml" parent="/*">
       <feature name="Chromecast">
-        <param name="ios-package" value="Chromecast"/>
+        <param name="ios-package" value="MLPChromecast"/>
         <param name="onload" value="true" />
       </feature>
     </config-file>
@@ -70,13 +70,13 @@
       <true/>
     </config-file>
 
-    <header-file src="src/ios/Chromecast.h" />
-    <source-file src="src/ios/Chromecast.m" />
-    <header-file src="src/ios/ChromecastSession.h" />
-    <source-file src="src/ios/ChromecastSession.m" />
-    <header-file src="src/ios/CastUtilities.h" />
-    <source-file src="src/ios/CastUtilities.m" />
-    <header-file src="src/ios/CastRequestDelegate.h" />
-    <source-file src="src/ios/CastRequestDelegate.m" />
+    <header-file src="src/ios/MLPChromecast.h" />
+    <source-file src="src/ios/MLPChromecast.m" />
+    <header-file src="src/ios/MLPChromecastSession.h" />
+    <source-file src="src/ios/MLPChromecastSession.m" />
+    <header-file src="src/ios/MLPCastUtilities.h" />
+    <source-file src="src/ios/MLPCastUtilities.m" />
+    <header-file src="src/ios/MLPCastRequestDelegate.h" />
+    <source-file src="src/ios/MLPCastRequestDelegate.m" />
   </platform>
 </plugin>

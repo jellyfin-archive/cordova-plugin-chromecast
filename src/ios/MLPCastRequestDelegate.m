@@ -1,11 +1,8 @@
 //
-//  CastRequestDelegate.m
+//  MLPCastRequestDelegate.m
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
-#import "CastRequestDelegate.h"
+#import "MLPCastRequestDelegate.h"
 
 @implementation CastConnectionListener
 
@@ -67,7 +64,7 @@
 
 @end
 
-@implementation CastRequestDelegate
+@implementation MLPCastRequestDelegate
 
 - (instancetype)initWithSuccess:(void(^)(void))success failure:(void(^)(GCKError*))failure abortion:(void(^)(GCKRequestAbortReason))abortion
 {

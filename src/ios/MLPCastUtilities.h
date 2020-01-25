@@ -1,16 +1,13 @@
 //
-//  CastUtilities.h
+//  MLPCastUtilities.h
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
 #import <Foundation/Foundation.h>
 #import <GoogleCast/GoogleCast.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CastUtilities : NSObject
+@interface MLPCastUtilities : NSObject
 
 +(GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle;
 +(GCKMediaQueueItem *)buildMediaQueueItem:(NSDictionary *)item;

@@ -1,13 +1,10 @@
 //
-//  CastUtilities.m
+//  MLPCastUtilities.m
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
-#import "CastUtilities.h"
+#import "MLPCastUtilities.h"
 
-@implementation CastUtilities
+@implementation MLPCastUtilities
 
 NSDictionary* queueOrderIDsByItemId = nil;
 
@@ -27,8 +24,8 @@ NSDictionary* queueOrderIDsByItemId = nil;
         mediaInfoBuilder.streamType = GCKMediaStreamTypeNone;
     }
     mediaInfoBuilder.startAbsoluteTime = startTime;
-    mediaInfoBuilder.metadata = [CastUtilities buildMediaMetadata:metaData];
-    mediaInfoBuilder.textTrackStyle = [CastUtilities buildTextTrackStyle:textTrackStyle];
+    mediaInfoBuilder.metadata = [MLPCastUtilities buildMediaMetadata:metaData];
+    mediaInfoBuilder.textTrackStyle = [MLPCastUtilities buildTextTrackStyle:textTrackStyle];
     
     return [mediaInfoBuilder build];
 }
@@ -45,7 +42,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
     queueItemBuilder.startTime = startTime;
     queueItemBuilder.preloadTime = [item[@"preloadTime"] doubleValue];
     
-    queueItemBuilder.mediaInformation = [CastUtilities buildMediaInformation:media[@"contentId"] customData:media[@"customData"] contentType:media[@"contentType"] duration:duration streamType:media[@"streamType"] startTime:startTime metaData:media[@"metadata"] textTrackStyle:item[@"textTrackStyle"]];
+    queueItemBuilder.mediaInformation = [MLPCastUtilities buildMediaInformation:media[@"contentId"] customData:media[@"customData"] contentType:media[@"contentType"] duration:duration streamType:media[@"streamType"] startTime:startTime metaData:media[@"metadata"] textTrackStyle:item[@"textTrackStyle"]];
     
     return [queueItemBuilder build];
 }
@@ -75,7 +72,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         
         NSString* edgeType = data[@"edgeType"];
         if (edgeType != nil) {
-            mediaTextTrackStyle.edgeType = [CastUtilities parseEdgeType:edgeType];
+            mediaTextTrackStyle.edgeType = [MLPCastUtilities parseEdgeType:edgeType];
         }
 
         NSString* fontFamily = data[@"fontFamily"];
@@ -85,7 +82,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         
         NSString* fontGenericFamily = data[@"fontGenericFamily"];
         if (fontGenericFamily != nil) {
-            mediaTextTrackStyle.fontGenericFamily = [CastUtilities parseFontGenericFamily:fontGenericFamily];
+            mediaTextTrackStyle.fontGenericFamily = [MLPCastUtilities parseFontGenericFamily:fontGenericFamily];
         }
         
         CGFloat fontScale = (CGFloat)[data[@"fontScale"] floatValue];
@@ -95,7 +92,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
 
         NSString* fontStyle = data[@"fontStyle"];
         if (fontFamily != nil) {
-            mediaTextTrackStyle.fontStyle = [CastUtilities parseFontStyle:fontStyle];
+            mediaTextTrackStyle.fontStyle = [MLPCastUtilities parseFontStyle:fontStyle];
         }
         NSString* foregroundColor = data[@"foregroundColor"];
         if (fontFamily != nil) {
@@ -114,7 +111,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         
         NSString* windowType = data[@"windowType"];
         if (windowType != nil) {
-            mediaTextTrackStyle.windowType = [CastUtilities parseWindowType:windowType];
+            mediaTextTrackStyle.windowType = [MLPCastUtilities parseWindowType:windowType];
         }
     }
     return mediaTextTrackStyle;
@@ -129,7 +126,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
     }
     NSData* imagesRaw = data[@"images"];
     if (imagesRaw != nil) {
-        NSArray<GCKImage*>* images = [CastUtilities getMetadataImages:imagesRaw];
+        NSArray<GCKImage*>* images = [MLPCastUtilities getMetadataImages:imagesRaw];
         for (GCKImage* image in images) {
             [mediaMetaData addImage:image];
         }
@@ -140,8 +137,8 @@ NSDictionary* queueOrderIDsByItemId = nil;
         if ([key isEqualToString:@"metadataType"] || [key isEqualToString:@"images"] || [key isEqualToString:@"type"]) {
             continue;
         }
-        NSString* convertedKey = [CastUtilities getiOSMetadataName:key];
-        NSString* dataType = [CastUtilities getMetadataType:convertedKey];
+        NSString* convertedKey = [MLPCastUtilities getiOSMetadataName:key];
+        NSString* dataType = [MLPCastUtilities getMetadataType:convertedKey];
         if ([dataType isEqualToString:@"string"]) {
             if (data[key]) {
                 [mediaMetaData setString:data[key] forKey:convertedKey];
@@ -471,7 +468,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
 }
 
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session {
-    return [CastUtilities createSessionObject:session status:@""];
+    return [MLPCastUtilities createSessionObject:session status:@""];
 }
 
 + (NSDictionary*)createSessionObject:(GCKCastSession *)session status:(NSString*)status {
@@ -488,10 +485,10 @@ NSDictionary* queueOrderIDsByItemId = nil;
             @"muted" : @(session.currentDeviceMuted)
         }
     };
-    sessionOut[@"status"] = ![status isEqual: @""]? status : [CastUtilities getConnectionStatus:session.connectionState];
+    sessionOut[@"status"] = ![status isEqual: @""]? status : [MLPCastUtilities getConnectionStatus:session.connectionState];
     
     NSMutableArray<NSDictionary*>* mediaArray = [[NSMutableArray alloc] init];
-    NSDictionary* mediaObj = [CastUtilities createMediaObject:session];
+    NSDictionary* mediaObj = [MLPCastUtilities createMediaObject:session];
     if (![mediaObj  isEqual: @{}]) {
         [mediaArray addObject:mediaObj];
     }
@@ -524,7 +521,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
     for (int i=0; i<mediaStatus.queueItemCount; i++) {
         item = [mediaStatus queueItemAtIndex:i];
         orderID = [[queueOrderIDsByItemId valueForKey:[NSString stringWithFormat:@"%d", item.itemID]] integerValue];
-        NSDictionary *qItem = [CastUtilities createQueueItem: item orderID:orderID];
+        NSDictionary *qItem = [MLPCastUtilities createQueueItem: item orderID:orderID];
         [qItems addObject:qItem];
     }
     
@@ -536,21 +533,21 @@ NSDictionary* queueOrderIDsByItemId = nil;
     mediaOut[@"isAlive"] = mediaStatus.playerState != GCKMediaPlayerStateIdle? @(YES) : @(NO);
     mediaOut[@"items"] = qItems;
     mediaOut[@"loadingItemId"] = @(mediaStatus.loadingItemID);
-    mediaOut[@"media"] = [CastUtilities createMediaInfoObject:mediaStatus.mediaInformation];
+    mediaOut[@"media"] = [MLPCastUtilities createMediaInfoObject:mediaStatus.mediaInformation];
     mediaOut[@"mediaSessionId"] = @(mediaStatus.mediaSessionID);
     mediaOut[@"playbackRate"] = @(mediaStatus.playbackRate);
-    mediaOut[@"playerState"] = [CastUtilities getPlayerState:mediaStatus.playerState];
+    mediaOut[@"playerState"] = [MLPCastUtilities getPlayerState:mediaStatus.playerState];
     mediaOut[@"preloadedItemId"] = @(mediaStatus.preloadedItemID);
-    mediaOut[@"queueData"] = [CastUtilities createQueueData:mediaStatus] == nil ? NULL : [CastUtilities createQueueData:mediaStatus];
-    mediaOut[@"repeatMode"] = [CastUtilities getRepeatMode:mediaStatus.queueRepeatMode];
+    mediaOut[@"queueData"] = [MLPCastUtilities createQueueData:mediaStatus] == nil ? NULL : [MLPCastUtilities createQueueData:mediaStatus];
+    mediaOut[@"repeatMode"] = [MLPCastUtilities getRepeatMode:mediaStatus.queueRepeatMode];
     mediaOut[@"sessionId"] = session.sessionID;
     mediaOut[@"volume"] = @{
         @"level" : @(mediaStatus.volume),
         @"muted" : @(mediaStatus.isMuted),
     };
     
-    if ([CastUtilities getIdleReason:mediaStatus.idleReason]) {
-        mediaOut[@"idleReason"] = [CastUtilities getIdleReason:mediaStatus.idleReason];
+    if ([MLPCastUtilities getIdleReason:mediaStatus.idleReason]) {
+        mediaOut[@"idleReason"] = [MLPCastUtilities getIdleReason:mediaStatus.idleReason];
     }
     
     return [NSDictionary dictionaryWithDictionary:mediaOut];
@@ -563,7 +560,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
     returnDict[@"customData"] = (queueItem.customData == nil)? @{} : queueItem.customData;
     returnDict[@"itemId"] = @(queueItem.itemID); //[NSNumber numberWithInteger:queueItem.itemID];
     returnDict[@"orderId" ] = @(orderID);
-    returnDict[@"media"] = queueItem.mediaInformation ? [CastUtilities createMediaInfoObject:queueItem.mediaInformation] : @"";
+    returnDict[@"media"] = queueItem.mediaInformation ? [MLPCastUtilities createMediaInfoObject:queueItem.mediaInformation] : @"";
     returnDict[@"startTime"] = (queueItem.startTime == kGCKInvalidTimeInterval || queueItem.startTime != queueItem.startTime) ? @(0.0) : @(queueItem.startTime);
     returnDict[@"preloadTime"] = (queueItem.preloadTime == kGCKInvalidTimeInterval || queueItem.preloadTime != queueItem.preloadTime) ? @(0.0) : @(queueItem.preloadTime);
     return returnDict;
@@ -575,7 +572,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         return nil;
     }
     NSMutableDictionary* returnDict = [[NSMutableDictionary alloc] init];
-    returnDict[@"repeatMode"] = [CastUtilities getRepeatMode:queueData.repeatMode];
+    returnDict[@"repeatMode"] = [MLPCastUtilities getRepeatMode:queueData.repeatMode];
     returnDict[@"shuffle"] = queueData.repeatMode == GCKMediaRepeatModeAllAndShuffle? @(YES) : @(NO);
     returnDict[@"startIndex"] = @(queueData.startIndex);
 
@@ -592,10 +589,10 @@ NSDictionary* queueOrderIDsByItemId = nil;
     returnDict[@"contentType"] = mediaInfo.contentType;
     returnDict[@"customData"] = mediaInfo.customData == nil ? @{} : mediaInfo.customData;
     returnDict[@"duration"] = @(mediaInfo.streamDuration);
-    returnDict[@"metadata" ] = [CastUtilities createMetadataObject:mediaInfo.metadata];
-    returnDict[@"streamType"] = [CastUtilities getStreamType:mediaInfo.streamType];
-    returnDict[@"tracks"] = [CastUtilities getMediaTracks:mediaInfo.mediaTracks];
-    returnDict[@"textTrackSytle"] = [CastUtilities getTextTrackStyle:mediaInfo.textTrackStyle];
+    returnDict[@"metadata" ] = [MLPCastUtilities createMetadataObject:mediaInfo.metadata];
+    returnDict[@"streamType"] = [MLPCastUtilities getStreamType:mediaInfo.streamType];
+    returnDict[@"tracks"] = [MLPCastUtilities getMediaTracks:mediaInfo.mediaTracks];
+    returnDict[@"textTrackSytle"] = [MLPCastUtilities getTextTrackStyle:mediaInfo.textTrackStyle];
     return returnDict;
 }
 
@@ -605,17 +602,17 @@ NSDictionary* queueOrderIDsByItemId = nil;
     if (!metadata) {
         return [NSDictionary dictionaryWithDictionary:outputDict];
     }
-    outputDict[@"images"] = [CastUtilities createImagesArray:metadata.images];
+    outputDict[@"images"] = [MLPCastUtilities createImagesArray:metadata.images];
     outputDict[@"metadataType"] = @(metadata.metadataType);
     outputDict[@"type"] = @(metadata.metadataType);
     
     NSArray* keys = metadata.allKeys;
     for (NSString* key in keys) {
-        NSString* outKey = [CastUtilities getClientMetadataName:key];
+        NSString* outKey = [MLPCastUtilities getClientMetadataName:key];
         if ([outKey isEqualToString:key] || [outKey isEqualToString:@"type"]) {
             continue;
         }
-        NSString* dataType = [CastUtilities getMetadataType:key];
+        NSString* dataType = [MLPCastUtilities getMetadataType:key];
         if ([dataType isEqualToString:@"string"]) {
             outputDict[outKey] = [metadata stringForKey:key];
         }
@@ -633,7 +630,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         }
     }
     for (NSString* key in keys) {
-        NSString* outKey = [CastUtilities getClientMetadataName:key];
+        NSString* outKey = [MLPCastUtilities getClientMetadataName:key];
         if (![outKey isEqualToString:key] || [outputDict.allKeys containsObject:outKey] || [outKey isEqualToString:@"type"]) {
             continue;
         }
@@ -688,10 +685,10 @@ NSDictionary* queueOrderIDsByItemId = nil;
 //            @"customData": mediaTrack.customData == nil? @{} : mediaTrack.customData,
 //            @"language": mediaTrack.languageCode == nil? @"" : mediaTrack.languageCode,
 //            @"name": mediaTrack.name == nil? @"" : mediaTrack.name,
-//            @"subtype": [CastUtilities getTextTrackSubtype:mediaTrack.textSubtype],
+//            @"subtype": [MLPCastUtilities getTextTrackSubtype:mediaTrack.textSubtype],
 //            @"trackContentId": mediaTrack.contentIdentifier == nil ? @"" : mediaTrack.contentIdentifier,
 //            @"trackContentType": mediaTrack.contentType == nil ? @"" : mediaTrack.contentType,
-//            @"type": [CastUtilities getTrackType:mediaTrack.type],
+//            @"type": [MLPCastUtilities getTrackType:mediaTrack.type],
 //        };
 //        [tracks addObject:track];
 //    }
@@ -709,15 +706,15 @@ NSDictionary* queueOrderIDsByItemId = nil;
     }
     textTrackStyleOut[@"customData"] = textTrackStyle.customData == nil? @{} : textTrackStyle.customData;
     textTrackStyleOut[@"edgeColor"] = textTrackStyle.edgeColor.CSSString == nil? @"" : textTrackStyle.edgeColor.CSSString;
-    textTrackStyleOut[@"edgeType"] = [CastUtilities getEdgeType:textTrackStyle.edgeType];
+    textTrackStyleOut[@"edgeType"] = [MLPCastUtilities getEdgeType:textTrackStyle.edgeType];
     textTrackStyleOut[@"fontFamily"] = textTrackStyle.fontFamily;
-    textTrackStyleOut[@"fontGenericFamily"] = [CastUtilities getFontGenericFamily:textTrackStyle.fontGenericFamily];
+    textTrackStyleOut[@"fontGenericFamily"] = [MLPCastUtilities getFontGenericFamily:textTrackStyle.fontGenericFamily];
     textTrackStyleOut[@"fontScale"] = @(textTrackStyle.fontScale);
-    textTrackStyleOut[@"fontStyle"] = [CastUtilities getFontStyle:textTrackStyle.fontStyle];
+    textTrackStyleOut[@"fontStyle"] = [MLPCastUtilities getFontStyle:textTrackStyle.fontStyle];
     textTrackStyleOut[@"foregroundColor"] = textTrackStyle.foregroundColor.CSSString;
     textTrackStyleOut[@"windowColor"] = textTrackStyle.windowColor.CSSString;
     textTrackStyleOut[@"windowRoundedCornerRadius"] = @(textTrackStyle.windowRoundedCornerRadius);
-    textTrackStyleOut[@"windowType"] = [CastUtilities getWindowType:textTrackStyle.windowType];
+    textTrackStyleOut[@"windowType"] = [MLPCastUtilities getWindowType:textTrackStyle.windowType];
 
     return textTrackStyleOut;
 }

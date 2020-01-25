@@ -1,14 +1,11 @@
 //
-//  ChromecastSession.m
+//  MLPChromecastSession.m
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
-#import "ChromecastSession.h"
-#import "CastUtilities.h"
+#import "MLPChromecastSession.h"
+#import "MLPCastUtilities.h"
 
-@implementation ChromecastSession
+@implementation MLPChromecastSession
 GCKCastSession* currentSession;
 CDVInvokedUrlCommand* joinSessionCommand;
 NSDictionary* lastMedia = nil;
@@ -17,7 +14,7 @@ BOOL isResumingSession = NO;
 BOOL isQueueJumping = NO;
 BOOL isDisconnecting = NO;
 NSMutableArray<void (^)(void)>* endSessionCallbacks;
-NSMutableArray<CastRequestDelegate*>* requestDelegates;
+NSMutableArray<MLPCastRequestDelegate*>* requestDelegates;
 
 - (instancetype)initWithListener:(id<CastSessionListener>)listener cordovaDelegate:(id<CDVCommandDelegate>)cordovaDelegate
 {
@@ -50,7 +47,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     // Only if the session exists, is connected, and we are not already resuming the session
     if (currentSession != nil && currentSession.connectionState != GCKConnectionStateDisconnected && isResumingSession == NO) {
         // Trigger the SESSION_LISTENER
-        [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:currentSession]];
+        [self.sessionListener onSessionRejoin:[MLPCastUtilities createSessionObject:currentSession]];
     }
 }
 
@@ -63,13 +60,13 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     }
 }
 
--(CastRequestDelegate*)createLoadMediaRequestDelegate:(CDVInvokedUrlCommand*)command {
+-(MLPCastRequestDelegate*)createLoadMediaRequestDelegate:(CDVInvokedUrlCommand*)command {
     loadMediaCallback = ^(NSString* error) {
         if (error) {
             CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error];
             [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         } else {
-            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[CastUtilities createMediaObject:currentSession]];
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:[MLPCastUtilities createMediaObject:currentSession]];
             [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         }
     };
@@ -85,23 +82,23 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     }];
 }
 
--(CastRequestDelegate*)createSessionUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
+-(MLPCastRequestDelegate*)createSessionUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
     return [self createRequestDelegate:command success:^{
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:currentSession]];
+        [self.sessionListener onSessionUpdated:[MLPCastUtilities createSessionObject:currentSession]];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } failure:nil abortion:nil];
 }
 
--(CastRequestDelegate*)createMediaUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
+-(MLPCastRequestDelegate*)createMediaUpdateRequestDelegate:(CDVInvokedUrlCommand*)command {
     return [self createRequestDelegate:command success:^{
-        [self.sessionListener onMediaUpdated:[CastUtilities createMediaObject:currentSession]];
+        [self.sessionListener onMediaUpdated:[MLPCastUtilities createMediaObject:currentSession]];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } failure:nil abortion:nil];
 }
 
--(CastRequestDelegate*)createRequestDelegate:(CDVInvokedUrlCommand*)command success:(void(^)(void))success failure:(void(^)(GCKError*))failure abortion:(void(^)(GCKRequestAbortReason))abortion {
+-(MLPCastRequestDelegate*)createRequestDelegate:(CDVInvokedUrlCommand*)command success:(void(^)(void))success failure:(void(^)(GCKError*))failure abortion:(void(^)(GCKRequestAbortReason))abortion {
     // set up any required defaults
     if (success == nil) {
         success = ^{
@@ -121,7 +118,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
             [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         };
     }
-    CastRequestDelegate* delegate = [[CastRequestDelegate alloc] initWithSuccess:^{
+    MLPCastRequestDelegate* delegate = [[MLPCastRequestDelegate alloc] initWithSuccess:^{
         [self checkFinishDelegates];
         success();
     } failure:^(GCKError * error) {
@@ -163,7 +160,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
         muted = [command.arguments[1] boolValue];
     }
     
-    __weak ChromecastSession* weakSelf = self;
+    __weak MLPChromecastSession* weakSelf = self;
     
     void (^setMuted)(void) = ^{
         // Now set the volume
@@ -286,8 +283,8 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 }
 
 - (void) checkFinishDelegates {
-    NSMutableArray<CastRequestDelegate*>* tempArray = [NSMutableArray new];
-    for (CastRequestDelegate* delegate in requestDelegates) {
+    NSMutableArray<MLPCastRequestDelegate*>* tempArray = [NSMutableArray new];
+    for (MLPCastRequestDelegate* delegate in requestDelegates) {
         if (!delegate.finished ) {
             [tempArray addObject:delegate];
         }
@@ -301,7 +298,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     self.remoteMediaClient = session.remoteMediaClient;
     [self.remoteMediaClient addListener:self];
     if (joinSessionCommand != nil) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [CastUtilities createSessionObject:session] ];
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: [MLPCastUtilities createSessionObject:session] ];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:joinSessionCommand.callbackId];
         joinSessionCommand = nil;
     }
@@ -330,9 +327,9 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     if (isDisconnecting) {
         // Clear isDisconnecting
         isDisconnecting = NO;
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session status:@"disconnected"]];
+        [self.sessionListener onSessionUpdated:[MLPCastUtilities createSessionObject:session status:@"disconnected"]];
     } else {
-        [self.sessionListener onSessionUpdated:[CastUtilities createSessionObject:session]];
+        [self.sessionListener onSessionUpdated:[MLPCastUtilities createSessionObject:session]];
     }
 }
 
@@ -349,7 +346,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     // Delay returning the resumed session, so that ios has a chance to get any media first
     // If we return immediately, the session may be sent out without media even though there should be
     // The case where a session is resumed that has no media will have to wait the full 2s before being sent
-    [CastUtilities retry:^BOOL{
+    [MLPCastUtilities retry:^BOOL{
         // Did we find any media?
         if (session.remoteMediaClient.mediaStatus != nil) {
             // No need to wait any longer
@@ -358,7 +355,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
         return NO;
     } forTries:2 callback:^(BOOL passed){
         // trigger the SESSION_LISTENER event
-        [self.sessionListener onSessionRejoin:[CastUtilities createSessionObject:session]];
+        [self.sessionListener onSessionRejoin:[MLPCastUtilities createSessionObject:session]];
         // We are done resuming
         isResumingSession = NO;
     }];
@@ -392,7 +389,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     }
     
     // update the last media now
-    lastMedia = [CastUtilities createMediaObject:currentSession];
+    lastMedia = [MLPCastUtilities createMediaObject:currentSession];
     // Only send updates if we aren't loading media
     if (!loadMediaCallback && !isResumingSession) {
         [self.sessionListener onMediaUpdated:lastMedia];
@@ -403,14 +400,14 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
     // New media has been loaded, wipe any lastMedia reference
     lastMedia = nil;
     // Save the queueItemIDs in cast utilities so it can be used when building queue items
-    [CastUtilities setQueueItemIDs:queueItemIDs];
+    [MLPCastUtilities setQueueItemIDs:queueItemIDs];
     
     // If we do not have a loadMediaCallback that means this was an external media load
     if (!loadMediaCallback) {
         // So set the callback to trigger the MEDIA_LOAD event
         loadMediaCallback = ^(NSString* error) {
             if (!error) {
-                [self.sessionListener onMediaLoaded:[CastUtilities createMediaObject:currentSession]];
+                [self.sessionListener onMediaLoaded:[MLPCastUtilities createMediaObject:currentSession]];
             }
         };
     }
@@ -430,7 +427,7 @@ NSMutableArray<CastRequestDelegate*>* requestDelegates;
 
 #pragma -- GCKGenericChannelDelegate
 - (void)castChannel:(GCKGenericChannel *)channel didReceiveTextMessage:(NSString *)message withNamespace:(NSString *)protocolNamespace {
-    NSDictionary* session = [CastUtilities createSessionObject:currentSession];
+    NSDictionary* session = [MLPCastUtilities createSessionObject:currentSession];
     [self.sessionListener onMessageReceived:session namespace:protocolNamespace message:message];
 }
 @end

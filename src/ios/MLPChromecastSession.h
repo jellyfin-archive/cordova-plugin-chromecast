@@ -1,18 +1,15 @@
 //
-//  ChromecastSession.h
+//  MLPChromecastSession.h
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
 #import <Foundation/Foundation.h>
 #import <GoogleCast/GoogleCast.h>
 #import <Cordova/CDV.h>
-#import "CastRequestDelegate.h"
+#import "MLPCastRequestDelegate.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface ChromecastSession : NSObject <GCKSessionManagerListener,GCKRemoteMediaClientListener,GCKGenericChannelDelegate>
+@interface MLPChromecastSession : NSObject <GCKSessionManagerListener,GCKRemoteMediaClientListener,GCKGenericChannelDelegate>
 
 @property (nonatomic, retain) id<CDVCommandDelegate> commandDelegate;
 @property (nonatomic, retain) GCKSessionManager* sessionManager;

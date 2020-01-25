@@ -1,22 +1,19 @@
 //
-//  Chromecast.h
+//  MLPChromecast.h
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
 #import <Foundation/Foundation.h>
 #import <GoogleCast/GoogleCast.h>
 #import <Cordova/CDV.h>
-#import "ChromecastSession.h"
-#import "CastUtilities.h"
+#import "MLPChromecastSession.h"
+#import "MLPCastUtilities.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface Chromecast : CDVPlugin<GCKDiscoveryManagerListener,GCKLoggerDelegate,CastSessionListener, GCKSessionManagerListener>
+@interface MLPChromecast : CDVPlugin<GCKDiscoveryManagerListener,GCKLoggerDelegate,CastSessionListener, GCKSessionManagerListener>
 
 @property (nonatomic, strong) NSMutableArray* devicesAvailable;
-@property (nonatomic, strong) ChromecastSession* currentSession;
+@property (nonatomic, strong) MLPChromecastSession* currentSession;
 @property (nonatomic, strong) CDVInvokedUrlCommand* eventCommand;
 
 - (void)onReset;

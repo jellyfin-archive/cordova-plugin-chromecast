@@ -1,9 +1,6 @@
 //
-//  CastRequestDelegate.h
+//  MLPCastRequestDelegate.h
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
 #import <Foundation/Foundation.h>
 #import <GoogleCast/GoogleCast.h>
@@ -36,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithReceiverAvailableUpdate:(void(^)(BOOL available))onReceiverAvailableUpdate onSessionRejoin:(void(^)(NSDictionary* session))onSessionRejoin onMediaLoaded:(void(^)(NSDictionary* m))onMediaLoaded onMediaUpdated:(void(^)(NSDictionary* media))onMediaUpdated onSessionUpdated:(void(^)(NSDictionary* session))onSessionUpdated onSessionEnd:(void(^)(NSDictionary* session))onSessionEnd onMessageReceived:(void(^)(NSDictionary* session,NSString* namespace,NSString* message))onMessageReceived  ;
 @end
 
-@interface CastRequestDelegate : NSObject<GCKRequestDelegate>
+@interface MLPCastRequestDelegate : NSObject<GCKRequestDelegate>
 {
     void (^didSuccess)(void);
     void (^didFail)(GCKError*);

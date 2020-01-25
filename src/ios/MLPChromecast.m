@@ -1,27 +1,24 @@
 //
-//  Chromecast.m
+//  MLPChromecast.m
 //  ChromeCast
-//
-//  Created by mac on 2019/9/30.
-//
 
-#import "Chromecast.h"
-#import "CastUtilities.h"
+#import "MLPChromecast.h"
+#import "MLPCastUtilities.h"
 
 #define IDIOM    UI_USER_INTERFACE_IDIOM()
 #define IPAD     UIUserInterfaceIdiomPad
 
-@interface Chromecast()
+@interface MLPChromecast()
 @end
 
-@implementation Chromecast
+@implementation MLPChromecast
 NSString* appId = nil;
 CDVInvokedUrlCommand* scanCommand = nil;
 int scansRunning = 0;
 
 - (void)pluginInitialize {
     [super pluginInitialize];
-    self.currentSession = [ChromecastSession alloc];
+    self.currentSession = [MLPChromecastSession alloc];
     
     NSString* applicationId = [NSUserDefaults.standardUserDefaults stringForKey:@"appId"];
     if (applicationId == nil) {
@@ -102,7 +99,7 @@ int scansRunning = 0;
 - (void)findAvailableReceiver:(void(^)(void))successCallback {
     // Ensure the scan is running
     [self startRouteScan];
-    [CastUtilities retry:^BOOL{
+    [MLPCastUtilities retry:^BOOL{
         // Did we find any devices?
         if ([GCKCastContext.sharedInstance.discoveryManager hasDiscoveredDevices]) {
             [self sendReceiverAvailable:YES];
@@ -168,7 +165,7 @@ int scansRunning = 0;
         return;
     }
 
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[CastUtilities createDeviceArray]];
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[MLPCastUtilities createDeviceArray]];
     [pluginResult setKeepCallback:@(true)];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:scanCommand.callbackId];
 }
@@ -220,7 +217,7 @@ int scansRunning = 0;
 
     NSMutableArray *queueItems = [[NSMutableArray alloc] init];
     for (NSDictionary *item in items) {
-        [queueItems addObject: [CastUtilities buildMediaQueueItem:item]];
+        [queueItems addObject: [MLPCastUtilities buildMediaQueueItem:item]];
     }
     [self.currentSession queueLoadItemsWithCommand:command queueItems:queueItems startIndex:startIndex repeatMode:repeatMode];
 }
@@ -270,7 +267,7 @@ int scansRunning = 0;
     double currentTime = [command.arguments[6] doubleValue];
     NSDictionary* metadata = command.arguments[7];
     NSDictionary* textTrackStyle = command.arguments[8];
-    GCKMediaInformation* mediaInfo = [CastUtilities buildMediaInformation:contentId customData:customData contentType:contentType duration:duration streamType:streamType startTime:currentTime metaData:metadata textTrackStyle:textTrackStyle];
+    GCKMediaInformation* mediaInfo = [MLPCastUtilities buildMediaInformation:contentId customData:customData contentType:contentType duration:duration streamType:streamType startTime:currentTime metaData:metadata textTrackStyle:textTrackStyle];
     
     [self.currentSession loadMediaWithCommand:command mediaInfo:mediaInfo autoPlay:autoplay currentTime:currentTime];
 }
@@ -298,7 +295,7 @@ int scansRunning = 0;
 - (void)mediaSeek:(CDVInvokedUrlCommand*)command {
     int currentTime = [command.arguments[0] doubleValue];
     NSString* resumeState = command.arguments[1];
-    GCKMediaResumeState resumeStateObj = [CastUtilities parseResumeState:resumeState];
+    GCKMediaResumeState resumeStateObj = [MLPCastUtilities parseResumeState:resumeState];
     [self.currentSession mediaSeekWithCommand:command position:currentTime resumeState:resumeStateObj];
 }
 
@@ -310,7 +307,7 @@ int scansRunning = 0;
     NSArray<NSNumber*>* activeTrackIds = command.arguments[0];
     NSData* textTrackStyle = command.arguments[1];
     
-    GCKMediaTextTrackStyle* textTrackStyleObject = [CastUtilities buildTextTrackStyle:textTrackStyle];
+    GCKMediaTextTrackStyle* textTrackStyleObject = [MLPCastUtilities buildTextTrackStyle:textTrackStyle];
     [self.currentSession setActiveTracksWithCommand:command activeTrackIds:activeTrackIds textTrackStyle:textTrackStyleObject];
 }
 
@@ -326,7 +323,7 @@ int scansRunning = 0;
     // Ensure the scan is running
     [self startRouteScan];
     
-    [CastUtilities retry:^BOOL{
+    [MLPCastUtilities retry:^BOOL{
         GCKDevice* device = [[GCKCastContext sharedInstance].discoveryManager deviceWithUniqueID:routeID];
         if (device != nil) {
             [self.currentSession joinDevice:device cdvCommand:command];
@@ -410,7 +407,7 @@ int scansRunning = 0;
 
 - (void)sendError:(NSString *)code message:(NSString *)message command:(CDVInvokedUrlCommand*)command{
     
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:[CastUtilities createError:code message:message]];
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:[MLPCastUtilities createError:code message:message]];
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }

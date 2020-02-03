@@ -585,7 +585,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
     returnDict[@"contentId"] = mediaInfo.contentID? mediaInfo.contentID : mediaInfo.contentURL.absoluteString;
     returnDict[@"contentType"] = mediaInfo.contentType;
     returnDict[@"customData"] = mediaInfo.customData == nil ? @{} : mediaInfo.customData;
-    returnDict[@"duration"] = @(mediaInfo.streamDuration);
+    returnDict[@"duration"] = mediaInfo.streamDuration == INFINITY ? nil : @(mediaInfo.streamDuration);
     returnDict[@"metadata" ] = [MLPCastUtilities createMetadataObject:mediaInfo.metadata];
     returnDict[@"streamType"] = [MLPCastUtilities getStreamType:mediaInfo.streamType];
     returnDict[@"tracks"] = [MLPCastUtilities getMediaTracks:mediaInfo.mediaTracks];

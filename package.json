@@ -1,12 +1,26 @@
 {
   "name": "cordova-plugin-chromecast",
   "version": "1.0.0",
-  "main": "chrome.cast.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "host-chrome-tests": "node tests/www/chrome/host-tests.js",
+    "style-fix-js": "node node_modules/eslint/bin/eslint --fix src && node node_modules/eslint/bin/eslint --fix www && node node_modules/eslint/bin/eslint --ignore-pattern tests/www/lib --fix tests/www",
+    "test": "node node_modules/eslint/bin/eslint src && node node_modules/eslint/bin/eslint www && node node_modules/eslint/bin/eslint --ignore-pattern tests/www/lib tests/www && node ./node_modules/java-checkstyle/bin/index.js ./src/android/ -c ./check_style.xml",
+    "style": "npm run style-fix-js && npm run test"
   },
   "author": "",
-  "license": "GPL-2.0-only",
+  "license": "dual GPLv3/MPLv2",
   "readme": "README.md",
-  "description": "README.md"
+  "description": "README.md",
+  "devDependencies": {
+    "eslint": "~3.19.0",
+    "eslint-config-semistandard": "~11.0.0",
+    "eslint-config-standard": "~10.2.1",
+    "eslint-plugin-import": "~2.3.0",
+    "eslint-plugin-node": "~5.0.0",
+    "eslint-plugin-promise": "~3.5.0",
+    "eslint-plugin-standard": "~3.0.1",
+    "express": "^4.17.1",
+    "java-checkstyle": "0.0.1",
+    "path": "^0.12.7"
+  }
 }

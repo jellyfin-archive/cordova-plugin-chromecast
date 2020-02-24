@@ -2,25 +2,24 @@
 <plugin xmlns="http://phonegap.com/ns/plugins/1.0"
         xmlns:android="http://schemas.android.com/apk/res/android"
         id="cordova-plugin-chromecast"
-        version="0.1.1">
+        version="1.0.0">
   <engines>
     <engine name="cordova" version=">=3.4.0" />
   </engines>
 
   <name>Cordova ChromeCast</name>
 
-  <js-module src="chrome.cast.js" name="ChromecastApi">
+  <js-module src="www/chrome.cast.js" name="ChromecastApi">
     <clobbers target="chrome.cast" />
   </js-module>
 
-  <js-module src="EventEmitter.js" name="EventEmitter"></js-module>
-
-  <js-module src="tests/tests.js" name="tests"></js-module>
+  <js-module src="www/EventEmitter.js" name="EventEmitter"></js-module>
 
   <platform name="android">
     <config-file target="res/xml/config.xml" parent="/*">
       <feature name="Chromecast">
         <param name="android-package" value="acidhax.cordova.chromecast.Chromecast"/>
+        <param name="onload" value="true" />
       </feature>
     </config-file>
 
@@ -32,29 +31,26 @@
 
     <config-file target="AndroidManifest.xml" parent="/manifest/application">
       <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version" />
+      <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME" android:value="acidhax.cordova.chromecast.CastOptionsProvider" />
     </config-file>
 
-    <framework src="com.google.android.gms:play-services-cast:16.1.2" />
-    <framework src="androidx.appcompat:appcompat:1.0.0" />
+    <framework src="com.google.android.gms:play-services-cast:17.0.0" />
+    <framework src="com.google.android.gms:play-services-cast-framework:17.0.0" />
+    <framework src="androidx.appcompat:appcompat:1.0.2" />
     <framework src="androidx.mediarouter:mediarouter:1.0.0" />
-    <framework src="androidx.legacy:legacy-support-v4:1.0.0" />
 
+    <source-file src="src/android/CastOptionsProvider.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/Chromecast.java" target-dir="src/acidhax/cordova/chromecast" />
-    <source-file src="src/android/ChromecastMediaController.java" target-dir="src/acidhax/cordova/chromecast" />
-    <source-file src="src/android/ChromecastMediaRouterCallback.java" target-dir="src/acidhax/cordova/chromecast" />
+    <source-file src="src/android/ChromecastConnection.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/ChromecastSession.java" target-dir="src/acidhax/cordova/chromecast" />
-    <source-file src="src/android/ChromecastSessionCallback.java" target-dir="src/acidhax/cordova/chromecast" />
-    <source-file src="src/android/ChromecastOnMediaUpdatedListener.java" target-dir="src/acidhax/cordova/chromecast" />
-    <source-file src="src/android/ChromecastOnSessionUpdatedListener.java" target-dir="src/acidhax/cordova/chromecast" />
-    <source-file src="src/android/ChromecastException.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/ChromecastUtilities.java" target-dir="src/acidhax/cordova/chromecast" />
-    <source-file src="src/android/RouteListComparer.java" target-dir="src/acidhax/cordova/chromecast" />
   </platform>
 
   <platform name="ios">
     <config-file target="config.xml" parent="/*">
       <feature name="Chromecast">
-        <param name="ios-package" value="Chromecast"/>
+        <param name="ios-package" value="MLPChromecast"/>
+        <param name="onload" value="true" />
       </feature>
     </config-file>
 
@@ -63,7 +59,7 @@
         <source url="https://github.com/CocoaPods/Specs.git"/>
       </config>
       <pods use-frameworks="true">
-        <pod name="google-cast-sdk" spec="~> 4.4.1" />
+        <pod name="google-cast-sdk" spec="~> 4.4.6" />
       </pods>
     </podspec>
 
@@ -74,11 +70,13 @@
       <true/>
     </config-file>
 
-    <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
-
-    <source-file src="src/ios/Chromecast.swift" />
-    <source-file src="src/ios/ChromecastSession.swift" />
-    <source-file src="src/ios/CastUtilities.swift" />
-    <source-file src="src/ios/CastRequestDelegate.swift" />
+    <header-file src="src/ios/MLPChromecast.h" />
+    <source-file src="src/ios/MLPChromecast.m" />
+    <header-file src="src/ios/MLPChromecastSession.h" />
+    <source-file src="src/ios/MLPChromecastSession.m" />
+    <header-file src="src/ios/MLPCastUtilities.h" />
+    <source-file src="src/ios/MLPCastUtilities.m" />
+    <header-file src="src/ios/MLPCastRequestDelegate.h" />
+    <source-file src="src/ios/MLPCastRequestDelegate.m" />
   </platform>
 </plugin>

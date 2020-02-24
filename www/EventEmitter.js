@@ -4,7 +4,7 @@
  * Oliver Caldwell - http://oli.me.uk/
  * @preserve
  */
-
+(function () {
     'use strict';
 
     /**
@@ -13,7 +13,7 @@
      *
      * @class EventEmitter Manages event registering and emitting.
      */
-    function EventEmitter() {}
+    function EventEmitter () {}
 
     // Shortcuts to improve speed and size
     var proto = EventEmitter.prototype;
@@ -26,7 +26,7 @@
      * @return {Number} Index of the specified listener, -1 if not found
      * @api private
      */
-    function indexOfListener(listeners, listener) {
+    function indexOfListener (listeners, listener) {
         var i = listeners.length;
         while (i--) {
             if (listeners[i].listener === listener) {
@@ -44,8 +44,8 @@
      * @return {Function} The aliased method
      * @api private
      */
-    function alias(name) {
-        return function aliasClosure() {
+    function alias (name) {
+        return function aliasClosure () {
             return this[name].apply(this, arguments);
         };
     }
@@ -59,7 +59,7 @@
      * @param {String|RegExp} evt Name of the event to return the listeners from.
      * @return {Function[]|Object} All listener functions for the event.
      */
-    proto.getListeners = function getListeners(evt) {
+    proto.getListeners = function getListeners (evt) {
         var events = this._getEvents();
         var response;
         var key;
@@ -73,8 +73,7 @@
                     response[key] = events[key];
                 }
             }
-        }
-        else {
+        } else {
             response = events[evt] || (events[evt] = []);
         }
 
@@ -87,7 +86,7 @@
      * @param {Object[]} listeners Raw listener objects.
      * @return {Function[]} Just the listener functions.
      */
-    proto.flattenListeners = function flattenListeners(listeners) {
+    proto.flattenListeners = function flattenListeners (listeners) {
         var flatListeners = [];
         var i;
 
@@ -104,7 +103,7 @@
      * @param {String|RegExp} evt Name of the event to return the listeners from.
      * @return {Object} All listener functions for an event in an object.
      */
-    proto.getListenersAsObject = function getListenersAsObject(evt) {
+    proto.getListenersAsObject = function getListenersAsObject (evt) {
         var listeners = this.getListeners(evt);
         var response;
 
@@ -126,7 +125,7 @@
      * @param {Function} listener Method to be called when the event is emitted. If the function returns true then it will be removed after calling.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.addListener = function addListener(evt, listener) {
+    proto.addListener = function addListener (evt, listener) {
         var listeners = this.getListenersAsObject(evt);
         var listenerIsWrapped = typeof listener === 'object';
         var key;
@@ -156,7 +155,7 @@
      * @param {Function} listener Method to be called when the event is emitted. If the function returns true then it will be removed after calling.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.addOnceListener = function addOnceListener(evt, listener) {
+    proto.addOnceListener = function addOnceListener (evt, listener) {
         return this.addListener(evt, {
             listener: listener,
             once: true
@@ -175,7 +174,7 @@
      * @param {String} evt Name of the event to create.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.defineEvent = function defineEvent(evt) {
+    proto.defineEvent = function defineEvent (evt) {
         this.getListeners(evt);
         return this;
     };
@@ -186,7 +185,7 @@
      * @param {String[]} evts An array of event names to define.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.defineEvents = function defineEvents(evts) {
+    proto.defineEvents = function defineEvents (evts) {
         for (var i = 0; i < evts.length; i += 1) {
             this.defineEvent(evts[i]);
         }
@@ -201,7 +200,7 @@
      * @param {Function} listener Method to remove from the event.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.removeListener = function removeListener(evt, listener) {
+    proto.removeListener = function removeListener (evt, listener) {
         var listeners = this.getListenersAsObject(evt);
         var index;
         var key;
@@ -234,7 +233,7 @@
      * @param {Function[]} [listeners] An optional array of listener functions to add.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.addListeners = function addListeners(evt, listeners) {
+    proto.addListeners = function addListeners (evt, listeners) {
         // Pass through to manipulateListeners
         return this.manipulateListeners(false, evt, listeners);
     };
@@ -249,7 +248,7 @@
      * @param {Function[]} [listeners] An optional array of listener functions to remove.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.removeListeners = function removeListeners(evt, listeners) {
+    proto.removeListeners = function removeListeners (evt, listeners) {
         // Pass through to manipulateListeners
         return this.manipulateListeners(true, evt, listeners);
     };
@@ -266,7 +265,7 @@
      * @param {Function[]} [listeners] An optional array of listener functions to add/remove.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.manipulateListeners = function manipulateListeners(remove, evt, listeners) {
+    proto.manipulateListeners = function manipulateListeners (remove, evt, listeners) {
         var i;
         var value;
         var single = remove ? this.removeListener : this.addListener;
@@ -279,15 +278,13 @@
                     // Pass the single listener straight through to the singular method
                     if (typeof value === 'function') {
                         single.call(this, i, value);
-                    }
-                    else {
+                    } else {
                         // Otherwise pass back to the multiple function
                         multiple.call(this, i, value);
                     }
                 }
             }
-        }
-        else {
+        } else {
             // So evt must be a string
             // And listeners must be an array of listeners
             // Loop over it and pass each one to the multiple method
@@ -309,7 +306,7 @@
      * @param {String|RegExp} [evt] Optional name of the event to remove all listeners for. Will remove from every event if not passed.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.removeEvent = function removeEvent(evt) {
+    proto.removeEvent = function removeEvent (evt) {
         var type = typeof evt;
         var events = this._getEvents();
         var key;
@@ -318,16 +315,14 @@
         if (type === 'string') {
             // Remove all listeners for the specified event
             delete events[evt];
-        }
-        else if (evt instanceof RegExp) {
+        } else if (evt instanceof RegExp) {
             // Remove all events matching the regex.
             for (key in events) {
                 if (events.hasOwnProperty(key) && evt.test(key)) {
                     delete events[key];
                 }
             }
-        }
-        else {
+        } else {
             // Remove all listeners in all events
             delete this._events;
         }
@@ -354,7 +349,7 @@
      * @param {Array} [args] Optional array of arguments to be passed to each listener.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.emitEvent = function emitEvent(evt, args) {
+    proto.emitEvent = function emitEvent (evt, args) {
         var listeners = this.getListenersAsObject(evt);
         var listener;
         var i;
@@ -399,7 +394,7 @@
      * @param {...*} Optional additional arguments to be passed to each listener.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.emit = function emit(evt) {
+    proto.emit = function emit (evt) {
         var args = Array.prototype.slice.call(arguments, 1);
         return this.emitEvent(evt, args);
     };
@@ -412,7 +407,7 @@
      * @param {*} value The new value to check for when executing listeners.
      * @return {Object} Current instance of EventEmitter for chaining.
      */
-    proto.setOnceReturnValue = function setOnceReturnValue(value) {
+    proto.setOnceReturnValue = function setOnceReturnValue (value) {
         this._onceReturnValue = value;
         return this;
     };
@@ -425,11 +420,10 @@
      * @return {*|Boolean} The current value to check for or the default, true.
      * @api private
      */
-    proto._getOnceReturnValue = function _getOnceReturnValue() {
+    proto._getOnceReturnValue = function _getOnceReturnValue () {
         if (this.hasOwnProperty('_onceReturnValue')) {
             return this._onceReturnValue;
-        }
-        else {
+        } else {
             return true;
         }
     };
@@ -440,8 +434,9 @@
      * @return {Object} The events storage object.
      * @api private
      */
-    proto._getEvents = function _getEvents() {
+    proto._getEvents = function _getEvents () {
         return this._events || (this._events = {});
     };
 
     module.exports = EventEmitter;
+}());

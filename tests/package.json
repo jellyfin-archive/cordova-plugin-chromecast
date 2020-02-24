@@ -1,0 +1,15 @@
+{
+  "name": "cordova-plugin-chromecast-tests",
+  "version": "1.0.0-dev",
+  "description": "",
+  "author": "",
+  "license": "Apache 2.0",
+  "cordova": {
+    "id": "cordova-plugin-chromecast-tests",
+    "platforms": [
+      "android"
+    ]
+  },
+  "dependencies": {
+  }
+}

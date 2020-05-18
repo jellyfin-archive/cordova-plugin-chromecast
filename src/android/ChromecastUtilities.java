@@ -2,6 +2,7 @@ package acidhax.cordova.chromecast;
 
 import android.graphics.Color;
 import android.net.Uri;
+import java.util.ArrayList;
 
 import androidx.annotation.NonNull;
 import androidx.mediarouter.media.MediaRouter;
@@ -827,6 +828,7 @@ final class ChromecastUtilities {
         String streamType = "unknown";
         JSONObject metadata = new JSONObject();
         JSONObject textTrackStyle = new JSONObject();
+        JSONArray tracks = new JSONArray();
 
         // Try to get the actual values
         try {
@@ -858,10 +860,10 @@ final class ChromecastUtilities {
         } catch (JSONException e) {
         }
 
-        return createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);
+        return createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle, tracks);
     }
 
-    static MediaInfo createMediaInfo(String contentId, JSONObject customData, String contentType, long duration, String streamType, JSONObject metadata, JSONObject textTrackStyle) {
+    static MediaInfo createMediaInfo(String contentId, JSONObject customData, String contentType, long duration, String streamType, JSONObject metadata, JSONObject textTrackStyle, JSONArray tracks) {
         MediaInfo.Builder mediaInfoBuilder = new MediaInfo.Builder(contentId);
 
         mediaInfoBuilder.setMetadata(createMediaMetadata(metadata));
@@ -886,6 +888,26 @@ final class ChromecastUtilities {
                 .setStreamType(intStreamType)
                 .setStreamDuration(duration)
                 .setTextTrackStyle(trackStyle);
+
+        if (tracks != null) {
+            List mediaTracks = new ArrayList();
+
+            for (int i = 0; i < tracks.length(); i++) {
+                try {
+                    JSONObject track = tracks.getJSONObject(i);
+                    MediaTrack mediaTrack = new MediaTrack.Builder(track.getInt("trackId"), MediaTrack.TYPE_TEXT)
+                        .setName(track.getString("name"))
+                        .setSubtype(MediaTrack.SUBTYPE_SUBTITLES)
+                        .setContentId(track.getString("trackContentId"))
+                        .setLanguage(track.getString("language"))
+                        .build();
+                    mediaTracks.add(mediaTrack);
+                } catch (JSONException e) {
+                }  
+            }
+
+            mediaInfoBuilder.setMediaTracks(mediaTracks);
+        }
 
         return mediaInfoBuilder.build();
     }

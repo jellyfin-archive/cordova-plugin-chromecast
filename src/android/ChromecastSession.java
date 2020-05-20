@@ -276,14 +276,15 @@ public class ChromecastSession {
      * Media API - Calls play on the current media.
      * @param callback called with success or error
      */
-    public void setPlayBackRate(Double playbackRate, CallbackContext callback) {
+    public void setPlayBackRate(String playbackRate, CallbackContext callback) {
         if (client == null || session == null) {
             callback.error("session_error");
             return;
         }
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                client.setPlaybackRate(playbackRate)
+                Double d = Double.valueOf(playbackRate);
+                client.setPlaybackRate(d)
                         .setResultCallback(getResultCallback(callback, "Failed to setPlaybackRate."));
             }
         });

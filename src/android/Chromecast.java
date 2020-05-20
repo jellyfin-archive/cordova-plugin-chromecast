@@ -326,7 +326,7 @@ public final class Chromecast extends CordovaPlugin {
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova
      */
-    public boolean setMediaPlayBackRate(Double playbackRate, CallbackContext callbackContext) {
+    public boolean setMediaPlayBackRate(String playbackRate, CallbackContext callbackContext) {
         media.setPlayBackRate(playbackRate, callbackContext);
         return true;
     }

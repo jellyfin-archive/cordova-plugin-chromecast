@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)addMessageListener:(CDVInvokedUrlCommand*)command;
 - (void)sendMessage:(CDVInvokedUrlCommand*) command;
 - (void)mediaPlay:(CDVInvokedUrlCommand*)command;
-- (void)mediaPause:(CDVInvokedUrlCommand*)command;
+- (void)setMediaPlayBackRate:(CDVInvokedUrlCommand*)command;
 - (void)mediaSeek:(CDVInvokedUrlCommand*)command;
 - (void)mediaStop:(CDVInvokedUrlCommand*)command;
 - (void)mediaEditTracksInfo:(CDVInvokedUrlCommand*)command;

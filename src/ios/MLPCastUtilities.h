@@ -9,7 +9,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface MLPCastUtilities : NSObject
 
-+(GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle;
++(GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle tracks:(NSArray *)tracks;
 +(GCKMediaQueueItem *)buildMediaQueueItem:(NSDictionary *)item;
 + (GCKMediaTextTrackStyle *)buildTextTrackStyle:(NSDictionary *)data;
 +(GCKMediaMetadata*)buildMediaMetadata:(NSDictionary*)data;

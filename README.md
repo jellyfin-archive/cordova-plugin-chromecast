@@ -46,16 +46,16 @@ The most significant usage difference between the [cast API](https://developers.
 In **Chrome desktop** you would do:
 ```js
 window['__onGCastApiAvailable'] = function(isAvailable, err) {
-  if (isAvailable) {
-    // start using the api!
-  }
+    if (isAvailable) {
+        // start using the api!
+    }
 };
 ```
 
 But in **cordova-plugin-chromecast** you do:
 ```js
 document.addEventListener("deviceready", function () {
-  // start using the api!
+    // start using the api!
 });
 ```
 
@@ -103,11 +103,11 @@ To make your own **custom route selector** use this:
 ```js
 // This will begin an active scan for routes
 chrome.cast.cordova.scanForRoutes(function (routes) {
-  // Here is where you should update your route selector view with the current routes
-  // This will called each time the routes change
-  // routes is an array of "Route" objects (see below)
+    // Here is where you should update your route selector view with the current routes
+    // This will called each time the routes change
+    // routes is an array of "Route" objects (see below)
 }, function (err) {
-  // Will return with err.code === chrome.cast.ErrorCode.CANCEL when the scan has been ended
+    // Will return with err.code === chrome.cast.ErrorCode.CANCEL when the scan has been ended
 });
 
 // When the user selects a route
@@ -116,9 +116,9 @@ chrome.cast.cordova.stopScan();
 
 // and use the selected route.id to join the route
 chrome.cast.cordova.selectRoute(route.id, function (session) {
-  // Save the session for your use
+    // Save the session for your use
 }, function (err) {
-  // Failed to connect to the route
+    // Failed to connect to the route
 });
 
 ```

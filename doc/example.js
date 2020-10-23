@@ -1,5 +1,7 @@
-document.addEventListener("deviceready", function () {
+document.addEventListener('deviceready', function () {
     // Must wait for deviceready before using chromecast
+
+    var chrome = window.chrome;
 
     // File globals
     var _session;
@@ -14,14 +16,14 @@ document.addEventListener("deviceready", function () {
                 // The session listener is only called under the following conditions:
                 // * will be called shortly chrome.cast.initialize is run
                 // * if the device is already connected to a cast session
-                // Basically, this is what allows you to re-use the same cast session 
+                // Basically, this is what allows you to re-use the same cast session
                 // across different pages and after app restarts
-            }, function receiverListener (receiverAvailable) {
+        }, function receiverListener (receiverAvailable) {
                 // receiverAvailable is a boolean.
                 // True = at least one chromecast device is available
                 // False = No chromecast devices available
                 // You can use this to determine if you want to show your chromecast icon
-            });
+        });
 
         // initialize chromecast, this must be done before using other chromecast features
         chrome.cast.initialize(apiConfig, function () {
@@ -30,22 +32,23 @@ document.addEventListener("deviceready", function () {
             requestSession();
         }, function (err) {
             // Initialize failure
+            console.log(err);
         });
     }
 
-
     function requestSession () {
-        // This will open a native dialog that will let 
+        // This will open a native dialog that will let
         // the user choose a chromecast to connect to
         // (Or will let you disconnect if you are already connected)
         chrome.cast.requestSession(function (session) {
             // Got a session!
             _session = session;
 
-            // Load a video            
+            // Load a video
             loadMedia();
         }, function (err) {
             // Failed, or if err is cancel, the dialog closed
+            console.log(err);
         });
     }
 
@@ -66,21 +69,23 @@ document.addEventListener("deviceready", function () {
 
         }, function (err) {
             // Failed (check that the video works in your browser)
+            console.log(err);
         });
     }
 
     function pauseMedia () {
         _media.pause({}, function () {
             // Success
-            
+
             // Wait a couple seconds
             setTimeout(function () {
                 // stop the session
                 stopSession();
-            }, 2000)
+            }, 2000);
 
         }, function (err) {
             // Fail
+            console.log(err);
         });
     }
 
@@ -90,6 +95,7 @@ document.addEventListener("deviceready", function () {
             // Success
         }, function (err) {
             // Fail
+            console.log(err);
         });
     }
 

@@ -125,7 +125,7 @@
             // This makes it so that tests actually fail in the case of
             // uncaught exceptions inside promise catch blocks
             window.addEventListener('unhandledrejection', function (event) {
-                runner.fail(runner.test, event.reason);
+                runner.fail(runner.test || runner.currentRunnable, event.reason);
             });
         }
     };

@@ -149,7 +149,8 @@
         });
         describe('session interaction with secondary', function () {
             it('Create session', function (done) {
-                utils.setAction('On <u>secondary</u> click "<b>Start Part 2</b>".', 'Enter Session', function () {
+                utils.setAction('On <u>secondary</u> click "<b>Start Part 2</b>".', 
+                'Enter Session' + (isDesktop? '<br>(On desktop, you must stop & start casting from the same cast pop up)' : ''), function () {
                     utils.startSession(function (sess) {
                         session = sess;
                         utils.testSessionProperties(session);

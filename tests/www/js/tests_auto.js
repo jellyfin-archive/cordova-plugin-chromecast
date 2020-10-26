@@ -337,7 +337,14 @@
                     var called = utils.callOrder([
                         { id: success, repeats: false },
                         { id: update, repeats: true }
-                    ], done);
+                    ], function () {
+                        // TODO chrome desktop bug 2020-10-25 - recheck later
+                        // Need to give desktop chrome cast some time to fully disconnect, otherwise 
+                        // the next test fails because it receives a session on initialize
+                        setTimeout(function () {
+                            done();
+                        }, 1000);
+                    });
                     session.addUpdateListener(function listener (isAlive) {
                         assert.isTrue(isAlive);
                         if (session.status === chrome.cast.SessionStatus.DISCONNECTED) {
@@ -354,7 +361,7 @@
                 it('initialize should not receive a session after session.leave', function (done) {
                     var apiConfig = new chrome.cast.ApiConfig(new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID), function sessionListener (session) {
                         assert.fail('should not receive a session (we did sessionLeave so we shouldnt be able to auto rejoin rejoin)');
-                    });
+                    }, function receiverListener () {});
                     chrome.cast.initialize(apiConfig, function () {
                         done();
                     }, function (err) {
@@ -503,7 +510,7 @@
                 it('initialize should not receive a session after session.stop', function (done) {
                     var apiConfig = new chrome.cast.ApiConfig(new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID), function sessionListener (session) {
                         assert.fail('should not receive a session (we did sessionStop so we shouldnt be able to auto rejoin rejoin)');
-                    });
+                    }, function receiverListener () {});
                     chrome.cast.initialize(apiConfig, function () {
                         done();
                     }, function (err) {

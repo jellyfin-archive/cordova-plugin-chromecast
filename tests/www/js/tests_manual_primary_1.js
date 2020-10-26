@@ -410,6 +410,26 @@
                             function (sess) {
                                 session = sess;
                                 utils.testSessionProperties(sess);
+                                // // Ensure the media is maintained
+                                assert.isAbove(sess.media.length, 0);
+                                media = sess.media[0];
+                                assert.isUndefined(media.queueData);
+                                assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
+                                assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
+                                assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
+                                // TODO figure out how to maintain the data types for custom params on the native side
+                                // so that we don't have to do turn each actual and expected into a string
+                                assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
+                                assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
+                                assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
+                                assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
+                                assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
+                                assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
+                                assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
+                                assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
+                                assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
+                                assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                                assert.equal(media.playerState, chrome.cast.media.PlayerState.PLAYING);
                                 called(session_listener);
                             }, function receiverListener (availability) {
                                 if (!finished) {
@@ -448,11 +468,9 @@
                 utils.setAction('Initializing...');
 
                 var finished = false; // Need this so we stop testing after being finished
-                var unavailable = 'unavailable';
                 var available = 'available';
                 var called = utils.callOrder([
                     { id: success, repeats: false },
-                    { id: unavailable, repeats: true },
                     { id: available, repeats: true }
                 ], function () {
                     finished = true;
@@ -464,7 +482,7 @@
                         session = sess;
                         assert.fail('Should not receive session on initialize.  We should only call this initialize when there is no existing session.');
                     }, function receiverListener (availability) {
-                        if (!finished) {
+                        if (!finished && availability === available) {
                             called(availability);
                         }
                     }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
@@ -552,11 +570,9 @@
                 utils.setAction('Initializing...');
 
                 var finished = false; // Need this so we stop testing after being finished
-                var unavailable = 'unavailable';
                 var available = 'available';
                 var called = utils.callOrder([
                     { id: success, repeats: false },
-                    { id: unavailable, repeats: true },
                     { id: available, repeats: true }
                 ], function () {
                     finished = true;
@@ -571,7 +587,7 @@
                         session = sess;
                         assert.fail('Should not receive session on initialize.  We should only call this initialize when there is no existing session.');
                     }, function receiverListener (availability) {
-                        if (!finished) {
+                        if (!finished && availability === available) {
                             called(availability);
                         }
                     }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);

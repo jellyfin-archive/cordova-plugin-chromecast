@@ -73,7 +73,6 @@
             assert.exists(chrome.cast.media);
             assert.exists(chrome.cast.initialize);
             assert.exists(chrome.cast.requestSession);
-            assert.exists(chrome.cast.setCustomReceivers);
             assert.exists(chrome.cast.Session);
             assert.exists(chrome.cast.media.PlayerState);
             assert.exists(chrome.cast.media.ResumeState);

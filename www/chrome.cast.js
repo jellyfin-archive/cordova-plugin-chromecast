@@ -562,16 +562,6 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
 };
 
 /**
- * Sets custom receiver list
- * @param {chrome.cast.Receiver[]}     receivers       The new list. Must not be null.
- * @param {function}                 successCallback
- * @param {function}                 errorCallback
- */
-chrome.cast.setCustomReceivers = function (receivers, successCallback, errorCallback) {
-    // TODO: Implement
-};
-
-/**
  * Describes the state of a currently running Cast application. Normally, these objects should not be created by the client.
  * @param {string}                                 sessionId   Uniquely identifies this instance of the receiver application.
  * @param {string}                                 appId       The identifer of the Cast application.

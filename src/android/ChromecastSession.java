@@ -42,7 +42,12 @@ public class ChromecastSession {
     private boolean requestingMedia = false;
     /** Handles and used to trigger queue updates. **/
     private MediaQueueController mediaQueueCallback;
-    /** Stores a callback that should be called when the queue is loaded. **/
+    /**
+     * Stores a callback that should be called when the queue is loaded.
+     * See https://github.com/jellyfin/cordova-plugin-chromecast/wiki/img/queueReloadCallback.jpg
+     * For how queueReloadCallback is used with multiple devices connected to the same session, and
+     * the primary device loads the media.
+     **/
     private Runnable queueReloadCallback;
     /** Stores a callback that should be called when the queue status is updated. **/
     private Runnable queueStatusUpdatedCallback;

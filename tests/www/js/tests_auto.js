@@ -339,7 +339,7 @@
                         { id: update, repeats: true }
                     ], function () {
                         // TODO chrome desktop bug 2020-10-25 - recheck later
-                        // Need to give desktop chrome cast some time to fully disconnect, otherwise 
+                        // Need to give desktop chrome cast some time to fully disconnect, otherwise
                         // the next test fails because it receives a session on initialize
                         setTimeout(function () {
                             done();

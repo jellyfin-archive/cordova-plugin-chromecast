@@ -7,41 +7,41 @@
         <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
     
         <link rel="stylesheet" type="text/css" href="../css/tests.css">
-        <link rel="stylesheet" type="text/css" href="../lib/mocha.css">
+        <link rel="stylesheet" type="text/css" href="../vendor/mocha.css">
     </head>
 
     <body>
         <h1 class="center-horizontal">cordova-plugin-chromecast Tests</h1>
-        <div>
-            <p class="center-horizontal"><u>Auto Tests</u> should be run (and passing) before attempting the manual tests.</p>
+        <div class="center-horizontal">
+            <p><u>Auto Tests</u> should be run (and passing) before attempting other tests.</p>
             <a href="tests_auto.html">
-                <button class="center-horizontal">
-                    Auto Tests
+                <button>
+                    1) Auto Tests
                 </button>
             </a>
-            <p class="center-horizontal"><br>
-                <u>Manual Tests (Primary) Part 1</u> is the entry point for manual tests.<br>
-                You will require 2 devices or 1 device and a desktop chrome browser.<br>
-                (See readme for instructions on how to run tests from the desktop chrome browser.)<br><br>
-                Click <u>Manual Tests (Primary) Part 1</u> and follow the directions carefully.
-            </p>
+            <a href="tests_manual.html">
+                <button>
+                    2) Manual Tests
+                </button>
+            </a>
             <div class="center-horizontal">
-                <a href="tests_manual_primary_1.html">
+                <h3>2-Device Interaction Tests</h3>
+                <p>
+                    You will require 2 devices (Or 1 device + desktop chrome browser)<br>
+                    (See readme for instructions on how to run tests from the desktop chrome browser.)<br><br>
+                    Start <u>Interaction Tests - Primary Device</u> and follow the directions carefully.
+                </p>
+                <a href="tests_interaction_primary.html">
                     <button>
-                        Manual Tests (Primary) Part 1
+                        3) Interaction Tests - Primary Device
                     </button>
                 </a>
-                <a href="tests_manual_primary_2.html">
+                <a href="tests_interaction_secondary.html">
                     <button>
-                        Manual Tests (Primary) Part 2
+                        4) Interaction Tests - Secondary Device
                     </button>
                 </a>
             </div>
-            <a href="tests_manual_secondary.html">
-                <button class="center-horizontal">
-                    Manual Tests (Secondary)
-                </button>
-            </a>
         </div>
     </body>
 </html>

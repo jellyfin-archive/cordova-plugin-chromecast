@@ -15,7 +15,6 @@
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
-    var isDesktop = window['cordova-plugin-chromecast-tests'].isDesktop || false;
 
     mocha.setup({
         bail: true,
@@ -75,7 +74,7 @@
                 });
             });
             it('Join external session', function (done) {
-                if (isDesktop) {
+                if (utils.isDesktop()) {
                     // This is a hack because desktop chrome is incapable of
                     // joining a session.  So we have to create the session
                     // from chrome first and then join from the app.
@@ -255,7 +254,7 @@
                     new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
                     function (sess) {
                         session = sess;
-                        if (!isDesktop) {
+                        if (!utils.isDesktop()) {
                             assert.fail('should not receive a session (make sure there is no active cast session when starting the tests)');
                         }
                     }, function receiverListener (availability) {
@@ -277,7 +276,7 @@
                 case instructionNum:
                     // Show instructions for app restart
                     utils.storeValue(cookieName, testNum);
-                    if (isDesktop) {
+                    if (utils.isDesktop()) {
                         // If desktop, just reload the page (because restart doesn't work)
                         window.location.reload();
                     }
@@ -308,7 +307,7 @@
                         new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
                         function (sess) {
                             session = sess;
-                            if (!isDesktop) {
+                            if (!utils.isDesktop()) {
                                 assert.fail('should not receive a session (make sure there is no active cast session when starting the tests)');
                             }
                         }, function receiverListener (availability) {
@@ -335,7 +334,7 @@
         describe('session interaction with secondary', function () {
             it('Create session', function (done) {
                 utils.setAction('On <u>secondary</u> click "<b>Start Part 2</b>".',
-                'Enter Session' + (isDesktop ? '<br>(On desktop, you must stop & start casting from the same cast pop up)' : ''), function () {
+                'Enter Session' + (utils.isDesktop() ? '<br>(On desktop, you must stop & start casting from the same cast pop up)' : ''), function () {
                     utils.startSession(function (sess) {
                         session = sess;
                         utils.testSessionProperties(session);

@@ -20,18 +20,8 @@
         }
     };
 
-    function loadMobile () {
-        addScriptToPage('../../../../cordova.js');
-    }
-
-    function runTests () {
-        var runner = window.mocha.run();
-        // This makes it so that tests actually fail in the case of
-        // uncaught exceptions inside promise catch blocks
-        window.addEventListener('unhandledrejection', function (event) {
-            runner.fail(runner.test || runner.currentRunnable, event.reason);
-        });
-    }
+    // Assume we are on Desktop to start
+    window['cordova-plugin-chromecast-tests'].isDesktop = true;
 
     // Url should match below if we are testing on mobile
     if (window.location.href.match(/plugins\/cordova-plugin-chromecast/)) {
@@ -44,6 +34,21 @@
                 // If failed to load, we are probably on mobile
                 loadMobile();
             });
+    }
+
+    function loadMobile () {
+        // The assumption that we were on desktop chrome was wrong apparently
+        window['cordova-plugin-chromecast-tests'].isDesktop = false;
+        addScriptToPage('../../../../cordova.js');
+    }
+
+    function runTests () {
+        var runner = window.mocha.run();
+        // This makes it so that tests actually fail in the case of
+        // uncaught exceptions inside promise catch blocks
+        window.addEventListener('unhandledrejection', function (event) {
+            runner.fail(runner.test || runner.currentRunnable, event.reason);
+        });
     }
 
     function addScriptToPage (src, errorCallback) {

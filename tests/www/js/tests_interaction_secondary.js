@@ -15,7 +15,6 @@
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
-    var isDesktop = window['cordova-plugin-chromecast-tests'].isDesktop || false;
 
     mocha.setup({
         bail: true,
@@ -344,7 +343,7 @@
             });
         });
         it('Join session', function (done) {
-            if (isDesktop) {
+            if (utils.isDesktop()) {
                 // This is a hack because desktop chrome is incapable of
                 // joining a session.  So we have to create the session
                 // from chrome first and then join from the app.

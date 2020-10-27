@@ -31,6 +31,10 @@
         localStorage.clear();
     };
 
+    utils.isDesktop = function () {
+        return window['cordova-plugin-chromecast-tests'].isDesktop || false;
+    };
+
     /**
      * Displays the action information.
      */

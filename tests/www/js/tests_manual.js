@@ -15,7 +15,6 @@
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
-    var isDesktop = window['cordova-plugin-chromecast-tests'].isDesktop || false;
 
     mocha.setup({
         bail: true,
@@ -273,7 +272,7 @@
                 case instructionNum:
                     // Show instructions for app restart
                     utils.storeValue(cookieName, testNum);
-                    if (isDesktop) {
+                    if (utils.isDesktop()) {
                         // If desktop, just reload the page (because restart doesn't work)
                         window.location.reload();
                     }
@@ -538,7 +537,7 @@
                     }
                 });
                 utils.setAction('1. Click "Open Dialog".<br>2. Select "<b>Stop Casting</b>" in the stop casting dialog.'
-                    + (isDesktop ? '<br>3. Click outside of the stop casting dialog to <b>dismiss</b> it.' : ''),
+                    + (utils.isDesktop() ? '<br>3. Click outside of the stop casting dialog to <b>dismiss</b> it.' : ''),
                     'Open Dialog',
                     function () {
                         chrome.cast.requestSession(function (session) {

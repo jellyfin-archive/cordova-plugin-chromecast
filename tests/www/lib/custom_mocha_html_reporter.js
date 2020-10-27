@@ -48,11 +48,11 @@
 
         // Custom suite end
         runner.on(Mocha.Runner.constants.EVENT_SUITE_END, function (test, err) {
-            var passed = this.stats.passes === this.stats.tests;
+            var passed = this.stats.passes === this.total;
             if (passed) {
                 utils.setAction('All tests passed!');
                 document.getElementById('action').style.backgroundColor = '#ceffc4';
-            } else {
+            } else if (this.stats.failures) {
                 utils.setAction('Test failed. :(');
                 document.getElementById('action').style.backgroundColor = '#e28282';
             }

@@ -30,6 +30,8 @@ import java.util.Set;
 final class ChromecastUtilities {
     /** Stores a cache of the queueItems for building Media Objects. */
     private static JSONArray queueItems = null;
+    /** We have to make up our own mediaSessionId since Android does not give us access to it. */
+    private static int mediaSessionId = 0;
 
     private ChromecastUtilities() {
         //not called
@@ -42,6 +44,14 @@ final class ChromecastUtilities {
      */
     static void setQueueItems(JSONArray items) {
         queueItems = items;
+    }
+
+    /**
+     * Should be called whenever new media/queue is detected.
+     * Aka: When media is loaded via loadMedia or queueLoad by this sender or an external sender.
+     */
+    static void incrementMediaSessionId() {
+        mediaSessionId++;
     }
 
     static String getMediaIdleReason(int idleReason) {
@@ -498,7 +508,7 @@ final class ChromecastUtilities {
             MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
 
             // TODO: Missing attributes are commented out.
-            //  These are returned by the chromecast desktop SDK, we should probbaly return them too
+            //  These are returned by the chromecast desktop SDK, we should probably return them too
             //out.put("breakStatus",);
             out.put("currentItemId", mediaStatus.getCurrentItemId());
             out.put("currentTime", mediaStatus.getStreamPosition() / 1000.0);
@@ -513,7 +523,7 @@ final class ChromecastUtilities {
             //out.put("liveSeekableRange",);
             out.put("loadingItemId", mediaStatus.getLoadingItemId());
             out.put("media", createMediaInfoObject(session.getRemoteMediaClient().getMediaInfo()));
-            out.put("mediaSessionId", 1);
+            out.put("mediaSessionId", mediaSessionId);
             out.put("playbackRate", mediaStatus.getPlaybackRate());
             out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus.getPlayerState()));
             out.put("preloadedItemId", mediaStatus.getPreloadedItemId());

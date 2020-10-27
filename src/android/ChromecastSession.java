@@ -441,6 +441,19 @@ public class ChromecastSession {
         this.queueReloadCallback = callback;
     }
 
+    /**
+     * This is called only when new media has been loaded.
+     * Media has been loaded via loadMedia or queueLoad by this sender or an external sender.
+     */
+    private void runQueueReloadCallback() {
+        if (this.queueReloadCallback != null) {
+            // TODO incrementMediaSessionId is a hack to simulate changing mediaSessionId
+            // (for some reason this is available on iOS and desktop chrome, but not Android.)
+            ChromecastUtilities.incrementMediaSessionId();
+            this.queueReloadCallback.run();
+        }
+    }
+
     private void setQueueStatusUpdatedCallback(Runnable callback) {
         this.queueStatusUpdatedCallback = callback;
     }
@@ -523,7 +536,7 @@ public class ChromecastSession {
             // Update the queueItems
             ChromecastUtilities.setQueueItems(queueItems);
             if (queueReloadCallback != null && queue.getItemCount() > 0) {
-                queueReloadCallback.run();
+                runQueueReloadCallback();
                 setQueueReloadCallback(null);
             }
             clientListener.onMediaUpdate(createMediaObject());

@@ -26,7 +26,7 @@
         timeout: 180000
     });
 
-    describe('Manual Tests - Primary Device - Part 2', function () {
+    describe('Interaction Tests - Primary Device', function () {
         // callOrder constants that are re-used frequently
         var success = 'success';
         var session;
@@ -40,6 +40,191 @@
                     done();
                 }
             }, 100);
+        });
+        describe('External Sender Sends Commands', function () {
+            before('ensure initialized', function (done) {
+                this.timeout(15000);
+                utils.setAction('Initializing...');
+
+                var finished = false; // Need this so we stop testing after being finished
+                var available = 'available';
+                var called = utils.callOrder([
+                    { id: success, repeats: false },
+                    { id: available, repeats: true }
+                ], function () {
+                    finished = true;
+                    if (session) {
+                        assert.equal(session.status, chrome.cast.SessionStatus.STOPPED);
+                    }
+                    done();
+                });
+                var apiConfig = new chrome.cast.ApiConfig(
+                    new chrome.cast.SessionRequest(chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID),
+                    function (sess) {
+                        session = sess;
+                        assert.fail('Should not receive session on initialize.  We should only call this initialize when there is no existing session.');
+                    }, function receiverListener (availability) {
+                        if (!finished && availability === available) {
+                            called(availability);
+                        }
+                    }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
+                chrome.cast.initialize(apiConfig, function () {
+                    called(success);
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
+            });
+            it('Join external session', function (done) {
+                if (isDesktop) {
+                    // This is a hack because desktop chrome is incapable of
+                    // joining a session.  So we have to create the session
+                    // from chrome first and then join from the app.
+                    return utils.startSession(function (sess) {
+                        session = sess;
+                        showInstructions(done);
+                    });
+                }
+                // Else
+                showInstructions(function () {
+                    utils.startSession(function (sess) {
+                        session = sess;
+                        utils.testSessionProperties(session);
+                        done();
+                    });
+                });
+                function showInstructions (callback) {
+                    utils.setAction('Ensure you have only 1 physical chromecast device on your network (castGroups are fine).<br>'
+                        + '<br>1. On a <u>secondary</u> device (or desktop chrome browser),'
+                        + ' navigate to <b><u>Manual Tests (Secondary)</u></b><br>'
+                        + '2. Follow instructions on <u>secondary</u> app.',
+                        'Continue',
+                        function () {
+                            callback();
+                        });
+                }
+            });
+            it('External loadMedia should trigger mediaListener', function (done) {
+                utils.setAction('On <u>secondary</u> click "<b>Load Media</b>"');
+                var finished = false;
+                session.addMediaListener(function listener (m) {
+                    if (finished) {
+                        return;
+                    }
+                    utils.setAction('Tests running...');
+                    media = m;
+                    var interval = setInterval(function () {
+                        if (media.media.tracks != null && media.media.tracks !== undefined) {
+                            clearInterval(interval);
+                            utils.testMediaProperties(media);
+                            finished = true;
+                            done();
+                        }
+                    }, 400);
+                });
+            });
+            it('External media stop should trigger media updateListener', function (done) {
+                utils.setAction('On <u>secondary</u> click "<b>Stop Media</b>"');
+                media.addUpdateListener(function listener (isAlive) {
+                    if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
+                        media.removeUpdateListener(listener);
+                        assert.equal(media.idleReason, chrome.cast.media.IdleReason.CANCELLED);
+                        assert.isFalse(isAlive);
+                        done();
+                    }
+                });
+            });
+            it('External queueLoad should trigger mediaListener', function (done) {
+                utils.setAction('On <u>secondary</u> click "<b>Load Queue</b>"');
+                var finished = false;
+                session.addMediaListener(function listener (m) {
+                    if (finished) {
+                        return;
+                    }
+                    finished = true;
+                    media = m;
+                    var interval = setInterval(function () {
+                        if (media.currentItemId > -1 && media.media.tracks) {
+                            clearInterval(interval);
+                            finished = true;
+                            utils.testMediaProperties(media);
+                            var items = media.items;
+                            var startTime = 40;
+                            assert.isTrue(items[0].autoplay);
+                            assert.equal(items[0].startTime, startTime);
+                            assert.equal(items[0].media.contentId, videoUrl);
+                            assert.isTrue(items[1].autoplay);
+                            assert.equal(items[1].startTime, startTime * 2);
+                            assert.equal(items[1].media.contentId, audioUrl);
+                            done();
+                        }
+                    }, 400);
+                });
+            });
+            it('Jump to different queue item should trigger media.addUpdateListener and not session.addMediaListener', function (done) {
+                utils.setAction('On <u>secondary</u> click "<b>Queue Jump</b>"');
+                var called = utils.callOrder([
+                    { id: stopped, repeats: true },
+                    { id: update, repeats: true }
+                ], done);
+                var currentItemId = media.currentItemId;
+                var mediaListener = function (media) {
+                    assert.fail('session.addMediaListener should only be called when an external sender loads media. '
+                        + '(We are the one loading.  We are not external to ourself.');
+                };
+                session.addMediaListener(mediaListener);
+                media.addUpdateListener(function listener (isAlive) {
+                    assert.isTrue(isAlive);
+                    if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
+                        assert.oneOf(media.idleReason,
+                            [chrome.cast.media.IdleReason.INTERRUPTED, chrome.cast.media.IdleReason.FINISHED]);
+                        called(stopped);
+                    }
+                    if (media.currentItemId !== currentItemId) {
+                        session.removeMediaListener(mediaListener);
+                        media.removeUpdateListener(listener);
+                        utils.testMediaProperties(media);
+                        called(update);
+                    }
+                });
+            });
+            it('session.leave should leave the session', function (done) {
+                utils.setAction('Follow instructions on <u>secondary</u>.', 'Leave Session', function () {
+                    // Set up the expected calls
+                    var called = utils.callOrder([
+                        { id: success, repeats: false },
+                        { id: update, repeats: true }
+                    ], function () {
+                        utils.setAction('1. On <u>secondary</u>, click "<b>Check Session</b>"<br>2. Then follow directions on <u>secondary</u>!');
+                        done();
+                    });
+                    var finished = false;
+                    session.addUpdateListener(function listener (isAlive) {
+                        if (finished) {
+                            return;
+                        }
+                        assert.isTrue(isAlive);
+                        if (session.status === chrome.cast.SessionStatus.DISCONNECTED) {
+                            finished = true;
+                            called(update);
+                        }
+                    });
+                    session.leave(function () {
+                        called(success);
+                    }, function (err) {
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                    });
+                });
+            });
+            after('Ensure we have left the session', function (done) {
+                if (!session) {
+                    return done();
+                }
+                session.leave(function () {
+                    done();
+                }, function () {
+                    done();
+                });
+            });
         });
         describe('App restart and reload/change page simulation', function () {
             var cookieName = 'primary-p2_restart-reload';

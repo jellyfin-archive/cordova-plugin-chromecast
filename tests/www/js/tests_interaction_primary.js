@@ -297,7 +297,7 @@
                         window.location.reload();
                     }
                     this.timeout(0); // no timeout
-                    utils.setAction('Force kill and restart the app, and navigate back to <b><u>Manual Tests (Primary) Part 2</u></b>.'
+                    utils.setAction('Force kill and restart the app, and navigate back to <b><u>Interaction Tests - Primary Device</u></b>.'
                                 + '<br>Note: Android 4.4 does not support this feature, so just refresh the page.');
                     break;
                 case testNum:
@@ -348,8 +348,8 @@
         describe('session interaction with secondary', function () {
             it('Create session', function (done) {
                 utils.setAction('On <u>secondary</u> click "<b>Leave Session</b>".',
-                'Enter Session' 
-                + (utils.isDesktop() ? '<br>(Desktop: Stop & Start casting from the same cast pop up)' : ''), 
+                'Enter Session'
+                + (utils.isDesktop() ? '<br>(Desktop: Stop & Start casting from the same cast pop up)' : ''),
                 function () {
                     utils.startSession(function (sess) {
                         session = sess;

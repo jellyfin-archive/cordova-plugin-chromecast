@@ -7,7 +7,7 @@
 cordova plugin add https://github.com/jellyfin/cordova-plugin-chromecast.git
 ```
 
-If you have trouble installing the pulgin or running the project for iOS, from `/platforms/ios/` try running:  
+If you have trouble installing the plugin or running the project for iOS, from `/platforms/ios/` try running:  
 ```bash
 sudo gem install cocoapods
 pod repo update
@@ -36,7 +36,7 @@ These strings will be used when asking the user for permission to use the microp
 # Supports
 
 **Android** 4.4+ (7.x highest confirmed) (may support lower, untested)  
-**iOS** 9.0+ (13.2.1 highest confirmed)
+**iOS** 9.0+ (14.1 highest confirmed)
 
 ## Quirks
 * Android 4.4 (maybe 5.x and 6.x) are not able automatically rejoin/resume a chromecast session after an app restart.  

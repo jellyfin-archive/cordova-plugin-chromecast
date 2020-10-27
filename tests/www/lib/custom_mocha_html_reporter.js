@@ -48,7 +48,8 @@
 
         // Custom suite end
         runner.on(Mocha.Runner.constants.EVENT_SUITE_END, function (test, err) {
-            var passed = this.stats.passes === this.total;
+            // Include pending as a passed test because those are skipped tests (usually)
+            var passed = (this.stats.passes + this.stats.pending) === this.total;
             if (passed) {
                 utils.setAction('All tests passed!');
                 document.getElementById('action').style.backgroundColor = '#ceffc4';

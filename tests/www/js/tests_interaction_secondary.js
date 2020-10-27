@@ -124,7 +124,7 @@
             });
         });
         it('session.loadMedia should be able to load a remote video and handle GenericMediaMetadata', function (done) {
-            utils.setAction('On <u>primary</u> click "<b>Continue</b>"', 'Load Media', function () {
+            utils.setAction('On <u>primary</u> click "<b>Listen for External Load Media</b>"', 'Load Media', function () {
                 var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
                 mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
                 mediaInfo.metadata.title = 'DaTitle';
@@ -320,9 +320,8 @@
         });
         it('Primary should not receive session on initialize', function (done) {
             this.timeout(240000);
-            utils.setAction('1. On <u><b>primary</b></u>, click "Back".'
-                + '<br>2. On <u><b>primary</b></u>, Select <b><u>Manual Tests (Primary) Part 2</u></b>.'
-                + '<br>3. Wait for instructions from <u><b>primary</b></u>.', 'Start Part 2', done);
+            utils.setAction('1. On <u><b>primary</b></u>, click "<b>Page Reload</b>".'
+                + '<br>2. Wait for instructions from <u><b>primary</b></u>.', 'Leave Session', done);
         });
         it('Secondary session.leave should cause session to end (because all senders have left)', function (done) {
             var called = utils.waitForAllCalls([
@@ -349,11 +348,11 @@
                 // from chrome first and then join from the app.
                 utils.startSession(function (sess) {
                     session = sess;
-                    utils.setAction('1. On <u>primary</u> click "<b>Enter Session</b>"<br>2. Wait for instructions from <u>primary</u>.', 'Continue', done);
+                    utils.setAction('1. On <u>primary</u> click "<b>Enter Session</b>"<br>2. Wait for instructions from <u>primary</u>.', 'Join/Start Session', done);
                 });
                 return;
             }
-            utils.setAction('On <u>primary</u> click "<b>Enter Session</b>"', 'Continue', function () {
+            utils.setAction('On <u>primary</u> click "<b>Enter Session</b>"', 'Join/Start Session', function () {
                 utils.startSession(function (sess) {
                     session = sess;
                     done();

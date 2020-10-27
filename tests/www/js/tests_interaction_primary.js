@@ -26,9 +26,19 @@
     });
 
     describe('Interaction Tests - Primary Device', function () {
+        var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
+        var audioUrl = 'https://ia800306.us.archive.org/26/items/1939RadioNews/1939-10-24-CBS-Elmer-Davis-Reports-City-Of-Flint-Still-Missing.mp3';
+
         // callOrder constants that are re-used frequently
         var success = 'success';
+        var stopped = 'stopped';
+        var update = 'update';
+
         var session;
+        var media;
+
+        var cookieName = 'primary-p2_restart-reload';
+        var runningNum = parseInt(utils.getValue(cookieName) || '-1');
 
         before('Api should be available and initialize successfully', function (done) {
             this.timeout(15000);
@@ -41,6 +51,12 @@
             }, 100);
         });
         describe('External Sender Sends Commands', function () {
+            before('already passed all tests in this section', function () {
+                // Have we already passed the tests in this describe and should skip?
+                if (runningNum > -1) {
+                    this.skip();
+                }
+            });
             before('ensure initialized', function (done) {
                 this.timeout(15000);
                 utils.setAction('Initializing...');
@@ -94,9 +110,9 @@
                 function showInstructions (callback) {
                     utils.setAction('Ensure you have only 1 physical chromecast device on your network (castGroups are fine).<br>'
                         + '<br>1. On a <u>secondary</u> device (or desktop chrome browser),'
-                        + ' navigate to <b><u>Manual Tests (Secondary)</u></b><br>'
-                        + '2. Follow instructions on <u>secondary</u> app.',
-                        'Continue',
+                        + ' navigate to <b><u>Interaction Tests - Secondary Device</u></b><br>'
+                        + '2. Follow instructions on <u>secondary</u> device.',
+                        'Listen for External Load Media',
                         function () {
                             callback();
                         });
@@ -193,8 +209,12 @@
                         { id: success, repeats: false },
                         { id: update, repeats: true }
                     ], function () {
-                        utils.setAction('1. On <u>secondary</u>, click "<b>Check Session</b>"<br>2. Then follow directions on <u>secondary</u>!');
-                        done();
+                        utils.setAction('1. On <u>secondary</u>, click "<b>Check Session</b>"<br>'
+                        + '2. Then follow directions on <u>secondary</u>!', 'Page Reload', function () {
+                            utils.storeValue(cookieName, 0);
+                            window.location.href = window.location.href;
+                            done();
+                        });
                     });
                     var finished = false;
                     session.addUpdateListener(function listener (isAlive) {
@@ -226,8 +246,6 @@
             });
         });
         describe('App restart and reload/change page simulation', function () {
-            var cookieName = 'primary-p2_restart-reload';
-            var runningNum = parseInt(utils.getValue(cookieName) || '0');
             it('Should not receive a session on initialize after a page change', function (done) {
                 this.timeout(15000);
                 if (runningNum > 0) {
@@ -236,11 +254,9 @@
                 }
                 utils.setAction('Checking for session after page load, (should not find session)...');
                 var finished = false; // Need this so we stop testing after being finished
-                var unavailable = 'unavailable';
                 var available = 'available';
                 var called = utils.callOrder([
                     { id: success, repeats: false },
-                    { id: unavailable, repeats: true },
                     { id: available, repeats: true }
                 ], function () {
                     finished = true;
@@ -258,7 +274,7 @@
                             assert.fail('should not receive a session (make sure there is no active cast session when starting the tests)');
                         }
                     }, function receiverListener (availability) {
-                        if (!finished) {
+                        if (!finished && availability === available) {
                             called(availability);
                         }
                     }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
@@ -289,11 +305,9 @@
                     // Test initialize since we just reloaded
                     utils.setAction('Checking for session after app restart, (should not find session)...');
                     var finished = false; // Need this so we stop testing after being finished
-                    var unavailable = 'unavailable';
                     var available = 'available';
                     var called = utils.callOrder([
                         { id: success, repeats: false },
-                        { id: unavailable, repeats: true },
                         { id: available, repeats: true }
                     ], function () {
                         finished = true;
@@ -311,7 +325,7 @@
                                 assert.fail('should not receive a session (make sure there is no active cast session when starting the tests)');
                             }
                         }, function receiverListener (availability) {
-                            if (!finished) {
+                            if (!finished && availability === available) {
                                 called(availability);
                             }
                         }, chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED);
@@ -327,18 +341,20 @@
                 }
             });
             after(function () {
-                // Reset tests
-                utils.storeValue(cookieName, 0);
+                // Reset runningNum as we are done with it
+                utils.clearStoredValues();
             });
         });
         describe('session interaction with secondary', function () {
             it('Create session', function (done) {
-                utils.setAction('On <u>secondary</u> click "<b>Start Part 2</b>".',
-                'Enter Session' + (utils.isDesktop() ? '<br>(On desktop, you must stop & start casting from the same cast pop up)' : ''), function () {
+                utils.setAction('On <u>secondary</u> click "<b>Leave Session</b>".',
+                'Enter Session' 
+                + (utils.isDesktop() ? '<br>(Desktop: Stop & Start casting from the same cast pop up)' : ''), 
+                function () {
                     utils.startSession(function (sess) {
                         session = sess;
                         utils.testSessionProperties(session);
-                        utils.setAction('On <u>secondary</u> click "<b>Continue</b>".');
+                        utils.setAction('On <u>secondary</u> click "<b>Join/Start Session</b>".');
                         done();
                     });
                 });
@@ -365,18 +381,5 @@
         });
 
     });
-
-    window['cordova-plugin-chromecast-tests'] = window['cordova-plugin-chromecast-tests'] || {};
-    window['cordova-plugin-chromecast-tests'].runMocha = function () {
-        var runner = mocha.run();
-        runner.on('suite end', function (suite) {
-            var passed = this.stats.passes === runner.total;
-            if (passed) {
-                utils.setAction('All manual tests passed! [Assuming you did Part 1 as well :) ]');
-                document.getElementById('action').style.backgroundColor = '#ceffc4';
-            }
-        });
-        return runner;
-    };
 
 }());

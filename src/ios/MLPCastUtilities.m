@@ -195,7 +195,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         return @"date";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyChapterNumber]) {
-        return @"string";
+        return @"int";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyChapterTitle]) {
         return @"string";

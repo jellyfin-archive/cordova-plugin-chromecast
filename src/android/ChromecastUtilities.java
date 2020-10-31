@@ -360,7 +360,6 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_ALBUM_TITLE:
             case MediaMetadata.KEY_ARTIST:
             case MediaMetadata.KEY_BOOK_TITLE:
-            case MediaMetadata.KEY_CHAPTER_NUMBER:
             case MediaMetadata.KEY_CHAPTER_TITLE:
             case MediaMetadata.KEY_COMPOSER:
             case MediaMetadata.KEY_LOCATION_NAME:
@@ -369,6 +368,7 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_SUBTITLE:
             case MediaMetadata.KEY_TITLE:
                 return "string"; // 1 in MediaMetadata
+            case MediaMetadata.KEY_CHAPTER_NUMBER:
             case MediaMetadata.KEY_DISC_NUMBER:
             case MediaMetadata.KEY_EPISODE_NUMBER:
             case MediaMetadata.KEY_HEIGHT:

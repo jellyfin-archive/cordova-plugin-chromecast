@@ -664,10 +664,14 @@ final class ChromecastUtilities {
     }
 
     static JSONObject createMetadataObject(MediaMetadata metadata) {
-        JSONObject out = new JSONObject();
         if (metadata == null) {
-            return out;
+            return null;
         }
+        Set<String> keys = metadata.keySet();
+        if (keys.size() == 0) {
+            return null;
+        }
+        JSONObject out = new JSONObject();
         try {
             try {
                 // Must be in own try catch
@@ -677,7 +681,6 @@ final class ChromecastUtilities {
             out.put("metadataType", metadata.getMediaType());
             out.put("type", metadata.getMediaType());
 
-            Set<String> keys = metadata.keySet();
             String outKey;
             // First translate and add the Android specific keys
             for (String key : keys) {

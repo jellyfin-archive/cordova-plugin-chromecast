@@ -597,16 +597,18 @@ NSDictionary* queueOrderIDsByItemId = nil;
 }
 
 + (NSDictionary*)createMetadataObject:(GCKMediaMetadata*)metadata {
-    
-    NSMutableDictionary* outputDict = [NSMutableDictionary new];
     if (!metadata) {
-        return [NSDictionary dictionaryWithDictionary:outputDict];
+        return nil;
     }
+    NSArray* keys = metadata.allKeys;
+    if ([keys count] == 0) {
+        return nil;
+    }
+    NSMutableDictionary* outputDict = [NSMutableDictionary new];
     outputDict[@"images"] = [MLPCastUtilities createImagesArray:metadata.images];
     outputDict[@"metadataType"] = @(metadata.metadataType);
     outputDict[@"type"] = @(metadata.metadataType);
     
-    NSArray* keys = metadata.allKeys;
     for (NSString* key in keys) {
         NSString* outKey = [MLPCastUtilities getClientMetadataName:key];
         if ([outKey isEqualToString:key] || [outKey isEqualToString:@"type"]) {

@@ -15,6 +15,7 @@
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
+    var mediaUtils = window['cordova-plugin-chromecast-tests'].mediaUtils;
 
     mocha.setup({
         bail: true,
@@ -26,9 +27,6 @@
     });
 
     describe('Interaction Tests - Primary Device', function () {
-        var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
-        var audioUrl = 'https://ia800306.us.archive.org/26/items/1939RadioNews/1939-10-24-CBS-Elmer-Davis-Reports-City-Of-Flint-Still-Missing.mp3';
-
         // callOrder constants that are re-used frequently
         var success = 'success';
         var stopped = 'stopped';
@@ -36,10 +34,21 @@
 
         var session;
         var media;
+        var videoItem;
+        var audioItem;
 
         var cookieName = 'primary-p2_restart-reload';
         var runningNum = parseInt(utils.getValue(cookieName) || '-1');
 
+        before('setup constants', function () {
+            // This must be identical to the before('setup constants'.. in tests_interaction_secondary.js
+            videoItem = mediaUtils.getMediaInfoItem('VIDEO', chrome.cast.media.MetadataType.TV_SHOW, new Date(2020, 10, 31));
+            audioItem = mediaUtils.getMediaInfoItem('AUDIO', chrome.cast.media.MetadataType.MUSIC_TRACK, new Date(2020, 10, 31));
+            // TODO desktop chrome does not send all metadata attributes for some reason,
+            // So delete the metadata so that assertMediaInfoEquals does not compare it
+            videoItem.metadata = null;
+            audioItem.metadata = null;
+        });
         before('Api should be available and initialize successfully', function (done) {
             this.timeout(15000);
             session = null;
@@ -127,19 +136,16 @@
                     }
                     utils.setAction('Tests running...');
                     media = m;
-                    var interval = setInterval(function () {
-                        if (media.media.tracks != null && media.media.tracks !== undefined) {
-                            clearInterval(interval);
-                            utils.testMediaProperties(media);
-                            finished = true;
-                            done();
-                        }
-                    }, 400);
+                    utils.testMediaProperties(media);
+                    mediaUtils.assertMediaInfoItemEquals(media.media, videoItem);
+                    finished = true;
+                    done();
                 });
             });
             it('External media stop should trigger media updateListener', function (done) {
                 utils.setAction('On <u>secondary</u> click "<b>Stop Media</b>"');
                 media.addUpdateListener(function listener (isAlive) {
+                    mediaUtils.assertMediaInfoItemEquals(media.media, videoItem);
                     if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
                         media.removeUpdateListener(listener);
                         assert.equal(media.idleReason, chrome.cast.media.IdleReason.CANCELLED);
@@ -157,8 +163,9 @@
                     }
                     finished = true;
                     media = m;
+                    mediaUtils.assertMediaInfoItemEquals(media.media, audioItem);
                     var interval = setInterval(function () {
-                        if (media.currentItemId > -1 && media.media.tracks) {
+                        if (media.currentItemId > -1) {
                             clearInterval(interval);
                             finished = true;
                             utils.testMediaProperties(media);
@@ -166,10 +173,10 @@
                             var startTime = 40;
                             assert.isTrue(items[0].autoplay);
                             assert.equal(items[0].startTime, startTime);
-                            assert.equal(items[0].media.contentId, videoUrl);
+                            mediaUtils.assertMediaInfoItemEquals(items[0].media, videoItem);
                             assert.isTrue(items[1].autoplay);
                             assert.equal(items[1].startTime, startTime * 2);
-                            assert.equal(items[1].media.contentId, audioUrl);
+                            mediaUtils.assertMediaInfoItemEquals(items[1].media, audioItem);
                             done();
                         }
                     }, 400);
@@ -198,6 +205,7 @@
                         session.removeMediaListener(mediaListener);
                         media.removeUpdateListener(listener);
                         utils.testMediaProperties(media);
+                        mediaUtils.assertMediaInfoItemEquals(media.media, videoItem);
                         called(update);
                     }
                 });

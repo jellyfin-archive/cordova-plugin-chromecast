@@ -28,12 +28,9 @@
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
+    var mediaUtils = window['cordova-plugin-chromecast-tests'].mediaUtils;
 
     describe('cordova-plugin-chromecast', function () {
-        var imageUrl = 'https://ia800705.us.archive.org/1/items/GoodHousekeeping193810/Good%20Housekeeping%201938-10.jpg';
-        var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
-        var audioUrl = 'https://ia800306.us.archive.org/26/items/1939RadioNews/1939-10-24-CBS-Elmer-Davis-Reports-City-Of-Flint-Still-Missing.mp3';
-
         // callOrder constants that are re-used frequently
         var success = 'success';
         var update = 'update';
@@ -542,7 +539,18 @@
                 var mediaListener = function (media) {
                     assert.fail('session.addMediaListener should only be called when an external sender loads media');
                 };
-                before(function (done) {
+                var mediaInfo;
+                before('Create mediaInfo with custom metadata fields', function () {
+                    mediaInfo = mediaUtils.getMediaInfoItem('VIDEO', chrome.cast.media.MetadataType.GENERIC);
+                    mediaInfo.metadata.someTrueBoolean = true;
+                    mediaInfo.metadata.someFalseBoolean = false;
+                    mediaInfo.metadata.someSmallNumber = 15;
+                    mediaInfo.metadata.someLargeNumber = 1234567890123456;
+                    mediaInfo.metadata.someSmallDecimal = 15.15;
+                    mediaInfo.metadata.someLargeDecimal = 1234567.123456789;
+                    mediaInfo.metadata.someString = 'SomeString';
+                });
+                before('Get session', function (done) {
                     // need to have a valid session to run these tests
                     session = null;
                     var scanState = 'running';
@@ -592,26 +600,11 @@
                 });
                 describe('Media (non-queues)', function () {
                     it('session.loadMedia should be able to load a remote video and handle GenericMediaMetadata', function (done) {
-                        var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                        mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-                        mediaInfo.metadata.title = 'DaTitle';
-                        mediaInfo.metadata.subtitle = 'DaSubtitle';
-                        mediaInfo.metadata.releaseDate = new Date().valueOf();
-                        mediaInfo.metadata.someTrueBoolean = true;
-                        mediaInfo.metadata.someFalseBoolean = false;
-                        mediaInfo.metadata.someSmallNumber = 15;
-                        mediaInfo.metadata.someLargeNumber = 1234567890123456;
-                        mediaInfo.metadata.someSmallDecimal = 15.15;
-                        mediaInfo.metadata.someLargeDecimal = 1234567.123456789;
-                        mediaInfo.metadata.someString = 'SomeString';
-                        mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
                         session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                             media = m;
                             utils.testMediaProperties(media);
                             assert.isUndefined(media.queueData);
-                            assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                            assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                            assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             // TODO figure out how to maintain the data types for custom params on the native side
                             // so that we don't have to do turn each actual and expected into a string
                             assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
@@ -621,13 +614,11 @@
                             assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
                             assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
                             assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
-                            assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                            assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
-                            assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
                             assert.notExists(media.idleReason);
                             media.addUpdateListener(function listener (isAlive) {
                                 assert.isTrue(isAlive);
                                 utils.testMediaProperties(media);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                 assert.oneOf(media.playerState, [
                                     chrome.cast.media.PlayerState.PLAYING,
                                     chrome.cast.media.PlayerState.BUFFERING]);
@@ -658,6 +649,7 @@
                         media.addUpdateListener(function listener (isAlive) {
                             assert.isTrue(isAlive);
                             assert.instanceOf(media.volume, chrome.cast.Volume);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             if (media.volume.level === vol) {
                                 media.removeUpdateListener(listener);
                                 called(update);
@@ -667,6 +659,7 @@
                         media.setVolume(request, function () {
                             assert.instanceOf(media.volume, chrome.cast.Volume);
                             assert.equal(media.volume.level, vol);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             called(success);
                         }, function (err) {
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -684,6 +677,7 @@
                         media.addUpdateListener(function listener (isAlive) {
                             assert.isTrue(isAlive);
                             assert.instanceOf(media.volume, chrome.cast.Volume);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             if (media.volume.muted === muted) {
                                 media.removeUpdateListener(listener);
                                 called(update);
@@ -693,6 +687,7 @@
                         media.setVolume(request, function () {
                             assert.instanceOf(media.volume, chrome.cast.Volume);
                             assert.equal(media.volume.muted, muted);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             called(success);
                         }, function (err) {
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -717,6 +712,7 @@
                         media.addUpdateListener(function listener (isAlive) {
                             assert.isTrue(isAlive);
                             assert.instanceOf(media.volume, chrome.cast.Volume);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             if (media.volume.level === vol &&
                                 media.volume.muted === request.volume.muted) {
                                 media.removeUpdateListener(listener);
@@ -728,6 +724,7 @@
                             assert.instanceOf(media.volume, chrome.cast.Volume);
                             assert.equal(media.volume.level, vol);
                             assert.equal(media.volume.muted, muted);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             called(success);
                         }, function (err) {
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -741,6 +738,7 @@
                         media.addUpdateListener(function listener (isAlive) {
                             assert.isTrue(isAlive);
                             assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             if (media.playerState === chrome.cast.media.PlayerState.PAUSED) {
                                 media.removeUpdateListener(listener);
                                 called(update);
@@ -748,6 +746,7 @@
                         });
                         media.pause(null, function () {
                             assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             called(success);
                         }, function (err) {
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -761,6 +760,7 @@
                         media.addUpdateListener(function listener (isAlive) {
                             assert.isTrue(isAlive);
                             assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
                                 media.removeUpdateListener(listener);
                                 called(update);
@@ -770,6 +770,7 @@
                             assert.oneOf(media.playerState, [
                                 chrome.cast.media.PlayerState.PLAYING,
                                 chrome.cast.media.PlayerState.BUFFERING]);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             called(success);
                         }, function (err) {
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -784,6 +785,7 @@
                         request.currentTime = media.media.duration / 2;
                         media.addUpdateListener(function listener (isAlive) {
                             assert.isTrue(isAlive);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             if (media.getEstimatedTime() > request.currentTime - 1 &&
                                 media.getEstimatedTime() < request.currentTime + 1) {
                                 media.removeUpdateListener(listener);
@@ -792,6 +794,7 @@
                         });
                         media.seek(request, function () {
                             assert.closeTo(media.getEstimatedTime(), request.currentTime, 1);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             called(success);
                         }, function (err) {
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -805,6 +808,7 @@
                         var request = new chrome.cast.media.SeekRequest();
                         request.currentTime = media.media.duration;
                         media.addUpdateListener(function listener (isAlive) {
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             if (media.playerState === chrome.cast.media.PlayerState.IDLE) {
                                 media.removeUpdateListener(listener);
                                 assert.equal(media.idleReason, chrome.cast.media.IdleReason.FINISHED);
@@ -813,6 +817,7 @@
                             }
                         });
                         media.seek(request, function () {
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             called(success);
                         }, function (err) {
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -876,29 +881,19 @@
                             done();
                         });
                     });
-                    it('session.loadMedia should be able to load videos twice in a row and handle MovieMediaMetadata and TvShowMediaMetadata correctly, and first media should be invalidated', function (done) {
+                    it('session.loadMedia should be able to load media twice in a row and handle MovieMediaMetadata and AudiobookChapterMediaMetadata correctly, and first media should be invalidated', function (done) {
                         var firstMedia;
-                        var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                        mediaInfo.metadata = new chrome.cast.media.MovieMediaMetadata();
-                        mediaInfo.metadata.title = 'DaTitle';
-                        mediaInfo.metadata.subtitle = 'DaSubtitle';
-                        mediaInfo.metadata.studio = 'DaStudio';
-                        mediaInfo.metadata.myMadeUpMetadata = 'DaMadeUpMetadata';
-                        mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+                        var mediaInfo = mediaUtils.getMediaInfoItem('VIDEO', chrome.cast.media.MetadataType.MOVIE);
+
                         session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                             media = m;
                             firstMedia = m;
                             utils.testMediaProperties(media);
-                            assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                            assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                            assert.equal(media.media.metadata.studio, mediaInfo.metadata.studio);
-                            assert.equal(media.media.metadata.myMadeUpMetadata, mediaInfo.metadata.myMadeUpMetadata);
-                            assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                            assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.MOVIE);
-                            assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.MOVIE);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             media.addUpdateListener(function listener (isAlive) {
                                 assert.isTrue(isAlive);
                                 utils.testMediaProperties(media);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                 assert.oneOf(media.playerState, [
                                     chrome.cast.media.PlayerState.PLAYING,
                                     chrome.cast.media.PlayerState.BUFFERING]);
@@ -912,15 +907,7 @@
                         });
 
                         function loadSecond () {
-                            var mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                            mediaInfo.metadata = new chrome.cast.media.TvShowMediaMetadata();
-                            mediaInfo.metadata.title = 'DaTitle';
-                            mediaInfo.metadata.subtitle = 'DaSubtitle';
-                            mediaInfo.metadata.originalAirDate = new Date().valueOf();
-                            mediaInfo.metadata.episode = 15;
-                            mediaInfo.metadata.season = 2;
-                            mediaInfo.metadata.seriesTitle = 'DaSeries';
-                            mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+                            var mediaInfo = mediaUtils.getMediaInfoItem('AUDIO', chrome.cast.media.MetadataType.AUDIOBOOK_CHAPTER);
                             session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                                 media = m;
                                 // Test old media is invalid (should not equal new media and should give error on pause)
@@ -935,18 +922,11 @@
 
                                     // Now verify the new media
                                     utils.testMediaProperties(media);
-                                    assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                                    assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                                    assert.equal(media.media.metadata.originalAirDate, mediaInfo.metadata.originalAirDate);
-                                    assert.equal(media.media.metadata.episode, mediaInfo.metadata.episode);
-                                    assert.equal(media.media.metadata.season, mediaInfo.metadata.season);
-                                    assert.equal(media.media.metadata.seriesTitle, mediaInfo.metadata.seriesTitle);
-                                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
-                                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
+                                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                     media.addUpdateListener(function listener (isAlive) {
                                         assert.isTrue(isAlive);
                                         utils.testMediaProperties(media);
+                                        mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                         assert.oneOf(media.playerState, [
                                             chrome.cast.media.PlayerState.PLAYING,
                                             chrome.cast.media.PlayerState.BUFFERING]);
@@ -961,35 +941,17 @@
                             });
                         }
                     });
-                    it('session.loadMedia should be able to load remote audio and return the MusicTrackMediaMetadata', function (done) {
-                        var mediaInfo = new chrome.cast.media.MediaInfo(audioUrl, 'audio/mpeg');
-                        mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
-                        mediaInfo.metadata.albumArtist = 'DaAlmbumArtist';
-                        mediaInfo.metadata.albumName = 'DaAlbum';
-                        mediaInfo.metadata.artist = 'DaArtist';
-                        mediaInfo.metadata.composer = 'DaComposer';
-                        mediaInfo.metadata.title = 'DaTitle';
-                        mediaInfo.metadata.songName = 'DaSongName';
-                        mediaInfo.metadata.releaseDate = new Date().valueOf();
-                        mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
-                        mediaInfo.metadata.myMadeUpMetadata = 15;
+                    it('session.loadMedia should be able to load remote video with no metadata', function (done) {
+                        var mediaInfo = mediaUtils.getMediaInfoItem('VIDEO');
                         session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                             media = m;
                             utils.testMediaProperties(media);
-                            assert.equal(media.media.metadata.albumArtist, mediaInfo.metadata.albumArtist);
-                            assert.equal(media.media.metadata.albumName, mediaInfo.metadata.albumName);
-                            assert.equal(media.media.metadata.artist, mediaInfo.metadata.artist);
-                            assert.equal(media.media.metadata.composer, mediaInfo.metadata.composer);
-                            assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                            assert.equal(media.media.metadata.songName, mediaInfo.metadata.songName);
-                            assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
-                            assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                            assert.equal(media.media.metadata.myMadeUpMetadata, mediaInfo.metadata.myMadeUpMetadata);
-                            assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.MUSIC_TRACK);
-                            assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.MUSIC_TRACK);
+                            assert.oneOf(media.media.metadata, [null, undefined]);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             media.addUpdateListener(function listener (isAlive) {
                                 assert.isTrue(isAlive);
                                 utils.testMediaProperties(media);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                 assert.oneOf(media.playerState, [
                                     chrome.cast.media.PlayerState.PLAYING,
                                     chrome.cast.media.PlayerState.BUFFERING]);
@@ -1003,36 +965,15 @@
                         });
                     });
                     it('session.loadMedia should be able to load remote image and return the PhotoMediaMetadata', function (done) {
-                        var mediaInfo = new chrome.cast.media.MediaInfo(imageUrl, 'image/jpeg');
-                        mediaInfo.metadata = new chrome.cast.media.PhotoMediaMetadata();
-                        mediaInfo.metadata.title = 'DaTitle';
-                        mediaInfo.metadata.artist = 'DaArtist';
-                        mediaInfo.metadata.location = 'DaLocation';
-                        mediaInfo.metadata.latitude = 102.13;
-                        mediaInfo.metadata.longitude = 101.12;
-                        mediaInfo.metadata.height = 100;
-                        mediaInfo.metadata.width = 100;
-                        mediaInfo.metadata.myMadeUpMetadata = 15;
-                        mediaInfo.metadata.creationDateTime = new Date().valueOf();
-                        mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+                        var mediaInfo = mediaUtils.getMediaInfoItem('IMAGE', chrome.cast.media.MetadataType.PHOTO);
                         session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
                             media = m;
                             utils.testMediaProperties(media);
-                            assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                            assert.equal(media.media.metadata.artist, mediaInfo.metadata.artist);
-                            assert.equal(media.media.metadata.location, mediaInfo.metadata.location);
-                            assert.equal(media.media.metadata.latitude, mediaInfo.metadata.latitude);
-                            assert.equal(media.media.metadata.longitude, mediaInfo.metadata.longitude);
-                            assert.equal(media.media.metadata.height, mediaInfo.metadata.height);
-                            assert.equal(media.media.metadata.width, mediaInfo.metadata.width);
-                            assert.equal(media.media.metadata.myMadeUpMetadata, mediaInfo.metadata.myMadeUpMetadata);
-                            assert.equal(media.media.metadata.creationDateTime, mediaInfo.metadata.creationDateTime);
-                            assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                            assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.PHOTO);
-                            assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.PHOTO);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             media.addUpdateListener(function listener (isAlive) {
                                 assert.isTrue(isAlive);
                                 utils.testMediaProperties(media);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                 if (media.playerState === chrome.cast.media.PlayerState.PAUSED) {
                                     media.removeUpdateListener(listener);
                                     done();
@@ -1042,7 +983,7 @@
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                         });
                     });
-                    it('media.stop should end video playback', function (done) {
+                    it('media.stop should end media playback', function (done) {
                         var called = utils.waitForAllCalls([
                             { id: success, repeats: false },
                             { id: update, repeats: true }
@@ -1070,32 +1011,7 @@
                     var startTime = 40;
                     var jumpItemId;
                     var request;
-                    var assertVideoItem = function (media) {
-                        assert.equal(media.contentId, videoUrl);
-                        assert.equal(media.metadata.title, videoItem.metadata.title);
-                        assert.equal(media.metadata.subtitle, videoItem.metadata.subtitle);
-                        assert.equal(media.metadata.originalAirDate, videoItem.metadata.originalAirDate);
-                        assert.equal(media.metadata.episode, videoItem.metadata.episode);
-                        assert.equal(media.metadata.season, videoItem.metadata.season);
-                        assert.equal(media.metadata.seriesTitle, videoItem.metadata.seriesTitle);
-                        assert.equal(media.metadata.images[0].url, videoItem.metadata.images[0].url);
-                        assert.equal(media.metadata.metadataType, chrome.cast.media.MetadataType.TV_SHOW);
-                        assert.equal(media.metadata.type, chrome.cast.media.MetadataType.TV_SHOW);
-                    };
-                    var assertAudioItem = function (media) {
-                        assert.equal(media.contentId, audioUrl);
-                        assert.equal(media.metadata.albumArtist, audioItem.metadata.albumArtist);
-                        assert.equal(media.metadata.albumName, audioItem.metadata.albumName);
-                        assert.equal(media.metadata.artist, audioItem.metadata.artist);
-                        assert.equal(media.metadata.composer, audioItem.metadata.composer);
-                        assert.equal(media.metadata.title, audioItem.metadata.title);
-                        assert.equal(media.metadata.songName, audioItem.metadata.songName);
-                        assert.equal(media.metadata.releaseDate, audioItem.metadata.releaseDate);
-                        assert.equal(media.metadata.images[0].url, audioItem.metadata.images[0].url);
-                        assert.equal(media.metadata.myMadeUpMetadata, audioItem.metadata.myMadeUpMetadata);
-                        assert.equal(media.metadata.metadataType, chrome.cast.media.MetadataType.MUSIC_TRACK);
-                        assert.equal(media.metadata.type, chrome.cast.media.MetadataType.MUSIC_TRACK);
-                    };
+
                     var assertQueueProperties = function (media) {
                         utils.testMediaProperties(media);
                         assert.equal(media.repeatMode, request.repeatMode);
@@ -1105,28 +1021,8 @@
                         utils.testQueueItems(media.items);
                     };
                     before(function () {
-                        videoItem = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                        videoItem.metadata = new chrome.cast.media.TvShowMediaMetadata();
-                        videoItem.metadata.title = 'DaTitle';
-                        videoItem.metadata.subtitle = 'DaSubtitle';
-                        videoItem.metadata.originalAirDate = new Date().valueOf();
-                        videoItem.metadata.episode = 15;
-                        videoItem.metadata.season = 2;
-                        videoItem.metadata.seriesTitle = 'DaSeries';
-                        videoItem.metadata.images = [new chrome.cast.Image(imageUrl)];
-
-                        audioItem = new chrome.cast.media.MediaInfo(audioUrl, 'audio/mpeg');
-                        audioItem.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
-                        audioItem.metadata.albumArtist = 'DaAlmbumArtist';
-                        audioItem.metadata.albumName = 'DaAlbum';
-                        audioItem.metadata.artist = 'DaArtist';
-                        audioItem.metadata.composer = 'DaComposer';
-                        audioItem.metadata.title = 'DaTitle';
-                        audioItem.metadata.songName = 'DaSongName';
-                        audioItem.metadata.myMadeUpMetadata = '15';
-                        audioItem.metadata.releaseDate = new Date().valueOf();
-                        audioItem.metadata.images = [new chrome.cast.Image(imageUrl)];
-
+                        videoItem = mediaUtils.getMediaInfoItem('VIDEO', chrome.cast.media.MetadataType.TV_SHOW);
+                        audioItem = mediaUtils.getMediaInfoItem('AUDIO', chrome.cast.media.MetadataType.MUSIC_TRACK);
                         var item;
                         var queue = [];
 
@@ -1160,7 +1056,7 @@
                         session.queueLoad(request, function (m) {
                             media = m;
                             assertQueueProperties(media);
-                            assertAudioItem(media.media);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, audioItem);
                             assert.closeTo(media.getEstimatedTime(), startTime * 2, 5);
 
                             // Items should contain the last 2 items in the queue
@@ -1168,12 +1064,12 @@
 
                             var i = utils.getCurrentItemIndex(media);
 
-                            assertAudioItem(media.items[i - 1].media);
+                            mediaUtils.assertMediaInfoItemEquals(media.items[i - 1].media, audioItem);
                             assert.equal(media.items[i - 1].orderId, request.startIndex - 1);
                             assert.isTrue(media.items[i - 1].autoplay);
                             assert.equal(media.items[i - 1].startTime, startTime * 2);
 
-                            assertAudioItem(media.items[i].media);
+                            mediaUtils.assertMediaInfoItemEquals(media.items[i].media, audioItem);
                             assert.equal(media.items[i].orderId, request.startIndex);
                             assert.isTrue(media.items[i].autoplay);
                             assert.equal(media.items[i].startTime, startTime * 2);
@@ -1220,19 +1116,19 @@
                                 media.removeUpdateListener(listener);
 
                                 assertQueueProperties(media);
-                                assertVideoItem(media.media);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, videoItem);
                                 assert.closeTo(media.getEstimatedTime(), startTime, 5);
 
                                 // Items should contain the first 2 items in the queue
                                 assert.equal(media.items.length, 2);
                                 var i = utils.getCurrentItemIndex(media);
 
-                                assertVideoItem(media.items[i].media);
+                                mediaUtils.assertMediaInfoItemEquals(media.items[i].media, videoItem);
                                 assert.equal(media.items[i].orderId, 0);
                                 assert.isTrue(media.items[i].autoplay);
                                 assert.equal(media.items[i].startTime, startTime);
 
-                                assertVideoItem(media.items[i + 1].media);
+                                mediaUtils.assertMediaInfoItemEquals(media.items[i + 1].media, videoItem);
                                 assert.equal(media.items[i + 1].orderId, 1);
                                 assert.isTrue(media.items[i + 1].autoplay);
                                 assert.equal(media.items[i + 1].startTime, startTime);
@@ -1298,24 +1194,24 @@
                                 media.removeUpdateListener(listener);
 
                                 assertQueueProperties(media);
-                                assertVideoItem(media.media);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, videoItem);
                                 assert.closeTo(media.getEstimatedTime(), startTime, 5);
 
                                 // Items should contain the first 3 items in the queue (1 before and 1 after current item)
                                 assert.equal(media.items.length, 3);
                                 var i = utils.getCurrentItemIndex(media);
 
-                                assertVideoItem(media.items[i - 1].media);
+                                mediaUtils.assertMediaInfoItemEquals(media.items[i - 1].media, videoItem);
                                 assert.equal(media.items[i - 1].orderId, 0);
                                 assert.isTrue(media.items[i - 1].autoplay);
                                 assert.equal(media.items[i - 1].startTime, startTime);
 
-                                assertVideoItem(media.items[i].media);
+                                mediaUtils.assertMediaInfoItemEquals(media.items[i].media, videoItem);
                                 assert.equal(media.items[i].orderId, 1);
                                 assert.isTrue(media.items[i].autoplay);
                                 assert.equal(media.items[i].startTime, startTime);
 
-                                assertAudioItem(media.items[i + 1].media);
+                                mediaUtils.assertMediaInfoItemEquals(media.items[i + 1].media, audioItem);
                                 assert.equal(media.items[i + 1].orderId, 2);
                                 assert.isTrue(media.items[i + 1].autoplay);
                                 assert.equal(media.items[i + 1].startTime, startTime * 2);

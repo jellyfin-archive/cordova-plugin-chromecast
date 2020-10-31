@@ -15,6 +15,7 @@
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
+    var mediaUtils = window['cordova-plugin-chromecast-tests'].mediaUtils;
 
     mocha.setup({
         bail: true,
@@ -26,9 +27,6 @@
     });
 
     describe('Manual Tests', function () {
-        var imageUrl = 'https://ia800705.us.archive.org/1/items/GoodHousekeeping193810/Good%20Housekeeping%201938-10.jpg';
-        var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
-
         // callOrder constants that are re-used frequently
         var success = 'success';
         var stopped = 'stopped';
@@ -53,20 +51,8 @@
             var cookieName = 'primary-p1_restart-reload';
             var runningNum = parseInt(utils.getValue(cookieName) || '0');
             var mediaInfo;
-            before(function () {
-                mediaInfo = new chrome.cast.media.MediaInfo(videoUrl, 'video/mp4');
-                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-                mediaInfo.metadata.title = 'DaTitle';
-                mediaInfo.metadata.subtitle = 'DaSubtitle';
-                mediaInfo.metadata.releaseDate = new Date(2019, 10, 24).valueOf();
-                mediaInfo.metadata.someTrueBoolean = true;
-                mediaInfo.metadata.someFalseBoolean = false;
-                mediaInfo.metadata.someSmallNumber = 15;
-                mediaInfo.metadata.someLargeNumber = 1234567890123456;
-                mediaInfo.metadata.someSmallDecimal = 15.15;
-                mediaInfo.metadata.someLargeDecimal = 1234567.123456789;
-                mediaInfo.metadata.someString = 'SomeString';
-                mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
+            before('Create MediaInfo', function () {
+                mediaInfo = mediaUtils.getMediaInfoItem('VIDEO', chrome.cast.media.MetadataType.GENERIC, new Date(2019, 10, 24));
             });
             it('Create session', function (done) {
                 this.timeout(15000);
@@ -128,24 +114,11 @@
                     media = m;
                     utils.testMediaProperties(media);
                     assert.isUndefined(media.queueData);
-                    assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                    assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                    assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
-                    // TODO figure out how to maintain the data types for custom params on the native side
-                    // so that we don't have to do turn each actual and expected into a string
-                    assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
-                    assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
-                    assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
-                    assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
-                    assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
-                    assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
-                    assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
-                    assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                    assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
-                    assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                     media.addUpdateListener(function listener (isAlive) {
                         assert.isTrue(isAlive);
                         utils.testMediaProperties(media);
+                        mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                         assert.oneOf(media.playerState, [
                             chrome.cast.media.PlayerState.PLAYING,
                             chrome.cast.media.PlayerState.BUFFERING]);
@@ -196,21 +169,7 @@
                             assert.isAbove(sess.media.length, 0);
                             media = sess.media[0];
                             assert.isUndefined(media.queueData);
-                            assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                            assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                            assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
-                            // TODO figure out how to maintain the data types for custom params on the native side
-                            // so that we don't have to do turn each actual and expected into a string
-                            assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
-                            assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
-                            assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
-                            assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
-                            assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
-                            assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
-                            assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
-                            assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                            assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
-                            assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                             assert.oneOf(media.playerState, [
                                 chrome.cast.media.PlayerState.PLAYING,
                                 chrome.cast.media.PlayerState.BUFFERING]);
@@ -252,6 +211,7 @@
                 media.addUpdateListener(function listener (isAlive) {
                     assert.isTrue(isAlive);
                     assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
+                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                     if (media.playerState === chrome.cast.media.PlayerState.PAUSED) {
                         media.removeUpdateListener(listener);
                         called(update);
@@ -259,6 +219,7 @@
                 });
                 media.pause(null, function () {
                     assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
+                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                     called(success);
                 }, function (err) {
                     assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -306,21 +267,7 @@
                                 assert.isAbove(sess.media.length, 0);
                                 media = sess.media[0];
                                 assert.isUndefined(media.queueData);
-                                assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                                assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                                assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
-                                // TODO figure out how to maintain the data types for custom params on the native side
-                                // so that we don't have to do turn each actual and expected into a string
-                                assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
-                                assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
-                                assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
-                                assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
-                                assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
-                                assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
-                                assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
-                                assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                                assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
-                                assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                 assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
                                 called(session_listener);
                             }, function receiverListener (availability) {
@@ -360,6 +307,7 @@
                 media.addUpdateListener(function listener (isAlive) {
                     assert.isTrue(isAlive);
                     assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
+                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                     if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
                         media.removeUpdateListener(listener);
                         called(update);
@@ -369,6 +317,7 @@
                     assert.oneOf(media.playerState, [
                         chrome.cast.media.PlayerState.PLAYING,
                         chrome.cast.media.PlayerState.BUFFERING]);
+                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                     called(success);
                 }, function (err) {
                     assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
@@ -412,21 +361,7 @@
                                 assert.isAbove(sess.media.length, 0);
                                 media = sess.media[0];
                                 assert.isUndefined(media.queueData);
-                                assert.equal(media.media.metadata.title, mediaInfo.metadata.title);
-                                assert.equal(media.media.metadata.subtitle, mediaInfo.metadata.subtitle);
-                                assert.equal(media.media.metadata.releaseDate, mediaInfo.metadata.releaseDate);
-                                // TODO figure out how to maintain the data types for custom params on the native side
-                                // so that we don't have to do turn each actual and expected into a string
-                                assert.equal(media.media.metadata.someTrueBoolean + '', mediaInfo.metadata.someTrueBoolean + '');
-                                assert.equal(media.media.metadata.someFalseBoolean + '', mediaInfo.metadata.someFalseBoolean + '');
-                                assert.equal(media.media.metadata.someSmallNumber + '', mediaInfo.metadata.someSmallNumber + '');
-                                assert.equal(media.media.metadata.someLargeNumber + '', mediaInfo.metadata.someLargeNumber + '');
-                                assert.equal(media.media.metadata.someSmallDecimal + '', mediaInfo.metadata.someSmallDecimal + '');
-                                assert.equal(media.media.metadata.someLargeDecimal + '', mediaInfo.metadata.someLargeDecimal + '');
-                                assert.equal(media.media.metadata.someString, mediaInfo.metadata.someString);
-                                assert.equal(media.media.metadata.images[0].url, mediaInfo.metadata.images[0].url);
-                                assert.equal(media.media.metadata.metadataType, chrome.cast.media.MetadataType.GENERIC);
-                                assert.equal(media.media.metadata.type, chrome.cast.media.MetadataType.GENERIC);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
                                 assert.equal(media.playerState, chrome.cast.media.PlayerState.PLAYING);
                                 called(session_listener);
                             }, function receiverListener (availability) {

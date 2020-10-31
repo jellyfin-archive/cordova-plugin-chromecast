@@ -278,9 +278,6 @@ NSDictionary* queueOrderIDsByItemId = nil;
     if ([clientName isEqualToString:@"bookTitle"]) {
         return kGCKMetadataKeyBookTitle;
     }
-    if ([clientName isEqualToString:@"broadcastDate"]) {
-        return kGCKMetadataKeyBroadcastDate;
-    }
     if ([clientName isEqualToString:@"chapterNumber"]) {
         return kGCKMetadataKeyChapterNumber;
     }
@@ -321,7 +318,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         return kGCKMetadataKeyReleaseDate;
     }
     if ([clientName isEqualToString:@"originalAirDate"]) {
-        return kGCKMetadataKeyReleaseDate;
+        return kGCKMetadataKeyBroadcastDate;
     }
     if ([clientName isEqualToString:@"season"]) {
         return kGCKMetadataKeySeasonNumber;
@@ -373,7 +370,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         return @"bookTitle";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyBroadcastDate]) {
-        return @"broadcastDate";
+        return @"originalAirDate";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyChapterNumber]) {
         return @"chapterNumber";

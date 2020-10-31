@@ -236,8 +236,6 @@ final class ChromecastUtilities {
                 return MediaMetadata.KEY_ARTIST;
             case "bookTitle":
                 return MediaMetadata.KEY_BOOK_TITLE;
-            case "broadcastDate":
-                return MediaMetadata.KEY_BROADCAST_DATE;
             case "chapterNumber":
                 return MediaMetadata.KEY_CHAPTER_NUMBER;
             case "chapterTitle":
@@ -259,10 +257,11 @@ final class ChromecastUtilities {
                 return MediaMetadata.KEY_LOCATION_LONGITUDE;
             case "locationName":
                 return MediaMetadata.KEY_LOCATION_NAME;
+            case "originalAirDate":
+                return MediaMetadata.KEY_BROADCAST_DATE;
             case "queueItemId":
                 return MediaMetadata.KEY_QUEUE_ITEM_ID;
             case "releaseDate":
-            case "originalAirDate":
                 return MediaMetadata.KEY_RELEASE_DATE;
             case "season":
                 return MediaMetadata.KEY_SEASON_NUMBER;
@@ -302,7 +301,7 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_BOOK_TITLE:
                 return "bookTitle";
             case MediaMetadata.KEY_BROADCAST_DATE:
-                return "broadcastDate";
+                return "originalAirDate";
             case MediaMetadata.KEY_CHAPTER_NUMBER:
                 return "chapterNumber";
             case MediaMetadata.KEY_CHAPTER_TITLE:
@@ -785,7 +784,7 @@ final class ChromecastUtilities {
         return out;
     }
 
-/* -------------------   Create NON-JSON (non-output) Objects  ---------------------------------- */
+    /* -------------------   Create NON-JSON (non-output) Objects  ---------------------------------- */
 
     /**
      * Creates a MediaQueueItem from a JSONObject representation of a MediaQueueItem.

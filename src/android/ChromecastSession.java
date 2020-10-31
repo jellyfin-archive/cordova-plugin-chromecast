@@ -492,13 +492,24 @@ public class ChromecastSession {
             // Reset lookingForIndexes
             lookingForIndexes = new ArrayList<>();
 
-            // Only add indexes to look for it the currentItemIndex is valid
-            if (index != -1) {
-                // init i-1, i, i+1 (exclude items out of range), so always 2-3 items
-                for (int i = index - 1; i <= index + 1; i++) {
-                    if (i >= 0 && i < len) {
-                        lookingForIndexes.add(i);
+            // If we don't know the currentItemIndex, retry on queueStatusUpdated
+            // To be careful, only when we are expecting a queueRelodCallback and
+            // queueStatusUpdatedCallback is not already in use.
+            // (2nd+3rd conditions may be unnecessary)
+            if (index == -1 && queueReloadCallback != null && queueStatusUpdatedCallback == null) {
+                setQueueStatusUpdatedCallback(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshQueueItems();
                     }
+                });
+                return;
+            }
+            // Else, we can get the 2-3 items that are around the currentItem index!
+            // init i-1, i, i+1 (exclude items out of range), so always 2-3 items
+            for (int i = index - 1; i <= index + 1; i++) {
+                if (i >= 0 && i < len) {
+                    lookingForIndexes.add(i);
                 }
             }
             checkLookingForIndexes();

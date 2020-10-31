@@ -191,6 +191,56 @@
                     return done();
                 }
             });
+            it('session.queueLoad after page reload should get new media items', function (done) {
+                this.timeout(15000);
+                var testNum = 2;
+                assert.isAtLeast(runningNum, testNum, 'Should not be running this test yet');
+                if (runningNum > testNum) {
+                    // We must be looking to run a test further down the line
+                    return done();
+                }
+                // Else, run the test
+
+                var photoItem = mediaUtils.getMediaInfoItem('IMAGE', chrome.cast.media.MetadataType.PHOTO, new Date(2020, 10, 31));
+                var request;
+
+                // Add items to the queue
+                var queue = [];
+                queue.push(new chrome.cast.media.QueueItem(mediaInfo));
+                queue.push(new chrome.cast.media.QueueItem(photoItem));
+
+                // Create request to repeat all and start at last item
+                request = new chrome.cast.media.QueueLoadRequest(queue);
+                session.queueLoad(request, function (m) {
+                    media = m;
+                    console.log(media);
+                    assertQueueProperties(media);
+                    media.addUpdateListener(function listener (isAlive) {
+                        assert.isTrue(isAlive);
+                        assertQueueProperties(media);
+                        assert.oneOf(media.playerState, [
+                            chrome.cast.media.PlayerState.PLAYING,
+                            chrome.cast.media.PlayerState.BUFFERING]);
+                        if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                            media.removeUpdateListener(listener);
+                            done();
+                        }
+                    });
+                }, function (err) {
+                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                });
+
+                function assertQueueProperties (media) {
+                    utils.testMediaProperties(media);
+                    assert.isObject(media.queueData);
+                    utils.testQueueItems(media.items);
+                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
+                    var i = utils.getCurrentItemIndex(media);
+                    assert.equal(i, 0);
+                    mediaUtils.assertMediaInfoItemEquals(media.items[0].media, mediaInfo);
+                    mediaUtils.assertMediaInfoItemEquals(media.items[1].media, photoItem);
+                }
+            });
             it('media.pause should pause playback', function (done) {
                 this.timeout(15000);
                 var testNum = 2;

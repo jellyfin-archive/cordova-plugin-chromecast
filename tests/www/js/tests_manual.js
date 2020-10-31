@@ -11,7 +11,7 @@
 (function () {
     'use strict';
     /* eslint-env mocha */
-    /* global chrome */
+    /* global chrome cordova */
 
     var assert = window.chai.assert;
     var utils = window['cordova-plugin-chromecast-tests'].utils;
@@ -51,8 +51,20 @@
             var cookieName = 'primary-p1_restart-reload';
             var runningNum = parseInt(utils.getValue(cookieName) || '0');
             var mediaInfo;
+            var photoItem;
+            var assertQueueProperties = function (media) {
+                utils.testMediaProperties(media);
+                assert.isObject(media.queueData);
+                utils.testQueueItems(media.items);
+                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
+                var i = utils.getCurrentItemIndex(media);
+                assert.equal(i, 0);
+                mediaUtils.assertMediaInfoItemEquals(media.items[0].media, mediaInfo);
+                mediaUtils.assertMediaInfoItemEquals(media.items[1].media, photoItem);
+            };
             before('Create MediaInfo', function () {
                 mediaInfo = mediaUtils.getMediaInfoItem('VIDEO', chrome.cast.media.MetadataType.GENERIC, new Date(2019, 10, 24));
+                photoItem = mediaUtils.getMediaInfoItem('IMAGE', chrome.cast.media.MetadataType.PHOTO, new Date(2020, 10, 31));
             });
             it('Create session', function (done) {
                 this.timeout(15000);
@@ -201,16 +213,13 @@
                 }
                 // Else, run the test
 
-                var photoItem = mediaUtils.getMediaInfoItem('IMAGE', chrome.cast.media.MetadataType.PHOTO, new Date(2020, 10, 31));
-                var request;
-
                 // Add items to the queue
                 var queue = [];
                 queue.push(new chrome.cast.media.QueueItem(mediaInfo));
                 queue.push(new chrome.cast.media.QueueItem(photoItem));
 
                 // Create request to repeat all and start at last item
-                request = new chrome.cast.media.QueueLoadRequest(queue);
+                var request = new chrome.cast.media.QueueLoadRequest(queue);
                 session.queueLoad(request, function (m) {
                     media = m;
                     console.log(media);
@@ -229,19 +238,8 @@
                 }, function (err) {
                     assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                 });
-
-                function assertQueueProperties (media) {
-                    utils.testMediaProperties(media);
-                    assert.isObject(media.queueData);
-                    utils.testQueueItems(media.items);
-                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
-                    var i = utils.getCurrentItemIndex(media);
-                    assert.equal(i, 0);
-                    mediaUtils.assertMediaInfoItemEquals(media.items[0].media, mediaInfo);
-                    mediaUtils.assertMediaInfoItemEquals(media.items[1].media, photoItem);
-                }
             });
-            it('media.pause should pause playback', function (done) {
+            it('Pause media from notifications', function (done) {
                 this.timeout(15000);
                 var testNum = 2;
                 assert.isAtLeast(runningNum, testNum, 'Should not be running this test yet');
@@ -250,30 +248,30 @@
                     return done();
                 }
                 // Else, run the test
-
-                var called = utils.waitForAllCalls([
-                    { id: success, repeats: false },
-                    { id: update, repeats: true }
-                ], function () {
-                    utils.storeValue(cookieName, ++runningNum);
-                    done();
-                });
                 media.addUpdateListener(function listener (isAlive) {
                     assert.isTrue(isAlive);
                     assert.notEqual(media.playerState, chrome.cast.media.PlayerState.IDLE);
-                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
+                    assertQueueProperties(media);
                     if (media.playerState === chrome.cast.media.PlayerState.PAUSED) {
                         media.removeUpdateListener(listener);
-                        called(update);
+                        utils.storeValue(cookieName, ++runningNum);
+                        done();
                     }
                 });
-                media.pause(null, function () {
-                    assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
-                    mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
-                    called(success);
-                }, function (err) {
-                    assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
-                });
+                if (!utils.isDesktop() && cordova.platformId === 'android') {
+                    utils.setAction('1. Drag down the Android notifications from the top status bar<br>2. Click the <b>pause button</b>',
+                    'There is no chromecast notification drop-down', mediaPause);
+                } else {
+                    mediaPause();
+                }
+                function mediaPause () {
+                    media.pause(null, function () {
+                        assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
+                        assertQueueProperties(media);
+                    }, function (err) {
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                    });
+                }
             });
             it('Restart app with active session, should receive session on initialize', function (done) {
                 var instructionNum = 3;
@@ -313,11 +311,9 @@
                             function (sess) {
                                 session = sess;
                                 utils.testSessionProperties(sess);
-                                // // Ensure the media is maintained
-                                assert.isAbove(sess.media.length, 0);
+                                // Ensure the media is maintained
                                 media = sess.media[0];
-                                assert.isUndefined(media.queueData);
-                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
+                                assertQueueProperties(media);
                                 assert.equal(media.playerState, chrome.cast.media.PlayerState.PAUSED);
                                 called(session_listener);
                             }, function receiverListener (availability) {
@@ -407,11 +403,9 @@
                             function (sess) {
                                 session = sess;
                                 utils.testSessionProperties(sess);
-                                // // Ensure the media is maintained
-                                assert.isAbove(sess.media.length, 0);
-                                media = sess.media[0];
-                                assert.isUndefined(media.queueData);
-                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
+                                // Ensure the media is maintained
+                                media = session.media[0];
+                                assertQueueProperties(media);
                                 assert.equal(media.playerState, chrome.cast.media.PlayerState.PLAYING);
                                 called(session_listener);
                             }, function receiverListener (availability) {
@@ -429,6 +423,28 @@
                 default:
                     // We must be looking to run a test further down the line
                     return done();
+                }
+            });
+            it('Stop session from notifications (android)', function (done) {
+                session.addUpdateListener(function listener (isAlive) {
+                    if (session.status === chrome.cast.SessionStatus.STOPPED) {
+                        assert.isFalse(isAlive);
+                        session.removeUpdateListener(listener);
+                        session = null;
+                        done();
+                    }
+                });
+                if (!utils.isDesktop() && cordova.platformId === 'android') {
+                    utils.setAction('1. Drag down the Android notifications from the top status bar<br>2. Click the "<b>X</b>"',
+                    'There is no chromecast notification drop-down', sessionStop);
+                } else {
+                    sessionStop();
+                }
+                function sessionStop () {
+                    session.stop(function () {
+                    }, function (err) {
+                        assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                    });
                 }
             });
             after('Ensure session is stopped', function (done) {

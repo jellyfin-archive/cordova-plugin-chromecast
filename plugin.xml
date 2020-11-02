@@ -34,10 +34,7 @@
       <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME" android:value="acidhax.cordova.chromecast.CastOptionsProvider" />
     </config-file>
 
-    <framework src="com.google.android.gms:play-services-cast:17.0.0" />
-    <framework src="com.google.android.gms:play-services-cast-framework:17.0.0" />
-    <framework src="androidx.appcompat:appcompat:1.0.2" />
-    <framework src="androidx.mediarouter:mediarouter:1.0.0" />
+    <framework src="com.google.android.gms:play-services-cast-framework:19.0.0" />
 
     <source-file src="src/android/CastOptionsProvider.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/Chromecast.java" target-dir="src/acidhax/cordova/chromecast" />
@@ -59,7 +56,7 @@
         <source url="https://cdn.cocoapods.org/"/>
       </config>
       <pods use-frameworks="true">
-        <pod name="google-cast-sdk" spec="~> 4.4.6" />
+        <pod name="google-cast-sdk" spec="~> 4.4.8" />
       </pods>
     </podspec>
 

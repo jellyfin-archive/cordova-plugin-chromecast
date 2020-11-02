@@ -648,7 +648,12 @@ final class ChromecastUtilities {
             out.put("contentId", mediaInfo.getContentId());
             out.put("contentType", mediaInfo.getContentType());
             out.put("customData", mediaInfo.getCustomData());
-            out.put("duration", mediaInfo.getStreamDuration() / 1000.0);
+            long duration = mediaInfo.getStreamDuration();
+            if (duration == -1) {
+                out.put("duration", null);
+            } else {
+                out.put("duration", duration / 1000.0);
+            }
             //out.put("mediaCategory",);
             out.put("metadata", createMetadataObject(mediaInfo.getMetadata()));
             out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));

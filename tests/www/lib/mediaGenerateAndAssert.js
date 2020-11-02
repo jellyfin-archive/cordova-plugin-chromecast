@@ -11,6 +11,7 @@
 
     var audioUrl = 'https://ia800306.us.archive.org/26/items/1939RadioNews/1939-10-24-CBS-Elmer-Davis-Reports-City-Of-Flint-Still-Missing.mp3';
     var imageUrl = 'https://ia800705.us.archive.org/1/items/GoodHousekeeping193810/Good%20Housekeeping%201938-10.jpg';
+    var liveAudioUrl = 'http://relay.publicdomainproject.org/classical.mp3';
     var videoUrl = 'https://ia801302.us.archive.org/1/items/TheWater_201510/TheWater.mp4';
 
     var mediaUtils = {
@@ -23,6 +24,9 @@
             },
             'IMAGE': function () {
                 return new chrome.cast.media.MediaInfo(imageUrl, 'image/jpeg');
+            },
+            'LIVE_AUDIO': function () {
+                return new chrome.cast.media.MediaInfo(liveAudioUrl, 'audio/mpeg');
             }
         }
     };

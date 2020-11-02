@@ -964,6 +964,30 @@
                             assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
                         });
                     });
+                    it('session.loadMedia should be able to load live stream audio media', function (done) {
+                        this.timeout(90000);
+                        var mediaInfo = mediaUtils.getMediaInfoItem('LIVE_AUDIO');
+                        session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {
+                            media = m;
+                            utils.testMediaProperties(media, true);
+                            mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
+                            media.addUpdateListener(function listener (isAlive) {
+                                assert.isTrue(isAlive);
+                                utils.testMediaProperties(media, true);
+                                mediaUtils.assertMediaInfoItemEquals(media.media, mediaInfo);
+                                assert.oneOf(media.playerState, [
+                                    chrome.cast.media.PlayerState.PLAYING,
+                                    chrome.cast.media.PlayerState.BUFFERING]);
+                                if (media.playerState === chrome.cast.media.PlayerState.PLAYING) {
+                                    console.log(media);
+                                    media.removeUpdateListener(listener);
+                                    done();
+                                }
+                            });
+                        }, function (err) {
+                            assert.fail('Unexpected Error: ' + err.code + ': ' + err.description);
+                        });
+                    });
                     it('session.loadMedia should be able to load remote image and return the PhotoMediaMetadata', function (done) {
                         var mediaInfo = mediaUtils.getMediaInfoItem('IMAGE', chrome.cast.media.MetadataType.PHOTO);
                         session.loadMedia(new chrome.cast.media.LoadRequest(mediaInfo), function (m) {

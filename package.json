@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-chromecast",
-  "version": "1.1.0",
+  "version": "1.1.0-dev",
   "scripts": {
     "host-chrome-tests": "node tests/www/chrome/host-tests.js",
     "style-js": "npx eslint --ignore-pattern tests/www/vendor www tests/www doc/example.js",

@@ -60,13 +60,6 @@
       </pods>
     </podspec>
 
-    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Debug.plist">
-      <true/>
-    </config-file>
-    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Release.plist">
-      <true/>
-    </config-file>
-
     <header-file src="src/ios/MLPChromecast.h" />
     <source-file src="src/ios/MLPChromecast.m" />
     <header-file src="src/ios/MLPChromecastSession.h" />

@@ -18,16 +18,16 @@ pod install
 To **distribute** an iOS app with this plugin you must add usage descriptions to your project's `config.xml`.  
 These strings will be used when asking the user for permission to use the microphone and bluetooth.
 ```xml
-<!-- ios 6-13 (deprecated) -->
 <platform name="ios">
-  <config-file parent="NSBluetoothPeripheralUsageDescription" target="*-Info.plist">
+  <!-- ios 6-13 (deprecated) -->
+  <config-file parent="NSBluetoothPeripheralUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
       <string>Bluetooth is required to scan for nearby Chromecast devices with guest mode enabled.</string>
   </config-file>
   <!-- ios 13+ -->
-  <config-file parent="NSBluetoothAlwaysUsageDescription" target="*-Info.plist">
+  <config-file parent="NSBluetoothAlwaysUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
       <string>Bluetooth is required to scan for nearby Chromecast devices with guest mode enabled.</string>
   </config-file>
-  <config-file parent="NSMicrophoneUsageDescription" target="*-Info.plist">
+  <config-file parent="NSMicrophoneUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
       <string>The microphone is required to pair with nearby Chromecast devices with guest mode enabled.</string>
   </config-file>
 </platform>

@@ -56,7 +56,7 @@
         <source url="https://cdn.cocoapods.org/"/>
       </config>
       <pods use-frameworks="true">
-        <pod name="google-cast-sdk" spec="~> 4.4.8" />
+        <pod name="google-cast-sdk" spec="~> 4.5.2" />
       </pods>
     </podspec>
 

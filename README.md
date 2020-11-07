@@ -16,7 +16,7 @@ pod install
 
 ### Additional iOS Installation Instructions
 To **distribute** an iOS app with this plugin you must add usage descriptions to your project's `config.xml`.  
-These strings will be used when asking the user for permission to use the microphone and bluetooth.
+The "*Description" key strings will be used when asking the user for permission to use the microphone/bluetooth/local network.  
 ```xml
 <platform name="ios">
   <!-- ios 6-13 (deprecated) -->
@@ -30,13 +30,26 @@ These strings will be used when asking the user for permission to use the microp
   <config-file parent="NSMicrophoneUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
       <string>The microphone is required to pair with nearby Chromecast devices with guest mode enabled.</string>
   </config-file>
+  <!-- ios 14+ -->
+  <config-file parent="NSLocalNetworkUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
+      <string>The local network permission is required to discover Cast-enabled devices on your WiFi network.</string>
+  </config-file>
+  <config-file parent="NSBonjourServices" target="*-Info.plist" comment="cordova-plugin-chromecast">
+    <array>
+      <string>_googlecast._tcp</string>
+      <!-- The default receiver ID -->
+      <string>_CC1AD845._googlecast._tcp</string>
+      <!-- IF YOU USE A CUSTOM RECEIVER, replace the line above, and put your ID instead of "[YourCustomRecieverID]" -->
+      <!-- <string>_[YourCustomRecieverID]._googlecast._tcp</string> -->
+    </array>
+  </config-file>
 </platform>
 ```
 
 # Supports
 
-**Android** 4.4+ (7.x highest confirmed) (may support lower, untested)  
-**iOS** 9.0+ (14.1 highest confirmed)
+**Android** 4.4+ (may support lower, untested)  
+**iOS** 10.0+ (The [Google Cast iOS Sender SDK 4.5.0](https://developers.google.com/cast/docs/release-notes#september-14,-2020) says iOS 10+ but all tests on the plugin work fine for iOS 9.3.5, so it appears to work on iOs 9 anyways. :/)
 
 ## Quirks
 * Android 4.4 (maybe 5.x and 6.x) are not able automatically rejoin/resume a chromecast session after an app restart.  

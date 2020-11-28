@@ -192,6 +192,13 @@ Run `npm test` to ensure your code fits the styling.  It will also find some err
 
   * If errors are found, you can try running `npm run style`, this will attempt to automatically fix the errors.
 
+You can view what the plug tests should look like here:  
+* [Auto Tests - Desktop Chrome](https://youtu.be/CdUwFrEht_A)
+* [Auto Tests - Android or iOS](https://youtu.be/VUtiXee6m_8)
+* [Manual Tests - Android or iOS](https://youtu.be/cgyOpBRXdEI)
+* [Interaction Tests - Android & iOS](https://youtu.be/rphp_s5ruzM)
+* [Interaction Tests - Android (or iOS) & Desktop Chrome](https://youtu.be/1ccBHqeMLhs)
+
 ### Tests Mobile
 
 Requirements:

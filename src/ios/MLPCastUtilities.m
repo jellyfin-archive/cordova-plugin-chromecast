@@ -118,6 +118,9 @@ NSDictionary* queueOrderIDsByItemId = nil;
 }
 
 +(GCKMediaMetadata*)buildMediaMetadata:(NSDictionary*)data {
+    if ([data isEqual:[NSNull null]] || data == nil) {
+        return nil;
+    }
     GCKMediaMetadata* mediaMetaData = [[GCKMediaMetadata alloc] initWithMetadataType:GCKMediaMetadataTypeGeneric];
     
     if (data[@"metadataType"]) {

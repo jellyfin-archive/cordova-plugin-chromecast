@@ -221,7 +221,7 @@ They use the google provided cast_sender.js.
 These are particularly useful for ensuring we are following the [official Google Cast API for Chrome](https://developers.google.com/cast/docs/reference/chrome#chrome.cast) correctly.  
 To run the tests:
 * run: `npm run host-chrome-tests [port default=8432]`
-* Navigate to: [http://localhost:8432/chrome/tests_chrome.html](http://localhost:8432/chrome/tests_chrome.html)
+* Navigate to: [http://localhost:8432/html/tests.html](http://localhost:8432/html/tests.html)
 
 ## Contributing
 

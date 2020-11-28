@@ -20,6 +20,10 @@
 -->
 ## Release Notes for cordova-plugin-chromecast
 
+### 2.0.1 (2020-11-28)
+
+* (ios) Bug Fix - media loaded without any metadata caused crash
+
 ### 2.0.0 (2020-11-07)
 
 * (ios) BREAKING - Update Google Cast SDK (iOS Sender -> 4.5.2)

@@ -46,6 +46,9 @@ The "*Description" key strings will be used when asking the user for permission 
 </platform>
 ```
 
+## Chromecast Icon Assets  
+[chromecast-assets.zip](https://github.com/jellyfin/cordova-plugin-chromecast/wiki/chromecast-assets.zip)
+
 # Supports
 
 **Android** 4.4+ (may support lower, untested)  

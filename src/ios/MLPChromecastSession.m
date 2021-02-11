@@ -214,21 +214,24 @@ NSMutableArray<MLPCastRequestDelegate*>* requestDelegates;
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-- (void)sendMessageWithCommand:(CDVInvokedUrlCommand*)command namespace:(NSString*)namespace message:(NSString*)message {
-    GCKGenericChannel* channel = self.genericChannels[namespace];
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[NSString stringWithFormat:@"Namespace %@ not founded",namespace]];
+- (void)sendMessageWithCommand:(CDVInvokedUrlCommand*)command namespace:(NSString*)namespace message:(NSString*)message{
+
+    GCKGenericChannel* newChannel = [[GCKGenericChannel alloc] initWithNamespace:namespace];
+    newChannel.delegate = self;
+    self.genericChannels[namespace] = newChannel;
+    [currentSession addChannel:newChannel];
+
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[NSString stringWithFormat:@"Namespace %@ not found",namespace]];
     
-    if (channel != nil) {
+    if(newChannel != nil) {
         GCKError* error = nil;
-        [channel sendTextMessage:message error:&error];
+        [newChannel sendTextMessage:message error:&error];
         if (error != nil) {
             pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:error.description];
         } else {
             pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         }
     }
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 - (void)mediaSeekWithCommand:(CDVInvokedUrlCommand*)command position:(NSTimeInterval)position resumeState:(GCKMediaResumeState)resumeState {

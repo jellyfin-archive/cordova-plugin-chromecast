@@ -6,6 +6,9 @@
     'use strict';
     /* eslint-env mocha */
 
+    var Mocha = window.Mocha;
+    var utils = window['cordova-plugin-chromecast-tests'].utils;
+
     // Save htmlReporter reference
     var htmlReporter = mocha._reporter;
 
@@ -13,7 +16,7 @@
     // with linking to source for quick debugging in dev tools
     var myReporter = function (runner, options) {
         // Add the error listener
-        runner.on('fail', function (test, err) {
+        runner.on(Mocha.Runner.constants.EVENT_TEST_FAIL, function (test, err) {
             // Need to add the full code location path
             // so that the debugger can link to it
 
@@ -42,6 +45,20 @@
             // Log the error
             console.error(lines.join('\n'));
         });
+
+        // Custom suite end
+        runner.on(Mocha.Runner.constants.EVENT_SUITE_END, function (test, err) {
+            // Include pending as a passed test because those are skipped tests (usually)
+            var passed = (this.stats.passes + this.stats.pending) === this.total;
+            if (passed) {
+                utils.setAction('All tests passed!');
+                document.getElementById('action').style.backgroundColor = '#ceffc4';
+            } else if (this.stats.failures) {
+                utils.setAction('Test failed. :(');
+                document.getElementById('action').style.backgroundColor = '#e28282';
+            }
+        });
+
         // And return the default HTML reporter
         htmlReporter.call(this, runner, options);
     };

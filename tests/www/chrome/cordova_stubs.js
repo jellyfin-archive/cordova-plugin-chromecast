@@ -1,5 +1,5 @@
 /**
- * These stub plugin specific bahaviour so we can run the auto tests on chrome
+ * These stub plugin specific behaviour so we can run the auto tests on chrome
  * desktop browser.
  */
 (function () {
@@ -108,26 +108,6 @@
                 'Scan stopped because setup triggered.'));
         }
         successCallback(['SETUP']);
-    };
-
-/* ------------------------- Start Tests ---------------------------------- */
-
-    // This actually starts the tests
-    window['__onGCastApiAvailable'] = function (isAvailable, err) {
-        // If error, it is probably because we are not on chrome, so just disregard
-        if (isAvailable) {
-            var runner;
-            if (window['cordova-plugin-chromecast-tests'].runMocha) {
-                runner = window['cordova-plugin-chromecast-tests'].runMocha();
-            } else {
-                runner = mocha.run();
-            }
-            // This makes it so that tests actually fail in the case of
-            // uncaught exceptions inside promise catch blocks
-            window.addEventListener('unhandledrejection', function (event) {
-                runner.fail(runner.test, event.reason);
-            });
-        }
     };
 
 }());

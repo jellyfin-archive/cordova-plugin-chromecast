@@ -1,11 +1,13 @@
 {
   "name": "cordova-plugin-chromecast",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "scripts": {
     "host-chrome-tests": "node tests/www/chrome/host-tests.js",
-    "style-fix-js": "node node_modules/eslint/bin/eslint --fix src && node node_modules/eslint/bin/eslint --fix www && node node_modules/eslint/bin/eslint --ignore-pattern tests/www/lib --fix tests/www",
-    "test": "node node_modules/eslint/bin/eslint src && node node_modules/eslint/bin/eslint www && node node_modules/eslint/bin/eslint --ignore-pattern tests/www/lib tests/www && node ./node_modules/java-checkstyle/bin/index.js ./src/android/ -c ./check_style.xml",
-    "style": "npm run style-fix-js && npm run test"
+    "style-js": "npx eslint --ignore-pattern tests/www/vendor www tests/www doc/example.js",
+    "style-js-fix": "npx eslint --ignore-pattern tests/www/vendor/ --fix www/ tests/www/ doc/example.js",
+    "style-java": "npx java-checkstyle -c ./check_style.xml ./src/android/",
+    "style": "npm run style-js-fix && npm run style-java",
+    "test": "npm run style-js && npm run style-java"
   },
   "author": "",
   "license": "dual GPLv3/MPLv2",
@@ -20,7 +22,7 @@
     "eslint-plugin-promise": "~3.5.0",
     "eslint-plugin-standard": "~3.0.1",
     "express": "^4.17.1",
-    "java-checkstyle": "0.0.1",
+    "java-checkstyle": "0.1.0",
     "path": "^0.12.7"
   }
 }

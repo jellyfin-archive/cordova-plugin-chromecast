@@ -34,11 +34,15 @@ public class ChromecastConnection {
     private Activity activity;
     /** settings object. */
     private SharedPreferences settings;
-    /** Controls the media. */
-    private ChromecastSession media;
+    /** Controls the chromecastSession. */
+    private ChromecastSession chromecastSession;
 
     /** Lifetime variable. */
     private SessionListener newConnectionListener;
+    /** Indicates whether we left the session or stopped it. */
+    private boolean sessionEndBecauseOfLeave = false;
+    /** Any callback to call after sessionEnd. */
+    private CallbackContext sessionEndCallback = null;
     /** The Listener callback. */
     private Listener listener;
 
@@ -55,7 +59,7 @@ public class ChromecastConnection {
         this.settings = activity.getSharedPreferences("CORDOVA-PLUGIN-CHROMECAST_ChromecastConnection", 0);
         this.appId = settings.getString("appId", CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID);
         this.listener = connectionListener;
-        this.media = new ChromecastSession(activity, listener);
+        this.chromecastSession = new ChromecastSession(activity, listener);
 
         // Set the initial appId
         CastOptionsProvider.setAppId(appId);
@@ -64,6 +68,19 @@ public class ChromecastConnection {
         // CastContext and prep it for searching for a session to rejoin
         // Also adds the receiver update callback
         getContext().addCastStateListener(listener);
+        getSessionManager().addSessionManagerListener(new SessionListener() {
+            @Override
+            public void onSessionEnded(CastSession castSession, int errCode) {
+                chromecastSession.setSession(null);
+                if (sessionEndCallback != null) {
+                    sessionEndCallback.success();
+                }
+                listener.onSessionEnd(ChromecastUtilities.createSessionObject(castSession, sessionEndBecauseOfLeave ? "disconnected" : "stopped"));
+                // Reset
+                sessionEndBecauseOfLeave = false;
+                sessionEndCallback = null;
+            }
+        }, CastSession.class);
     }
 
     /**
@@ -71,7 +88,7 @@ public class ChromecastConnection {
      * @return the ChromecastSession object
      */
     ChromecastSession getChromecastSession() {
-        return this.media;
+        return chromecastSession;
     }
 
     /**
@@ -114,7 +131,7 @@ public class ChromecastConnection {
                             // If we do have a session
                             if (session != null) {
                                 // Let the client know
-                                media.setSession(session);
+                                chromecastSession.setSession(session);
                                 listener.onSessionRejoin(ChromecastUtilities.createSessionObject(session));
                             }
                         }
@@ -199,7 +216,7 @@ public class ChromecastConnection {
                 // getMediaRouter().getRoutes() which will result in "Ignoring attempt to select
                 // removed route: ", even if that route *should* be available.  This state could
                 // happen because routes are periodically "removed" and "added", and if the last
-                // time media router was scanning ended when the route was temporarily removed the
+                // time chromecastSession router was scanning ended when the route was temporarily removed the
                 // getRoutes() fn will have no record of the route.  We need the active scan to
                 // avoid this situation as well.  PS. Just running the scan non-stop is a poor idea
                 // since it will drain battery power quickly.
@@ -372,7 +389,7 @@ public class ChromecastConnection {
             @Override
             public void onSessionStarted(CastSession castSession, String sessionId) {
                 getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                media.setSession(castSession);
+                chromecastSession.setSession(castSession);
                 callback.onJoin(ChromecastUtilities.createSessionObject(castSession));
             }
             @Override
@@ -472,18 +489,8 @@ public class ChromecastConnection {
     void endSession(boolean stopCasting, CallbackContext callback) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                getSessionManager().addSessionManagerListener(new SessionListener() {
-                    @Override
-                    public void onSessionEnded(CastSession castSession, int error) {
-                        getSessionManager().removeSessionManagerListener(this, CastSession.class);
-                        media.setSession(null);
-                        if (callback != null) {
-                            callback.success();
-                        }
-                        listener.onSessionEnd(ChromecastUtilities.createSessionObject(castSession, stopCasting ? "stopped" : "disconnected"));
-                    }
-                }, CastSession.class);
-
+                sessionEndCallback = callback;
+                sessionEndBecauseOfLeave = !stopCasting;
                 getSessionManager().endCurrentSession(stopCasting);
             }
         });

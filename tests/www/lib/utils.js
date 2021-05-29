@@ -31,6 +31,10 @@
         localStorage.clear();
     };
 
+    utils.isDesktop = function () {
+        return window['cordova-plugin-chromecast-tests'].isDesktop || false;
+    };
+
     /**
      * Displays the action information.
      */
@@ -275,14 +279,14 @@
         assert.isFunction(session.loadMedia);
     };
 
-    utils.testMediaProperties = function (media) {
+    utils.testMediaProperties = function (media, isLiveStream) {
         assert.instanceOf(media, chrome.cast.media.Media);
         assert.isNumber(media.currentItemId);
         assert.isNumber(media.currentTime);
         if (media.idleReason) {
             assert.oneOf(media.idleReason, utils.getObjectValues(chrome.cast.media.IdleReason));
         }
-        utils.testMediaInfoProperties(media.media);
+        utils.testMediaInfoProperties(media.media, isLiveStream);
         assert.isNumber(media.mediaSessionId);
         assert.isNumber(media.playbackRate);
         assert.oneOf(media.playerState, utils.getObjectValues(chrome.cast.media.PlayerState));
@@ -294,14 +298,19 @@
         assert.isFunction(media.removeUpdateListener);
     };
 
-    utils.testMediaInfoProperties = function (mediaInfo) {
+    utils.testMediaInfoProperties = function (mediaInfo, isLiveStream) {
         // queue items contain a subset of identical properties
         utils.testQueueItemMediaInfoProperties(mediaInfo);
         // properties that are exclusive (or mandatory) to media.media
-        assert.isNumber(mediaInfo.duration);
-        if (mediaInfo.contentType.toLowerCase().indexOf('video') > -1
-        || mediaInfo.contentType.toLowerCase().indexOf('audio') > -1) {
-            assert.isAbove(mediaInfo.duration, 0);
+        if (isLiveStream) {
+            // Live stream has null duration
+            assert.isNull(mediaInfo.duration);
+        } else {
+            assert.isNumber(mediaInfo.duration);
+            if (mediaInfo.contentType.toLowerCase().indexOf('video') > -1
+            || mediaInfo.contentType.toLowerCase().indexOf('audio') > -1) {
+                assert.isAbove(mediaInfo.duration, 0);
+            }
         }
         assert.isArray(mediaInfo.tracks);
     };

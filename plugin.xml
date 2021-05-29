@@ -2,7 +2,7 @@
 <plugin xmlns="http://phonegap.com/ns/plugins/1.0"
         xmlns:android="http://schemas.android.com/apk/res/android"
         id="cordova-plugin-chromecast"
-        version="1.0.0">
+        version="2.0.1">
   <engines>
     <engine name="cordova" version=">=3.4.0" />
   </engines>
@@ -34,10 +34,7 @@
       <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME" android:value="acidhax.cordova.chromecast.CastOptionsProvider" />
     </config-file>
 
-    <framework src="com.google.android.gms:play-services-cast:17.0.0" />
-    <framework src="com.google.android.gms:play-services-cast-framework:17.0.0" />
-    <framework src="androidx.appcompat:appcompat:1.0.2" />
-    <framework src="androidx.mediarouter:mediarouter:1.0.0" />
+    <framework src="com.google.android.gms:play-services-cast-framework:19.0.0" />
 
     <source-file src="src/android/CastOptionsProvider.java" target-dir="src/acidhax/cordova/chromecast" />
     <source-file src="src/android/Chromecast.java" target-dir="src/acidhax/cordova/chromecast" />
@@ -56,19 +53,12 @@
 
     <podspec>
       <config>
-        <source url="https://github.com/CocoaPods/Specs.git"/>
+        <source url="https://cdn.cocoapods.org/"/>
       </config>
       <pods use-frameworks="true">
-        <pod name="google-cast-sdk" spec="~> 4.4.6" />
+        <pod name="google-cast-sdk" spec="~> 4.5.2" />
       </pods>
     </podspec>
-
-    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Debug.plist">
-      <true/>
-    </config-file>
-    <config-file parent="com.apple.developer.networking.wifi-info" target="*/Entitlements-Release.plist">
-      <true/>
-    </config-file>
 
     <header-file src="src/ios/MLPChromecast.h" />
     <source-file src="src/ios/MLPChromecast.m" />

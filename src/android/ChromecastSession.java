@@ -42,7 +42,12 @@ public class ChromecastSession {
     private boolean requestingMedia = false;
     /** Handles and used to trigger queue updates. **/
     private MediaQueueController mediaQueueCallback;
-    /** Stores a callback that should be called when the queue is loaded. **/
+    /**
+     * Stores a callback that should be called when the queue is loaded.
+     * See https://github.com/jellyfin/cordova-plugin-chromecast/wiki/img/queueReloadCallback.jpg
+     * For how queueReloadCallback is used with multiple devices connected to the same session, and
+     * the primary device loads the media.
+     **/
     private Runnable queueReloadCallback;
     /** Stores a callback that should be called when the queue status is updated. **/
     private Runnable queueStatusUpdatedCallback;
@@ -436,6 +441,19 @@ public class ChromecastSession {
         this.queueReloadCallback = callback;
     }
 
+    /**
+     * This is called only when new media has been loaded.
+     * Media has been loaded via loadMedia or queueLoad by this sender or an external sender.
+     */
+    private void runQueueReloadCallback() {
+        if (this.queueReloadCallback != null) {
+            // TODO incrementMediaSessionId is a hack to simulate changing mediaSessionId
+            // (for some reason this is available on iOS and desktop chrome, but not Android.)
+            ChromecastUtilities.incrementMediaSessionId();
+            this.queueReloadCallback.run();
+        }
+    }
+
     private void setQueueStatusUpdatedCallback(Runnable callback) {
         this.queueStatusUpdatedCallback = callback;
     }
@@ -474,13 +492,24 @@ public class ChromecastSession {
             // Reset lookingForIndexes
             lookingForIndexes = new ArrayList<>();
 
-            // Only add indexes to look for it the currentItemIndex is valid
-            if (index != -1) {
-                // init i-1, i, i+1 (exclude items out of range), so always 2-3 items
-                for (int i = index - 1; i <= index + 1; i++) {
-                    if (i >= 0 && i < len) {
-                        lookingForIndexes.add(i);
+            // If we don't know the currentItemIndex, retry on queueStatusUpdated
+            // To be careful, only when we are expecting a queueRelodCallback and
+            // queueStatusUpdatedCallback is not already in use.
+            // (2nd+3rd conditions may be unnecessary)
+            if (index == -1 && queueReloadCallback != null && queueStatusUpdatedCallback == null) {
+                setQueueStatusUpdatedCallback(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshQueueItems();
                     }
+                });
+                return;
+            }
+            // Else, we can get the 2-3 items that are around the currentItem index!
+            // init i-1, i, i+1 (exclude items out of range), so always 2-3 items
+            for (int i = index - 1; i <= index + 1; i++) {
+                if (i >= 0 && i < len) {
+                    lookingForIndexes.add(i);
                 }
             }
             checkLookingForIndexes();
@@ -518,7 +547,7 @@ public class ChromecastSession {
             // Update the queueItems
             ChromecastUtilities.setQueueItems(queueItems);
             if (queueReloadCallback != null && queue.getItemCount() > 0) {
-                queueReloadCallback.run();
+                runQueueReloadCallback();
                 setQueueReloadCallback(null);
             }
             clientListener.onMediaUpdate(createMediaObject());

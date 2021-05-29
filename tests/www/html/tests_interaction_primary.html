@@ -7,16 +7,16 @@
         <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
 
         <link rel="stylesheet" type="text/css" href="../css/tests.css">
-        <link rel="stylesheet" type="text/css" href="../lib/mocha.css">
+        <link rel="stylesheet" type="text/css" href="../vendor/mocha.css">
 
-        <script type="text/javascript" src="../../../../cordova.js"></script>
-        <script type="text/javascript" src="../lib/mocha.js"></script>
-        <script type="text/javascript" src="../lib/chai.js"></script>
-        <script type="text/javascript" src="../js/custom_mocha_html_reporter.js"></script>
-        <script type="text/javascript" src="../js/utils.js"></script>
+        <script type="text/javascript" src="../vendor/mocha.js"></script>
+        <script type="text/javascript" src="../vendor/chai.js"></script>
+        <script type="text/javascript" src="../lib/utils.js"></script>
+        <script type="text/javascript" src="../lib/mediaGenerateAndAssert.js"></script>
+        <script type="text/javascript" src="../lib/custom_mocha_html_reporter.js"></script>
     </head>
     <body>
-        <h1>Manual Tests (Primary Device) Part 1</h1>
+        <h1>Interaction Tests - Primary Device</h1>
         
         <div>
             <a href="tests.html">
@@ -24,7 +24,7 @@
                     Back
                 </button>
             </a>
-            <a href="tests_manual_primary_1.html">
+            <a href="tests_interaction_primary.html">
                 <button id="rerun">
                     Re-run
                 </button>
@@ -38,12 +38,7 @@
         </div>
         
         <div id="mocha"></div>
-        <script type="text/javascript" src="../js/tests_manual_primary_1.js"></script>
-
-        <script>
-            document.addEventListener('deviceready', function () {
-                window['cordova-plugin-chromecast-tests'].runMocha();
-            });
-        </script>
+        <script type="text/javascript" src="../js/tests_interaction_primary.js"></script>
+        <script type="text/javascript" src="../lib/test_starter.js"></script>
     </body>
 </html>

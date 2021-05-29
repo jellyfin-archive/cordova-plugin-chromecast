@@ -363,6 +363,21 @@ chrome.cast = {
         },
 
         /**
+         * An audiobook chapter description.
+         * @property {string}                             bookTitle     Audiobook title.
+         * @property {number}                             chapterNumber Chapter number, used for display purposes.
+         * @property {string}                             chapterTitle  Chapter title.
+         * @property {chrome.cast.Image[]}                images        Content images.
+         * @property {string}                             subtitle      Content subtitle.
+         * @property {string}                             title         Content title.
+         * @property {chrome.cast.media.MetadataType}     type          The type of metadata.
+         */
+        AudiobookChapterMediaMetadata: function GenericMediaMetadata () {
+            this.metadataType = this.type = chrome.cast.media.MetadataType.AUDIOBOOK_CHAPTER;
+            this.bookTitle = this.chapterNumber = this.chapterTitle = this.images = this.subtitle = this.title = undefined;
+        },
+
+        /**
          * A generic media description.
          * @property {chrome.cast.Image[]}                 images         Content images.
          * @property {string}                             releaseDate ISO 8601 date and/or time when the content was released, e.g.
@@ -559,16 +574,6 @@ chrome.cast.requestSession = function (successCallback, errorCallback, opt_sessi
             handleError(err, errorCallback);
         }
     });
-};
-
-/**
- * Sets custom receiver list
- * @param {chrome.cast.Receiver[]}     receivers       The new list. Must not be null.
- * @param {function}                 successCallback
- * @param {function}                 errorCallback
- */
-chrome.cast.setCustomReceivers = function (receivers, successCallback, errorCallback) {
-    // TODO: Implement
 };
 
 /**

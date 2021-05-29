@@ -30,6 +30,8 @@ import java.util.Set;
 final class ChromecastUtilities {
     /** Stores a cache of the queueItems for building Media Objects. */
     private static JSONArray queueItems = null;
+    /** We have to make up our own mediaSessionId since Android does not give us access to it. */
+    private static int mediaSessionId = 0;
 
     private ChromecastUtilities() {
         //not called
@@ -42,6 +44,14 @@ final class ChromecastUtilities {
      */
     static void setQueueItems(JSONArray items) {
         queueItems = items;
+    }
+
+    /**
+     * Should be called whenever new media/queue is detected.
+     * Aka: When media is loaded via loadMedia or queueLoad by this sender or an external sender.
+     */
+    static void incrementMediaSessionId() {
+        mediaSessionId++;
     }
 
     static String getMediaIdleReason(int idleReason) {
@@ -226,8 +236,6 @@ final class ChromecastUtilities {
                 return MediaMetadata.KEY_ARTIST;
             case "bookTitle":
                 return MediaMetadata.KEY_BOOK_TITLE;
-            case "broadcastDate":
-                return MediaMetadata.KEY_BROADCAST_DATE;
             case "chapterNumber":
                 return MediaMetadata.KEY_CHAPTER_NUMBER;
             case "chapterTitle":
@@ -249,10 +257,11 @@ final class ChromecastUtilities {
                 return MediaMetadata.KEY_LOCATION_LONGITUDE;
             case "locationName":
                 return MediaMetadata.KEY_LOCATION_NAME;
+            case "originalAirDate":
+                return MediaMetadata.KEY_BROADCAST_DATE;
             case "queueItemId":
                 return MediaMetadata.KEY_QUEUE_ITEM_ID;
             case "releaseDate":
-            case "originalAirDate":
                 return MediaMetadata.KEY_RELEASE_DATE;
             case "season":
                 return MediaMetadata.KEY_SEASON_NUMBER;
@@ -292,7 +301,7 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_BOOK_TITLE:
                 return "bookTitle";
             case MediaMetadata.KEY_BROADCAST_DATE:
-                return "broadcastDate";
+                return "originalAirDate";
             case MediaMetadata.KEY_CHAPTER_NUMBER:
                 return "chapterNumber";
             case MediaMetadata.KEY_CHAPTER_TITLE:
@@ -350,7 +359,6 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_ALBUM_TITLE:
             case MediaMetadata.KEY_ARTIST:
             case MediaMetadata.KEY_BOOK_TITLE:
-            case MediaMetadata.KEY_CHAPTER_NUMBER:
             case MediaMetadata.KEY_CHAPTER_TITLE:
             case MediaMetadata.KEY_COMPOSER:
             case MediaMetadata.KEY_LOCATION_NAME:
@@ -359,6 +367,7 @@ final class ChromecastUtilities {
             case MediaMetadata.KEY_SUBTITLE:
             case MediaMetadata.KEY_TITLE:
                 return "string"; // 1 in MediaMetadata
+            case MediaMetadata.KEY_CHAPTER_NUMBER:
             case MediaMetadata.KEY_DISC_NUMBER:
             case MediaMetadata.KEY_EPISODE_NUMBER:
             case MediaMetadata.KEY_HEIGHT:
@@ -498,7 +507,7 @@ final class ChromecastUtilities {
             MediaStatus mediaStatus = session.getRemoteMediaClient().getMediaStatus();
 
             // TODO: Missing attributes are commented out.
-            //  These are returned by the chromecast desktop SDK, we should probbaly return them too
+            //  These are returned by the chromecast desktop SDK, we should probably return them too
             //out.put("breakStatus",);
             out.put("currentItemId", mediaStatus.getCurrentItemId());
             out.put("currentTime", mediaStatus.getStreamPosition() / 1000.0);
@@ -513,7 +522,7 @@ final class ChromecastUtilities {
             //out.put("liveSeekableRange",);
             out.put("loadingItemId", mediaStatus.getLoadingItemId());
             out.put("media", createMediaInfoObject(session.getRemoteMediaClient().getMediaInfo()));
-            out.put("mediaSessionId", 1);
+            out.put("mediaSessionId", mediaSessionId);
             out.put("playbackRate", mediaStatus.getPlaybackRate());
             out.put("playerState", ChromecastUtilities.getMediaPlayerState(mediaStatus.getPlayerState()));
             out.put("preloadedItemId", mediaStatus.getPreloadedItemId());
@@ -639,7 +648,12 @@ final class ChromecastUtilities {
             out.put("contentId", mediaInfo.getContentId());
             out.put("contentType", mediaInfo.getContentType());
             out.put("customData", mediaInfo.getCustomData());
-            out.put("duration", mediaInfo.getStreamDuration() / 1000.0);
+            long duration = mediaInfo.getStreamDuration();
+            if (duration == -1) {
+                out.put("duration", null);
+            } else {
+                out.put("duration", duration / 1000.0);
+            }
             //out.put("mediaCategory",);
             out.put("metadata", createMetadataObject(mediaInfo.getMetadata()));
             out.put("streamType", ChromecastUtilities.getMediaInfoStreamType(mediaInfo));
@@ -654,10 +668,14 @@ final class ChromecastUtilities {
     }
 
     static JSONObject createMetadataObject(MediaMetadata metadata) {
-        JSONObject out = new JSONObject();
         if (metadata == null) {
-            return out;
+            return null;
         }
+        Set<String> keys = metadata.keySet();
+        if (keys.size() == 0) {
+            return null;
+        }
+        JSONObject out = new JSONObject();
         try {
             try {
                 // Must be in own try catch
@@ -667,7 +685,6 @@ final class ChromecastUtilities {
             out.put("metadataType", metadata.getMediaType());
             out.put("type", metadata.getMediaType());
 
-            Set<String> keys = metadata.keySet();
             String outKey;
             // First translate and add the Android specific keys
             for (String key : keys) {
@@ -772,7 +789,7 @@ final class ChromecastUtilities {
         return out;
     }
 
-/* -------------------   Create NON-JSON (non-output) Objects  ---------------------------------- */
+    /* -------------------   Create NON-JSON (non-output) Objects  ---------------------------------- */
 
     /**
      * Creates a MediaQueueItem from a JSONObject representation of a MediaQueueItem.

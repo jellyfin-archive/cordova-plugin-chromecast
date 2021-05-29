@@ -118,6 +118,9 @@ NSDictionary* queueOrderIDsByItemId = nil;
 }
 
 +(GCKMediaMetadata*)buildMediaMetadata:(NSDictionary*)data {
+    if ([data isEqual:[NSNull null]] || data == nil) {
+        return nil;
+    }
     GCKMediaMetadata* mediaMetaData = [[GCKMediaMetadata alloc] initWithMetadataType:GCKMediaMetadataTypeGeneric];
     
     if (data[@"metadataType"]) {
@@ -195,7 +198,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         return @"date";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyChapterNumber]) {
-        return @"string";
+        return @"int";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyChapterTitle]) {
         return @"string";
@@ -278,9 +281,6 @@ NSDictionary* queueOrderIDsByItemId = nil;
     if ([clientName isEqualToString:@"bookTitle"]) {
         return kGCKMetadataKeyBookTitle;
     }
-    if ([clientName isEqualToString:@"broadcastDate"]) {
-        return kGCKMetadataKeyBroadcastDate;
-    }
     if ([clientName isEqualToString:@"chapterNumber"]) {
         return kGCKMetadataKeyChapterNumber;
     }
@@ -321,7 +321,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         return kGCKMetadataKeyReleaseDate;
     }
     if ([clientName isEqualToString:@"originalAirDate"]) {
-        return kGCKMetadataKeyReleaseDate;
+        return kGCKMetadataKeyBroadcastDate;
     }
     if ([clientName isEqualToString:@"season"]) {
         return kGCKMetadataKeySeasonNumber;
@@ -373,7 +373,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
         return @"bookTitle";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyBroadcastDate]) {
-        return @"broadcastDate";
+        return @"originalAirDate";
     }
     if ([iOSName isEqualToString:kGCKMetadataKeyChapterNumber]) {
         return @"chapterNumber";
@@ -588,7 +588,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
     returnDict[@"contentId"] = mediaInfo.contentID? mediaInfo.contentID : mediaInfo.contentURL.absoluteString;
     returnDict[@"contentType"] = mediaInfo.contentType;
     returnDict[@"customData"] = mediaInfo.customData == nil ? @{} : mediaInfo.customData;
-    returnDict[@"duration"] = @(mediaInfo.streamDuration);
+    returnDict[@"duration"] = mediaInfo.streamDuration == INFINITY ? nil : @(mediaInfo.streamDuration);
     returnDict[@"metadata" ] = [MLPCastUtilities createMetadataObject:mediaInfo.metadata];
     returnDict[@"streamType"] = [MLPCastUtilities getStreamType:mediaInfo.streamType];
     returnDict[@"tracks"] = [MLPCastUtilities getMediaTracks:mediaInfo.mediaTracks];
@@ -597,16 +597,18 @@ NSDictionary* queueOrderIDsByItemId = nil;
 }
 
 + (NSDictionary*)createMetadataObject:(GCKMediaMetadata*)metadata {
-    
-    NSMutableDictionary* outputDict = [NSMutableDictionary new];
     if (!metadata) {
-        return [NSDictionary dictionaryWithDictionary:outputDict];
+        return nil;
     }
+    NSArray* keys = metadata.allKeys;
+    if ([keys count] == 0) {
+        return nil;
+    }
+    NSMutableDictionary* outputDict = [NSMutableDictionary new];
     outputDict[@"images"] = [MLPCastUtilities createImagesArray:metadata.images];
     outputDict[@"metadataType"] = @(metadata.metadataType);
     outputDict[@"type"] = @(metadata.metadataType);
     
-    NSArray* keys = metadata.allKeys;
     for (NSString* key in keys) {
         NSString* outKey = [MLPCastUtilities getClientMetadataName:key];
         if ([outKey isEqualToString:key] || [outKey isEqualToString:@"type"]) {

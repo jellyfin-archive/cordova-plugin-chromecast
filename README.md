@@ -13,29 +13,52 @@
 cordova plugin add https://github.com/jellyfin/cordova-plugin-chromecast.git
 ```
 
+If you have trouble installing the plugin or running the project for iOS, from `/platforms/ios/` try running:  
+```bash
+sudo gem install cocoapods
+pod repo update
+pod install
+```
+
 ### Additional iOS Installation Instructions
 To **distribute** an iOS app with this plugin you must add usage descriptions to your project's `config.xml`.  
-These strings will be used when asking the user for permission to use the microphone and bluetooth.
+The "*Description" key strings will be used when asking the user for permission to use the microphone/bluetooth/local network.  
 ```xml
-<!-- ios 6-13 (deprecated) -->
 <platform name="ios">
-  <config-file parent="NSBluetoothPeripheralUsageDescription" target="*-Info.plist">
+  <!-- ios 6-13 (deprecated) -->
+  <config-file parent="NSBluetoothPeripheralUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
       <string>Bluetooth is required to scan for nearby Chromecast devices with guest mode enabled.</string>
   </config-file>
   <!-- ios 13+ -->
-  <config-file parent="NSBluetoothAlwaysUsageDescription" target="*-Info.plist">
+  <config-file parent="NSBluetoothAlwaysUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
       <string>Bluetooth is required to scan for nearby Chromecast devices with guest mode enabled.</string>
   </config-file>
-  <config-file parent="NSMicrophoneUsageDescription" target="*-Info.plist">
+  <config-file parent="NSMicrophoneUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
       <string>The microphone is required to pair with nearby Chromecast devices with guest mode enabled.</string>
+  </config-file>
+  <!-- ios 14+ -->
+  <config-file parent="NSLocalNetworkUsageDescription" target="*-Info.plist" comment="cordova-plugin-chromecast">
+      <string>The local network permission is required to discover Cast-enabled devices on your WiFi network.</string>
+  </config-file>
+  <config-file parent="NSBonjourServices" target="*-Info.plist" comment="cordova-plugin-chromecast">
+    <array>
+      <string>_googlecast._tcp</string>
+      <!-- The default receiver ID -->
+      <string>_CC1AD845._googlecast._tcp</string>
+      <!-- IF YOU USE A CUSTOM RECEIVER, replace the line above, and put your ID instead of "[YourCustomRecieverID]" -->
+      <!-- <string>_[YourCustomRecieverID]._googlecast._tcp</string> -->
+    </array>
   </config-file>
 </platform>
 ```
 
+## Chromecast Icon Assets  
+[chromecast-assets.zip](https://github.com/jellyfin/cordova-plugin-chromecast/wiki/chromecast-assets.zip)
+
 # Supports
 
-**Android** 4.4+ (7.x highest confirmed) (may support lower, untested)  
-**iOS** 9.0+ (13.2.1 highest confirmed)
+**Android** 4.4+ (may support lower, untested)  
+**iOS** 10.0+ (The [Google Cast iOS Sender SDK 4.5.0](https://developers.google.com/cast/docs/release-notes#september-14,-2020) says iOS 10+ but all tests on the plugin work fine for iOS 9.3.5, so it appears to work on iOs 9 anyways. :/)
 
 ## Quirks
 * Android 4.4 (maybe 5.x and 6.x) are not able automatically rejoin/resume a chromecast session after an app restart.  
@@ -52,68 +75,78 @@ The most significant usage difference between the [cast API](https://developers.
 In **Chrome desktop** you would do:
 ```js
 window['__onGCastApiAvailable'] = function(isAvailable, err) {
-  if (isAvailable) {
-    // start using the api!
-  }
+    if (isAvailable) {
+        // start using the api!
+    }
 };
 ```
 
 But in **cordova-plugin-chromecast** you do:
 ```js
 document.addEventListener("deviceready", function () {
-  // start using the api!
+    // start using the api!
 });
 ```
 
 
-### Example
+### Example Usage
 Here is a simple [example](doc/example.js) that loads a video, pauses it, and ends the session.
 
-## API
-Here are the support [Chromecast API]((https://developers.google.com/cast/docs/reference/chrome#chrome.cast)) methods.  Any object types required by any of these methods are also supported. (eg. chrome.cast.ApiConfig)
+If you want more detailed code examples, please ctrl+f for the function of interest in [tests_auto.js](tests/www/js/tests_auto.js).  
+The other test files may contain code examples of interest as well: [[tests_manual_primary_1.js](tests/www/js/tests_manual_primary_1.js), [tests_manual_primary_2.js](tests/www/js/tests_manual_primary_2.js), [tests_manual_secondary.js](tests/www/js/tests_manual_secondary.js)]
 
-[chrome.cast.initialize](https://developers.google.com/cast/docs/reference/chrome/chrome.cast#.initialize)  
-[chrome.cast.requestSession](https://developers.google.com/cast/docs/reference/chrome/chrome.cast#.requestSession)  
-[chrome.cast.setCustomReceivers](https://developers.google.com/cast/docs/reference/chrome/chrome.cast#.setCustomReceivers)  
-[chrome.cast.Session.setReceiverVolumeLevel](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#setReceiverVolumeLevel)  
-[chrome.cast.Session.setReceiverMuted](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#setReceiverMuted)  
-[chrome.cast.Session.stop](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#stop)  
-[chrome.cast.Session.leave](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#leave)  
-[chrome.cast.Session.sendMessage](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#sendMessage)  
-[chrome.cast.Session.loadMedia](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#loadMedia)  
-[chrome.cast.Session.queueLoad](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#queueLoad)  
-[chrome.cast.Session.addUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#addUpdateListener)  
-[chrome.cast.Session.removeUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#removeUpdateListener)  
-[chrome.cast.Session.addMessageListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#addMessageListener)  
-[chrome.cast.Session.removeMessageListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#removeMessageListener)  
-[chrome.cast.Session.addMediaListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#addMediaListener)  
-[chrome.cast.Session.removeMediaListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#removeMediaListener)  
-[chrome.cast.media.Media.play](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#play)  
-[chrome.cast.media.Media.pause](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#pause)  
-[chrome.cast.media.Media.seek](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#seek)  
-[chrome.cast.media.Media.stop](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#stop)  
-[chrome.cast.media.Media.setVolume](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#setVolume)  
-[chrome.cast.media.Media.supportsCommand](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#supportsCommand)  
-[chrome.cast.media.Media.getEstimatedTime](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#getEstimatedTime)  
-[chrome.cast.media.Media.editTracksInfo](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#editTracksInfo)  
-[chrome.cast.media.Media.queueJumpToItem](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#queueJumpToItem)  
-[chrome.cast.media.Media.addUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#addUpdateListener)  
-[chrome.cast.media.Media.removeUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#removeUpdateListener)  
+## API
+Here are the supported [Chromecast API]((https://developers.google.com/cast/docs/reference/chrome#chrome.cast)) methods.  Any object types required by any of these methods are also supported. (eg. [chrome.cast.ApiConfig](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.ApiConfig)).  You can search [chrome.cast.js](www/chrome.cast.js) to check if an API is supported.
+
+* [chrome.cast.initialize](https://developers.google.com/cast/docs/reference/chrome/chrome.cast#.initialize)  
+* [chrome.cast.requestSession](https://developers.google.com/cast/docs/reference/chrome/chrome.cast#.requestSession)  
+
+[chrome.cast.Session](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session)  
+Most *Properties* Supported.  
+Supported *Methods*:  
+* [setReceiverVolumeLevel](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#setReceiverVolumeLevel)  
+* [setReceiverMuted](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#setReceiverMuted)  
+* [stop](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#stop)  
+* [leave](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#leave)  
+* [sendMessage](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#sendMessage)  
+* [loadMedia](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#loadMedia)  
+* [queueLoad](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#queueLoad)  
+* [addUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#addUpdateListener)  
+* [removeUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#removeUpdateListener)  
+* [addMessageListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#addMessageListener)  
+* [removeMessageListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#removeMessageListener)  
+* [addMediaListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#addMediaListener)  
+* [removeMediaListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.Session#removeMediaListener)  
+
+[chrome.cast.media.Media](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media)  
+Most *Properties* Supported.  
+Supported *Methods*:  
+* [play](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#play)  
+* [pause](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#pause)  
+* [seek](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#seek)  
+* [stop](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#stop)  
+* [setVolume](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#setVolume)  
+* [supportsCommand](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#supportsCommand)  
+* [getEstimatedTime](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#getEstimatedTime)  
+* [editTracksInfo](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#editTracksInfo)  
+* [queueJumpToItem](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#queueJumpToItem)  
+* [addUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#addUpdateListener)  
+* [removeUpdateListener](https://developers.google.com/cast/docs/reference/chrome/chrome.cast.media.Media.html#removeUpdateListener)  
 
 
 ### Specific to this plugin
-We have added some additional methods unique to this plugin.
+We have added some additional methods that are unique to this plugin (that *do not* exist in the chrome cast API).
 They can all be found in the `chrome.cast.cordova` object. 
 
 To make your own **custom route selector** use this:
 ```js
 // This will begin an active scan for routes
 chrome.cast.cordova.scanForRoutes(function (routes) {
-  // Here is where you should update your route selector view with the current routes
-  // This will called each time the routes change
-  // routes is an array of "Route" objects (see below)
+    // Here is where you should update your route selector view with the current routes
+    // This will called each time the routes change
+    // routes is an array of "Route" objects (see below)
 }, function (err) {
-  // Will return with err.code === chrome.cast.ErrorCode.CANCEL when the scan has been ended
+    // Will return with err.code === chrome.cast.ErrorCode.CANCEL when the scan has been ended
 });
 
 // When the user selects a route
@@ -122,9 +155,9 @@ chrome.cast.cordova.stopScan();
 
 // and use the selected route.id to join the route
 chrome.cast.cordova.selectRoute(route.id, function (session) {
-  // Save the session for your use
+    // Save the session for your use
 }, function (err) {
-  // Failed to connect to the route
+    // Failed to connect to the route
 });
 
 ```
@@ -168,7 +201,15 @@ Run `npm test` to ensure your code fits the styling.  It will also find some err
 
   * If errors are found, you can try running `npm run style`, this will attempt to automatically fix the errors.
 
+You can view what the plug tests should look like here:  
+* [Auto Tests - Desktop Chrome](https://youtu.be/CdUwFrEht_A)
+* [Auto Tests - Android or iOS](https://youtu.be/VUtiXee6m_8)
+* [Manual Tests - Android or iOS](https://youtu.be/cgyOpBRXdEI)
+* [Interaction Tests - Android & iOS](https://youtu.be/rphp_s5ruzM)
+* [Interaction Tests - Android (or iOS) & Desktop Chrome](https://youtu.be/1ccBHqeMLhs)
+
 ### Tests Mobile
+
 Requirements:
 * A chromecast device
 
@@ -185,7 +226,8 @@ Manual tests:
   * Interaction between 2 devices connected to the same session
 * You will need to be able to run the tests from 2 different devices (preferred) or between a device and chrome desktop browser
   * To use the chrome desktop browser see [Tests Chrome](#tests-chrome)
-
+  * [What a successful manual run looks like](https://github.com/jellyfin/cordova-plugin-chromecast/wiki/img/manual-tests-success.jpg)
+  
 [Why we chose a non-standard test framework](https://github.com/jellyfin/cordova-plugin-chromecast/issues/50)
 
 ### Tests Chrome
@@ -195,7 +237,7 @@ They use the google provided cast_sender.js.
 These are particularly useful for ensuring we are following the [official Google Cast API for Chrome](https://developers.google.com/cast/docs/reference/chrome#chrome.cast) correctly.  
 To run the tests:
 * run: `npm run host-chrome-tests [port default=8432]`
-* Navigate to: `http://localhost:8432/chrome/tests_chrome.html`
+* Navigate to: [http://localhost:8432/html/tests.html](http://localhost:8432/html/tests.html)
 
 ## Contributing
 

@@ -1,6 +1,12 @@
 <h1 align="center">cordova-plugin-chromecast</h1>
 <h3 align="center">Control Chromecast from your Cordova app</h3>
 
+---
+
+### NOTICE: More up-to-date Fork: https://github.com/miloproductionsinc/cordova-plugin-chromecast
+
+---
+
 # Installation
 
 ```

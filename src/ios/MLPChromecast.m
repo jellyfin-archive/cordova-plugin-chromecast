@@ -267,7 +267,8 @@ int scansRunning = 0;
     double currentTime = [command.arguments[6] doubleValue];
     NSDictionary* metadata = command.arguments[7];
     NSDictionary* textTrackStyle = command.arguments[8];
-    GCKMediaInformation* mediaInfo = [MLPCastUtilities buildMediaInformation:contentId customData:customData contentType:contentType duration:duration streamType:streamType startTime:currentTime metaData:metadata textTrackStyle:textTrackStyle];
+    NSArray* tracks = command.arguments[9];
+    GCKMediaInformation* mediaInfo = [MLPCastUtilities buildMediaInformation:contentId customData:customData contentType:contentType duration:duration streamType:streamType startTime:currentTime metaData:metadata textTrackStyle:textTrackStyle tracks:tracks];
     
     [self.currentSession loadMediaWithCommand:command mediaInfo:mediaInfo autoPlay:autoplay currentTime:currentTime];
 }
@@ -288,6 +289,10 @@ int scansRunning = 0;
     [self.currentSession mediaPlayWithCommand:command];
 }
 
+- (void)setMediaPlayBackRate:(CDVInvokedUrlCommand*)command {
+    NSString* playbackRate = command.arguments[0];
+    [self.currentSession sendPlaybackRateWithCommand:command playbackRate:playbackRate];
+}
 - (void)mediaPause:(CDVInvokedUrlCommand*)command {
     [self.currentSession mediaPauseWithCommand:command];
 }
@@ -305,7 +310,7 @@ int scansRunning = 0;
 
 - (void)mediaEditTracksInfo:(CDVInvokedUrlCommand*)command {
     NSArray<NSNumber*>* activeTrackIds = command.arguments[0];
-    NSData* textTrackStyle = command.arguments[1];
+    NSDictionary* textTrackStyle = command.arguments[1];
     
     GCKMediaTextTrackStyle* textTrackStyleObject = [MLPCastUtilities buildTextTrackStyle:textTrackStyle];
     [self.currentSession setActiveTracksWithCommand:command activeTrackIds:activeTrackIds textTrackStyle:textTrackStyleObject];

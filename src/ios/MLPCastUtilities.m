@@ -8,7 +8,7 @@
 
 NSDictionary* queueOrderIDsByItemId = nil;
 
-+ (GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle {
++ (GCKMediaInformation *)buildMediaInformation:(NSString *)contentUrl customData:(id )customData contentType:(NSString *)contentType duration:(double)duration streamType:(NSString *)streamType startTime:(double)startTime metaData:(NSDictionary *)metaData textTrackStyle:(NSDictionary *)textTrackStyle tracks:(NSArray *)tracks {
     NSURL* url = [NSURL URLWithString:contentUrl];
     
     GCKMediaInformationBuilder* mediaInfoBuilder = [[GCKMediaInformationBuilder alloc] initWithContentURL:url];
@@ -26,7 +26,23 @@ NSDictionary* queueOrderIDsByItemId = nil;
     mediaInfoBuilder.startAbsoluteTime = startTime;
     mediaInfoBuilder.metadata = [MLPCastUtilities buildMediaMetadata:metaData];
     mediaInfoBuilder.textTrackStyle = [MLPCastUtilities buildTextTrackStyle:textTrackStyle];
-    
+
+    if (tracks != (id)[NSNull null]) {
+        NSMutableArray<GCKMediaTrack*>* mediaTracks = [NSMutableArray new];
+        for (id track in tracks) {
+            GCKMediaTrack *mediaTrack = [[GCKMediaTrack alloc] initWithIdentifier:[track[@"trackId"] intValue]
+                                    contentIdentifier:track[@"trackContentId"]
+                                          contentType:track[@"trackContentType"]
+                                                 type:GCKMediaTrackTypeText
+                                          textSubtype:GCKMediaTextTrackSubtypeCaptions
+                                                 name:track[@"name"]
+                                         languageCode:track[@"language"]
+                                           customData:track[@"customData"]];
+            [mediaTracks addObject:mediaTrack];
+        }
+        mediaInfoBuilder.mediaTracks = mediaTracks;
+    }
+
     return [mediaInfoBuilder build];
 }
 
@@ -42,7 +58,7 @@ NSDictionary* queueOrderIDsByItemId = nil;
     queueItemBuilder.startTime = startTime;
     queueItemBuilder.preloadTime = [item[@"preloadTime"] doubleValue];
     
-    queueItemBuilder.mediaInformation = [MLPCastUtilities buildMediaInformation:media[@"contentId"] customData:media[@"customData"] contentType:media[@"contentType"] duration:duration streamType:media[@"streamType"] startTime:startTime metaData:media[@"metadata"] textTrackStyle:item[@"textTrackStyle"]];
+    queueItemBuilder.mediaInformation = [MLPCastUtilities buildMediaInformation:media[@"contentId"] customData:media[@"customData"] contentType:media[@"contentType"] duration:duration streamType:media[@"streamType"] startTime:startTime metaData:media[@"metadata"] textTrackStyle:item[@"textTrackStyle"] tracks:item[@"tracks"]];
     
     return [queueItemBuilder build];
 }
@@ -52,22 +68,21 @@ NSDictionary* queueOrderIDsByItemId = nil;
     GCKMediaTextTrackStyle* mediaTextTrackStyle = [GCKMediaTextTrackStyle createDefault];
     
     if (error == nil) {
-        NSString* bkgColor = data[@"backgroundColor"];
+        // Not working dictionary
+        // NSString* bkgColor = data[@"backgroundColor"];
+        NSString* bkgColor = @"#000000fa";
         if (bkgColor != nil) {
             mediaTextTrackStyle.backgroundColor = [[GCKColor alloc] initWithCSSString:bkgColor];
-            
         }
         
         NSObject* customData = data[@"customData"];
         if (bkgColor != nil) {
             mediaTextTrackStyle.customData = customData;
-            
         }
         
         NSString* edgeColor = data[@"edgeColor"];
         if (edgeColor != nil) {
             mediaTextTrackStyle.edgeColor = [[GCKColor alloc] initWithCSSString:edgeColor];
-            
         }
         
         NSString* edgeType = data[@"edgeType"];

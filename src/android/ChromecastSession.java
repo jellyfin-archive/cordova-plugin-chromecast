@@ -2,6 +2,7 @@ package acidhax.cordova.chromecast;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.cordova.CallbackContext;
 import org.json.JSONArray;
@@ -219,14 +220,14 @@ public class ChromecastSession {
      * @param textTrackStyle - The text track style
      * @param callback called with success or error
      */
-    public void loadMedia(String contentId, JSONObject customData, String contentType, long duration, String streamType, boolean autoPlay, double currentTime, JSONObject metadata, JSONObject textTrackStyle, CallbackContext callback) {
+    public void loadMedia(String contentId, JSONObject customData, String contentType, long duration, String streamType, boolean autoPlay, double currentTime, JSONObject metadata, JSONObject textTrackStyle, JSONArray tracks, CallbackContext callback) {
         if (client == null || session == null) {
             callback.error("session_error");
             return;
         }
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                MediaInfo mediaInfo = ChromecastUtilities.createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle);
+                MediaInfo mediaInfo = ChromecastUtilities.createMediaInfo(contentId, customData, contentType, duration, streamType, metadata, textTrackStyle, tracks);
                 MediaLoadRequestData loadRequest = new MediaLoadRequestData.Builder()
                         .setMediaInfo(mediaInfo)
                         .setAutoplay(autoPlay)
@@ -267,6 +268,24 @@ public class ChromecastSession {
             public void run() {
                 client.play()
                         .setResultCallback(getResultCallback(callback, "Failed to play."));
+            }
+        });
+    }
+
+    /**
+     * Media API - Calls play on the current media.
+     * @param callback called with success or error
+     */
+    public void setPlayBackRate(String playbackRate, CallbackContext callback) {
+        if (client == null || session == null) {
+            callback.error("session_error");
+            return;
+        }
+        activity.runOnUiThread(new Runnable() {
+            public void run() {
+                Double d = Double.valueOf(playbackRate);
+                client.setPlaybackRate(d)
+                        .setResultCallback(getResultCallback(callback, "Failed to setPlaybackRate."));
             }
         });
     }

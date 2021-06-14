@@ -725,7 +725,7 @@ chrome.cast.Session.prototype.loadMedia = function (loadRequest, successCallback
     var self = this;
 
     var mediaInfo = loadRequest.media;
-    execute('loadMedia', mediaInfo.contentId, mediaInfo.customData || {}, mediaInfo.contentType, mediaInfo.duration || 0.0, mediaInfo.streamType, loadRequest.autoplay || false, loadRequest.currentTime || 0, mediaInfo.metadata || {}, mediaInfo.textTrackSytle || {}, function (err, obj) {
+    execute('loadMedia', mediaInfo.contentId, mediaInfo.customData || {}, mediaInfo.contentType, mediaInfo.duration || 0.0, mediaInfo.streamType, loadRequest.autoplay || false, loadRequest.currentTime || 0, mediaInfo.metadata || {}, mediaInfo.textTrackSytle || {}, mediaInfo.tracks || null, function (err, obj) {
         if (!err) {
             self._loadNewMedia(obj);
             successCallback(self._getMedia());
@@ -1100,10 +1100,21 @@ chrome.cast.media.Media.prototype.play = function (playRequest, successCallback,
     });
 };
 
+chrome.cast.media.Media.prototype.setPlayBackRate = function (playBackRate, successCallback, errorCallback) {
+    if (this._preCheck(errorCallback)) { return; }
+    execute('setMediaPlayBackRate', playBackRate, function (err) {
+        if (!err) {
+            successCallback && successCallback();
+        } else {
+            handleError(err, errorCallback);
+        }
+    });
+};
+
 /**
  * Pauses the media item.
  * @param  {chrome.cast.media.PauseRequest} pauseRequest     The optional media pause request.
- * @param  {function}                         successCallback Invoked on success.
+ * @param  {function}                      \   successCallback Invoked on success.
  * @param  {function}                         errorCallback   Invoked on error. The possible errors are TIMEOUT, API_NOT_INITIALIZED, INVALID_PARAMETER, CHANNEL_ERROR, SESSION_ERROR, and EXTENSION_MISSING.
  */
 chrome.cast.media.Media.prototype.pause = function (pauseRequest, successCallback, errorCallback) {

@@ -263,6 +263,12 @@ NSMutableArray<MLPCastRequestDelegate*>* requestDelegates;
     request.delegate = [self createMediaUpdateRequestDelegate:command];
 }
 
+- (void)sendPlaybackRateWithCommand:(CDVInvokedUrlCommand*)command playbackRate:(NSString*)playbackRate {
+    float playbackRateFloat = [playbackRate floatValue];
+    GCKRequest* request = [self.remoteMediaClient setPlaybackRate:playbackRateFloat];
+    request.delegate = [self createMediaUpdateRequestDelegate:command];
+}
+
 - (void)mediaStopWithCommand:(CDVInvokedUrlCommand*)command {
     GCKRequest* request = [self.remoteMediaClient stop];
     request.delegate = [self createMediaUpdateRequestDelegate:command];

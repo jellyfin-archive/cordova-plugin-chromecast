@@ -4,6 +4,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+import android.util.Log;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
@@ -299,12 +302,12 @@ public final class Chromecast extends CordovaPlugin {
      * @param callbackContext called with .success or .error depending on the result
      * @return true for cordova
      */
-    public boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Integer currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
-        return this.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, new Double(currentTime.doubleValue()), metadata, textTrackStyle, callbackContext);
+    public boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Integer currentTime, JSONObject metadata, JSONObject textTrackStyle, JSONArray tracks, final CallbackContext callbackContext) {
+        return this.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, new Double(currentTime.doubleValue()), metadata, textTrackStyle, tracks, callbackContext);
     }
 
-    private boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, final CallbackContext callbackContext) {
-        this.media.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, currentTime, metadata, textTrackStyle, callbackContext);
+    private boolean loadMedia(String contentId, JSONObject customData, String contentType, Integer duration, String streamType, Boolean autoPlay, Double currentTime, JSONObject metadata, JSONObject textTrackStyle, JSONArray tracks, final CallbackContext callbackContext) {
+        this.media.loadMedia(contentId, customData, contentType, duration, streamType, autoPlay, currentTime, metadata, textTrackStyle, tracks, callbackContext);
         return true;
     }
 
@@ -315,6 +318,16 @@ public final class Chromecast extends CordovaPlugin {
      */
     public boolean mediaPlay(CallbackContext callbackContext) {
         media.mediaPlay(callbackContext);
+        return true;
+    }
+
+    /**
+     * Play on the current media in the current session.
+     * @param callbackContext called with .success or .error depending on the result
+     * @return true for cordova
+     */
+    public boolean setMediaPlayBackRate(String playbackRate, CallbackContext callbackContext) {
+        media.setPlayBackRate(playbackRate, callbackContext);
         return true;
     }
 
